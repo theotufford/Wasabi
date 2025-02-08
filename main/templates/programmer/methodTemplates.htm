@@ -1,0 +1,35 @@
+{%extends "formbody.htm"%}
+
+{% block "constant"%}
+<div class = 'method_outline'>
+    <label for="volumeinput"> volume: </label>
+        <input name = "volumeinput" id = "volume" class = "volume experiment_info" style = "width: 3vw">
+    </input>
+    <br>
+    <label for="unitSelect">units: </label>
+    <select class = "unitSelect experiment_info" name = "unitSelect">
+        <option value="ml">ml</option>
+        <option value="ul">ul</option>
+    </select>
+</div>
+{% endblock %}
+
+{% block "gradient" %}
+<div class = 'method_outline'>
+    <label for="direction_select">Select Gradient Direction</label>
+    <select name = "direction_select" class = "direction experiment_info">
+        <option value="right"> rightward </option>
+        <option value="left"> leftward </option>
+        <option value="down"> downward </option>
+        <option value="up"> upward </option>
+    </select>
+    <br>
+    <label for="initialVolume"> initialVolume: </label>
+    <input name = "initialVolume" class = "initialVolume experiment_info">
+    </input>
+    <br>
+    <label for="increment"> increment </label>
+    <input name = "increment" id = "increment" class = "increment experiment_info" style = "width: 3vw">
+    </input>
+</div>
+{% endblock %}

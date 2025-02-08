@@ -1,0 +1,24 @@
+{"machineInfo":{
+  "plates":[
+    {"rows":8,"columns":12},
+
+    {"rows":2,"columns":3},
+
+    {"rows":16,"columns":24}
+  ], 
+
+  "pumpCount": 3,
+  "armDimensions" :{"upperarm":20,"forearm": 35},
+
+  "ElectronicsDefinitions" : {
+
+    "aEndstop":0, 
+    "bEndstop":0, 
+    "zEndstop":0, 
+
+    "aMotor": {
+      "pins":{"step": 0, "direction": 0, "enable": 0},
+      "E-steps": 0
+    } 
+  }
+}}
