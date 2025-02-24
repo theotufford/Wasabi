@@ -37,9 +37,9 @@ instruction-form{
   display: flex;
   flex-grow: 1;
   padding: 1.5vw;
-  margin-top: 1vw ;
-  margin-bottom: 1vw ;
-  height: 6vw;
+  margin-top: 1vw;
+  margin-bottom: 1vw;
+  height: 8vw;
   justify-content: space-evenly;
   border-style: solid;
   border-width: 5px;
@@ -47,23 +47,36 @@ instruction-form{
   background-color:var(--offset);
 }
 .well_selector{
-  width: 20%;
-}
-.tabControls{
-  display: flex;
-  flex-direction: column;
+  width: 3vw;
 }
 .method_container{
   display: flex;
+  margin: 1vw;
   flex-grow: 2;
+  justify-content: space-between;
+}
+.endContainer{
+  display: flex;
+  flex-shrink: 2;
+  flex-direction: column;
+  margin-left: 5%;
+  margin-right: 5%;
+  height: 80%;
+  width: 10vw;
 }
 .fromTo{
   display: flex;
-  justify-content: right;
-  margin-left: 5%;
-  margin-right: 5%;
-  width: 100%;
+  justify-content: space-between;
   height: 80%;
+}
+.tabControls{
+  display: flex;
+  justify-content: space-between;
+}
+#colorBlock{
+  width:15px;
+  height: 15px;
+  margin: 10px;
 }
 #experimentContainer{
   display: flex;
@@ -74,10 +87,12 @@ instruction-form{
 }
 #plateContainer{
   position: fixed;
-  left: 45vw;
-  width: 50vw;
-  height: 80vh;
-  padding: 3vw;
+  left: 50vw;
+  top: 10vw;
+  width: 45vw;
+  height: 60vh;
+  padding: 2vw;
+  border-radius: 3vw;
 }
 #pusher{
   display: flex;
@@ -129,6 +144,9 @@ label{
 }
 #selectorContainer{
   margin:10px
+}
+.initialVolume{
+  width: 50px;
 }
 
 /* 

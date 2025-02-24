@@ -5,19 +5,15 @@ const svgns = "http://www.w3.org/2000/svg";
 let alphabet = "abcdefghijklmnopqrstuvwxyz".split("");
 const wellColor = "teal"
 // utilities
+let colors = [
+	"#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",
+	"#B22222", "#ADFF2F", "#4682B4", "#FF6347", "#9400D3", "#5F9EA0",
+	"#FF69B4", "#40E0D0", "#8B0000", "#7CFC00", "#00008B", "#DAA520",
+	"#C71585", "#00FA9A", "#FF8C00", "#9932CC", "#2E8B57", "#8B4513",
+	"#6A5ACD", "#D2691E", "#556B2F", "#FF00A5"
+]; //thanks chatgpt XD
 function getRandomColor() {
-	let colors = [
-		"#FF5733", // Red-Orange
-		"#33FF57", // Green
-		"#3357FF", // Blue
-		"#F1C40F", // Yellow
-		"#9B59B6", // Purple
-		"#E74C3C", // Red
-		"#1ABC9C", // Teal
-		"#2ECC71", // Emerald
-		"#3498DB", // Sky Blue
-		"#F39C12"  // Orange
-	];
+
 
 	let picked = colors[Math.floor(Math.random() * colors.length)];
 	colors = colors.filter((color) => color != picked)
@@ -62,39 +58,43 @@ function subtract_set(arr1, arr2) {
 	return arr1.filter(item => !set2.has(item));
 }
 
+well_color_obj = {}
+
 // ------------- svg well plate rendering -------------
-class circleBox extends HTMLElement {
-	static instances = new WeakSet();
-	constructor(row, column, color, radius){ 
+class wellElement extends HTMLElement {
+	constructor(row, column, radius){ 
 		super();
-		this.baseColor = color;
-		this.row = column;
 		this.id = `${toggle_alphanumeric(row)}${column+1}`;
-		this.radius = radius
+		this.r = radius
 		this.x = (column*radius*2)+radius;
 		this.y = (row*radius*2)+radius;
-		this.r = radius
-		this.fills = [{"recallID":"base", "color":color}]
-		circleBox.instances.add(this);
+		this.color = wellColor
+		this.forms = ""
 		this.render()
+		
+	}
+	addForm(form){
+		this.forms = this.forms + form.id + " "
+		if(well_color_obj[this.forms] != undefined){
+			this.color = well_color_obj[this.forms]
+		}else{
+			well_color_obj[this.forms] = getRandomColor()
+			this.color = well_color_obj[this.forms]
+		}
+
 	}
 	render(){
-		this.grad = document.createElementNS(svgns, "linearGradient");
-		this.svgCircle = document.createElementNS(svgns, "circle");
+		let svgCanvas = document.getElementById("plateSvgElement")
 		this.label = document.createElementNS(svgns, "text")
-		const svgCanvas = document.getElementById("plateSvgElement")
-		let grad = this.grad
-		let svgCircle = this.svgCircle
 		let label = this.label
-
-		grad.setAttribute("id", `g-${this.id}`)	
-
-		setAttributes(svgCircle, {
+		this.baseCircle = document.createElementNS(svgns, "circle")
+		setAttributes(this.baseCircle, {
 			"cx": this.x,
 			"cy": this.y,
 			"r": this.r,
-			"fill":`url(#${this.grad.id})`
+			"fill": this.color,
 		})
+		svgCanvas.appendChild(this.baseCircle)
 		setAttributes(label, {
 			"x": this.x, 
 			"y": this.y,
@@ -102,47 +102,21 @@ class circleBox extends HTMLElement {
 			"class": "wellLabel",
 			"dominant-baseline":"middle"
 		})
-		this.Highlight()
+
 		label.innerHTML = this.id
-		svgCanvas.appendChild(grad);
-		svgCanvas.appendChild(svgCircle); 
+		svgCanvas.appendChild(this.baseCircle)
 		svgCanvas.appendChild(label);
 	}
-
-	// code for automatically updating the gradient highlight
-
-	Highlight(){
-		let grad = document.getElementById(`g-${this.id}`)
-		let per = 100/this.fills.length
-		for(let i = 1; i<this.fills.length+1;i++){
-			let fill = this.fills[i-1]
-			let newStop = document.createElementNS(svgns, "stop")
-			setAttributes(newStop, {
-				"id": `origin_${fill.recallID}`, 
-				"offset": `${per*i}%`, 
-				"stop-color": `${fill.color}`
-			})
-			this.grad.appendChild(newStop)
-		}
-	}
 }
 
-customElements.define('circle-box', circleBox);
-
-
+customElements.define('well-element', wellElement);
 function canvasClear(){
-	const svgCanvas = document.getElementById("plateSvgElement")
-	Array.from(svgCanvas.children).forEach(child => {
-		svgCanvas.removeChild(child);
-	});
-}
-function fillReset(){
-	const svgCanvas = document.getElementById("plateSvgElement")
-	Array.from(svgCanvas.children).forEach(child => {
-		if(child instanceof SVGLinearGradientElement){
-			svgCanvas.removeChild(child)
-		}
+	document.querySelectorAll('well-element').forEach(element => {
+		element.remove()
 	})
+	let svg = document.getElementById("plateSvgElement");
+	svg.innerHTML = ""
+
 }
 function svgResize(){
 	let svg = document.getElementById("plateSvgElement");
@@ -150,51 +124,53 @@ function svgResize(){
 	svg.classList.toggle("prePopulationSvgCanvas")
     svg.setAttribute("viewBox", `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
 }
-function renderPlate(fill){
+
+const ComboColors = {}
+
+function renderPlate(){
+	try {
+		canvasClear()
+	} catch (error) {
+		
+	}
 	let wellContainer = document.getElementById("wellContainer")
-	if(fill){fillReset();}else{canvasClear()}
 	const svgCanvas = document.getElementById("plateSvgElement")
 	svgCanvas.classList.toggle("prePopulationSvgCanvas")
 	boundingRect = svgCanvas.getBoundingClientRect();
 	let selected = document.getElementById("plateSelector").value; 
 	let plate = JSON.parse(selected)
-	let width = boundingRect.width
+	let forms = document.querySelectorAll("instruction-form")
 	let radius = 20
-	if(!fill){
-		for (let i = 0; i < plate.y; i++) {
-			for (let j = 0; j < plate.x; j++) {
-				let well = new circleBox(i, j, wellColor, radius);
-				wellContainer.appendChild(well)
-				well.render();
-			}
-		}
-	}else{
-		for (let i = 0; i < plate.y; i++) {
-			for (let j = 0; j < plate.x; j++) {
-				let well = document.getElementById(`${toggle_alphanumeric(i)}${j+1}`)
-				well.render();
-			}
+	document.querySelector('well-element')
+	for (let i = 0; i < plate.y; i++) {
+		for (let j = 0; j < plate.x; j++) {
+			let well = new wellElement(i, j, radius);
+			wellContainer.appendChild(well)
 		}
 	}
-	svgResize();
+	forms.forEach(form => {form.handle_fromto()})
+	document.querySelectorAll('well-element').forEach(well => {
+		well.render()
+	})
+
+	svgResize()
+	console.log("render done")
+
 }
-
-
 //------------- form interactions -------------
 class InstructionForm extends HTMLElement {
 	constructor(inputdata) {
 		super();
 		this.experiment_data = inputdata;
 		this.id = "form_" + document.getElementById("form_container").children.length;
-		this.color = getRandomColor()
 	}
 	async connectedCallback() {
 		this.innerHTML = await this.render_form()
 		this.add_listeners()
 		this.from = this.querySelector(".from") 
 		this.to = this.querySelector(".to")
-		this.setAttribute("style", `border-color=${this.color}`)
 		this.handle_fromto()
+		let colorBlock = this.querySelector("#colorBlock")
 	}
 	async render_form() {
 		try {
@@ -216,17 +192,9 @@ class InstructionForm extends HTMLElement {
 		this.classList.add("active_form")
 	}
 	deleteform(){
-		if(this.previousElementSibling()){
-			this.previousElementSibling().activate();
-			this.remove();
-		}else if(this.nextElementSibling()){
-			this.nextElementSibling().activate();
-			this.remove();
-		}else{
-			this.remove();
-		}
+		this.remove();
+		renderPlate(true)
 	}
-	
 	get_values(){
 		let info_containers = document.getElementsByClassName("experiment_info");
 		let values = {};
@@ -235,14 +203,9 @@ class InstructionForm extends HTMLElement {
 		});
 		return values
 	}
-
 	dump_to_session(){
 		dump = {[this.id]:[this.get_values()]}
 		backend_call("dump_to_session", dump);
-	}
-	graphicDisplay(circID) {
-		let circEl = document.getElementById(circID)
-		circEl.fills.push({ "recallID": this.id, "color": this.color})
 	}
 
 	handle_fromto() {
@@ -283,31 +246,41 @@ class InstructionForm extends HTMLElement {
 		for(let i = from.x; i < to.x+1; i++ ){
 			colArray.push(i+1)
 		}
-
 		rowArray.forEach(row => {
 			colArray.forEach(col => {
-				this.graphicDisplay(`${row}${col}`)
+				this.addthisform(`${row}${col}`)
 			})
 		})
-		renderPlate(true)
-
 	}
-	method_update(){
-		this.get_values().method 
+	addthisform(wellID){
+		let well = document.getElementById(wellID)
+		well.addForm(this)
+	}
+
+
+	async method_update(method){
+		await backend_call("getMethodForm", {method})
+		.then((html) => {
+			let container = this.querySelector(".method_container")
+			container.innerHTML = ""
+			container.innerHTML = html
+		});
+		
+
 	}
 	add_listeners(){
 
-		let selector = this.querySelector("#method_container")
+		let selector = this.querySelector(".methodSelect")
 		let from  = this.querySelector(".from")
 		let to  = this.querySelector(".to")
 		let del = this.querySelector("#deleteBtn")
-		let activator = this.querySelector("#activateBtn")
+		//let activator = this.querySelector("#activateBtn")
 
-		selector.addEventListener("change", () => this.methodUpdate(selector.value));
-		from.addEventListener("change", () => this.handle_fromto());
-		to.addEventListener("change", () => this.handle_fromto());
+		selector.addEventListener("change", () => this.method_update(selector.value));
+		from.addEventListener("change", () => renderPlate());
+		to.addEventListener("change", () => renderPlate());
 		del.addEventListener('click', () => this.deleteform())
-		activator.addEventListener('click', () => this.activate())
+		//activator.addEventListener('click', () => this.activate())
 		
 	}
 }
@@ -332,6 +305,11 @@ document.addEventListener('DOMContentLoaded', function(){
 		let newform = new InstructionForm("empty"); // Create instance
 		document.getElementById("form_container").appendChild(newform); // Append to DOM
 	});
+	let newCombo = new Event("newCombo")
+	document.addEventListener
+	plateSelect.addEventListener("change", function(){
+		renderPlate()
+	})
 	document.addEventListener('resize', renderPlate())
 
 

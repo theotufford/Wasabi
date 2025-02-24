@@ -14,4 +14,5 @@ def programmer():
     with current_app.open_resource('./static/resources/config.json') as f:
         plates = json.loads(f.read())["machineInfo"]["plates"]
     experiments = db.execute("SELECT title FROM experiments ").fetchall()
-    return render_template("programmer/programmer.htm", plates = plates, experiment_titles = experiments) 
+    pumps = db.execute("SELECT pumpData FROM pumpAtlas ").fetchall()
+    return render_template("programmer/programmer.htm", plates = plates, pumps = pumps, experiment_titles = experiments) 

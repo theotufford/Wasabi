@@ -29,5 +29,9 @@ def render_form(data): #gets the parameters for the form from the request and re
     else:
         pass
 
+def getMethodForm(data):
+    resp = render_template("programmer/methodTemplates.htm", method = data["method"])
+    return resp
+
 def dump(data): # dumps all of the construction information for each form in the current experiment to the session
     pass
