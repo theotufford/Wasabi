@@ -1,0 +1,29 @@
+<div class = "selectors">
+    <select id = "pumpContents" class= "pumpDropdown experiment_info"> 
+      <option value="empty" {% if renderData=="empty" %} selected {% endif %}>Select pump contents</option>
+      {% for pump in pumps %}
+      <option value="{{ pumps[pump] }}" {% if renderData and renderData.get("pumpContents")==pumps[pump] %} selected {% endif
+        %}>
+        {{ pumps[pump] }}
+      </option>
+      {% endfor %}
+    </select>
+    <br>
+    <select id = "method" class = "experiment_info methodSelect">
+        <option value="empty" selected>select method</option>
+        <option value="constant"> constant volume </option>
+        <option value="gradient"> 1D gradient </option>
+    </select>
+</div>
+
+<div id = "method_container" class="method_container">
+</div>
+<div class = "endContainer">
+<button id = "deleteBtn">x</button>
+<div class = "fromTo">
+    <input id = "from" class = "well_selector experiment_info from" placeholder = "from"> 
+    </input>
+    <input id = "to" class = "well_selector experiment_info to" placeholder = "to">
+    </input>
+</div>
+</div>

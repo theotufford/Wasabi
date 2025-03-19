@@ -1,20 +1,21 @@
 {% if method == "constant" %}
 <div class = 'method_outline'>
     <label for="volumeinput"> volume: </label>
-        <input name = "volumeinput" id = "volume" class = "volume experiment_info" style = "width: 3vw">
+        <input name = "volumeinput" id = "volume" class = "volume experiment_info" style = "width: 3vw"
+            {% if renderData and renderData.get('volume') %}
+                value = "{{ renderData.get('volume') }}"
+            {% endif %}>
     </input>
-    <br>
-    <label for="unitSelect">units: </label>
-    <select class = "unitSelect experiment_info" name = "unitSelect">
-        <option value="ml">ml</option>
-        <option value="ul">ul</option>
-    </select>
 </div>
 {% endif %}
+
 {% if method == "gradient" %}
 <div class = 'method_outline'>
     <label for="direction_select">Gradient Direction:</label>
-    <select name = "direction_select" class = "direction experiment_info">
+    <select id="direction" name = "direction_select" class = "direction experiment_info">
+{% if renderData and renderData.get('direction') %}
+        <option value="{{ renderData.get('direction') }}" selected>{{ renderData.get('direction') }}ward</option>
+{% endif %}
         <option value="right"> rightward </option>
         <option value="left"> leftward </option>
         <option value="down"> downward </option>
@@ -22,11 +23,17 @@
     </select>
     <br>
     <label for="initialVolume">initialVolume:</label>
-    <input name = "initialVolume" class = "initialVolume experiment_info">
+    <input id = "initialVolume" name = "initialVolume" class = "initialVolume experiment_info" 
+    {% if renderData and renderData.get('initialVolume') %}
+        value = "{{ renderData.get('initialVolume') }}"
+    {% endif %}>
     </input>
     <br>
     <label for="increment">increment:</label>
-    <input name = "increment" id = "increment" class = "increment experiment_info" style = "width: 3vw">
+    <input name = "increment" id = "increment" class = "increment experiment_info" style = "width: 3vw"
+    {% if renderData and renderData.get('initialVolume') %}
+        value = "{{ renderData.get('increment') }}"
+    {% endif %}>
     </input>
 </div>
 {% endif %}

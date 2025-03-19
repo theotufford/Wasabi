@@ -27,9 +27,14 @@ def create_app(test_config=None):
     from . import home 
     app.register_blueprint(home.bp)
 
+
     from . import programmer
     app.register_blueprint(programmer.bp)
 
     from . import agent
     app.register_blueprint(agent.bp)
+
+    from . import finder 
+    app.register_blueprint(finder.bp)
+
     return app

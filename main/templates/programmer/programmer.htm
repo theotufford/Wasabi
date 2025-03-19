@@ -5,6 +5,7 @@
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script rel="js" src="{{ url_for('static', filename='js/main.js') }}"></script>
   <script rel="js" src="{{ url_for('static', filename='js/programmer.js') }}"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <!-- this is so the favicon functions on all devices, relatively easy to copy and paste from realFaviconGenerator-->
@@ -19,17 +20,26 @@
   <script>
     console.log("page loading \n")
     assignUrl("{{url_for('agent.agent_handler')}}", 'agent');
+    assignUrl("{{url_for('finder.finder')}}", 'finder');
+    const params = new URLSearchParams(document.location.search);
+    const Experiment = {'title':params.get('title'), 'version':params.get('version')};
   </script>
 
 </head>
 
 <div class="navbar">
-<button class="run_experiments mediumButton" onclick="location.href ='/'">run</button>
-<button class="browse_experiments mediumButton">browse</button>
+<button class="run_experiments mediumButton">run</button>
+<button id = "finderButton" class="browse_experiments mediumButton">browse</button>
 <button class="process_data mediumButton">process</button>
 </div>
 
+
+
 <body>
+
+<div id="finderContainer" class = 'hidden' >
+  <iframe id="finder" src="{{url_for('finder.finder')}}" class = 'finder' frameborder="0"></iframe>
+</div>
   <div id="experimentContainer">
     <br>
     <div id="titleBar">
@@ -41,7 +51,7 @@
           <option value="ul">ul</option>
         </select>
         <label for="plateSelector">plate: </label>
-        <select id="plateSelector" name="plateSelector" onchange='renderPlate()'>
+        <select id="plateSelector" name="plateSelector" class = "experiment_info" onchange='renderPlate()'>
           {% for plate in plates %}
           <option value='{"x":"{{ plate["columns"] }}","y":"{{ plate["rows"] }}"}'>{{ plate['columns'] }},
             {{plate['rows']}}</option>
@@ -49,14 +59,9 @@
         </select>
       </div>
     </div>
-  {% if experiment is defined %}
-
-  <h3>{{experiment[title]}}</h3>
-
-  {%else%}
-    <label for="experimentTitle">Name experiment:</label>
-    <input name="experimentTitle" id="title">
-  {%endif%}
+    <div id="nameContainer">
+      <h3><input class="inherit experimentTitle" id="title" placeholder="click to change name"/></h3>
+    </div>
 
     <div id="form_container">
 
@@ -66,18 +71,7 @@
 
       <button id="add_instruction" class="mediumButton"> add instruction </button>
 
-      <button class="mediumButton">Store Experiment</button>
-      <!--
-    <div class="dropdown">
-      <button class="dropbtn">load past experiment</button>
-      <div id="experiment_search_dropdown" class="dropdown-content">
-        <input class="DDsearch" type="text" placeholder="Search.." id="experiment_search_entry">
-        {% for experiment in experiments %}
-        <a onclick='loadSelectedExperiment("{{experiment[0]}}")'>{{experiment[0]}}</a>
-        {% endfor %}
-      </div>
-    </div>
-    -->
+      <button id = "store_experiment"class="mediumButton" >Store Experiment</button>
     </div>
 
   </div>
@@ -86,7 +80,5 @@
   <div id="plateContainer">
     <svg id="plateSvgElement" class = "prePopulationSvgCanvas" xmlns="http://www.w3.org/2000/svg"> </svg>
   </div>
-
   <div id = "wellContainer"></div>
-
 </body>

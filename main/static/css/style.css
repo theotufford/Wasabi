@@ -29,6 +29,18 @@
   display:none;
 
 }
+
+.inherit {
+  font-size: inherit;
+}
+
+.experimentTitle{
+  border-style: none;
+}
+.experimentTitle:focus{
+  border-style: none;
+}
+
 body{
   display: flex;
   justify-content: space-evenly;
@@ -149,18 +161,30 @@ label{
   width: 50px;
 }
 
-/* 
-instruction-form
-.tabControls
-.well_selector
-.fromto
-.active
-.dropdown 
-.backButton
-#units
-select
-.form_container
-.mediumButton
-.dropbtn
-.DDsearch
-*/
+.selected{
+  background-color: beige;
+
+}
+
+.finder{
+  position: absolute;
+  top: 50%;
+  right: 50%;
+  transform: translate(50%,-50%);
+  width: 60vw;
+  height: 60vh;
+  border: solid;
+  border-radius: 10vw;
+  padding: 5%;
+  background-color: white;
+}
+#finderContainer{
+  position: absolute;
+  top: 50%;
+  right: 50%;
+  transform: translate(50%,-50%);
+  width: 100vw;
+  height: 100vh;
+  border: none;
+  backdrop-filter: blur(10px);
+}

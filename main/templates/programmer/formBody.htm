@@ -1,29 +1,36 @@
 <div class = "selectors">
-    <select id = "pumpContents" class="pumpDropdown experiment_info"> 
-    <option value = "empty" {% if renderData == "empty" %}selected {% endif %}>select pump contents</option>
-      {% for pump in pumps %} 
-        <option value="{{ pumps[pump] }} {% if renderData['pumpContents'] == pumps[pump] %} selected {% endif %}">{{ pumps[pump] }}</option>
+    <select id = "pumpContents" class= "pumpDropdown experiment_info"> 
+      {% for pump in pumps %}
+      <option value="{{ pumps[pump] }}" {% if renderData and renderData.get("pumpContents")==pumps[pump] %} selected {% endif
+        %}>
+        {{ pumps[pump] }}
+      </option>
       {% endfor %}
-
     </select>
     <br>
-    <select id = "method" class = "methodSelect">
-        <option value="empty" selected>select method</option>
-        <option value="constant"> constant volume </option>
-        <option value="gradient"> 1D gradient </option>
+    <select id = "method" class = "experiment_info methodSelect">
+        <option value="constant" {% if renderData and renderData.get("method")=="constant" %} selected {% endif %} > constant volume </option>
+        <option value="gradient" {% if renderData and renderData.get("method")=="gradient" %} selected {% endif %} > 1D gradient </option>
     </select>
 </div>
-
 <div id = "method_container" class="method_container">
 </div>
 <div class = "endContainer">
-<div class = "tabControls">
-    <button id = "deleteBtn">x</button>
-</div>
+<button id = "deleteBtn">x</button>
 <div class = "fromTo">
-    <input class = "well_selector experiment_info from" placeholder = "from"> 
+    <input id = "from" class = "well_selector experiment_info from" 
+    {% if renderData["from"] %}
+    value = "{{renderData['from']}}">
+    {% else %}
+    placeholder = "from"> 
+    {% endif %}
     </input>
-    <input class = "well_selector experiment_info to" placeholder = "to">
+    <input id = "to" class = "well_selector experiment_info to" 
+    {% if renderData["to"] %}
+    value = "{{renderData['to']}}">
+    {% else %}
+    placeholder = "to"> 
+    {% endif %}
     </input>
 </div>
 </div>
