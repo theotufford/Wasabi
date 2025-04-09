@@ -35,11 +35,12 @@ def returnExperimentbyVersion(data):
     if data.get('version'):
         resp = db.execute( """
         SELECT * FROM experiments
-                WHERE title = ? AND version = ?
+            WHERE title = ? 
+            AND version = ?
         """, (data['title'], data['version'],)).fetchone()
     else:
         resp = db.execute( """
-        SELECT title, data, version FROM experiments
+        SELECT * FROM experiments
             WHERE title = ?
             ORDER BY version DESC
             LIMIT 1
@@ -47,16 +48,18 @@ def returnExperimentbyVersion(data):
     return resp
 
 
-def dump(data): # dumps all of the construction information for each form in the current experiment to the session
+def dump(data): # dumps all of the construction information for each form in the current experiment to the database
     db = get_db()
     if (data.get('autosave')):
         session['autosave'] = data
         return ("autosaved!")
     experimentJson = json.dumps(data)
-    print(experimentJson)
     resp = returnExperimentbyVersion(data)
     version = 0
+
     if resp:
+        if resp['data'] == experimentJson:
+            return 'trying to save a perfect duplicate'
         version = resp['version'] + 1
         print(f"version: {resp['version']}")
 
@@ -65,6 +68,7 @@ def dump(data): # dumps all of the construction information for each form in the
         )
     db.commit()
     return("dumped!")
+
 
 def getExperiment(data):
     title = data.get('title')
@@ -89,3 +93,10 @@ def returnUrl(url):
     return 'url added: ' + url
 def getFromSession(term):
     return session.get(term)
+
+def deleteExperiment(data):
+    db = get_db()
+    db.execute( " DELETE FROM experiments WHERE title = ? AND version = ?", (data['title'],data['version']))
+    db.commit()
+    print(splitter(f'{data["title"]}_v{data["version"]} deleted'))
+    return f'{data["title"]}_v{data["version"]} deleted'

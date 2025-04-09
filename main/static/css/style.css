@@ -24,20 +24,33 @@
  inherits: false;
  initial-value: teal;
 }
+
+.cornerButtons{
+  position: fixed;
+  top: 8vw;
+  right:0;
+}
+
+.listedTitle{
+  user-select: none;
+}
+#title{
+  width: 20vw;
+}
+
 .hidden{
-
   display:none;
-
 }
 
 .inherit {
   font-size: inherit;
 }
 
+
 .experimentTitle{
   border-style: none;
 }
-.experimentTitle:focus{
+#title:focus{
   border-style: none;
 }
 
@@ -122,9 +135,6 @@ instruction-form{
   align-items: baseline;
   align-content: normal;
 }
-#mainTitle{
-  flex-grow: 3;
-}
 .mediumButton{
   width: 10vw;
   height: 3vw;
@@ -142,9 +152,6 @@ instruction-form{
   bottom: 20px;
 }
 
-#title{
-  width: 10vw;
-}
 input{
   margin: 10px;
 }

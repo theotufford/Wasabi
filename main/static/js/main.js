@@ -353,6 +353,35 @@ function hideFinder(){
         show(document.getElementById('plateContainer'))
         hide(document.getElementById('finderContainer'))
 }
+
+function limitFinderDisplay(){
+	let experiments = Array.from(document.querySelectorAll('.listedTitle'))
+	let i = 0
+	experiments.forEach(experiment => {
+		if(experiment.classList.contains('hidden')){
+			i = i+1
+		}else{
+		show(experiment)
+		if (i>20) {
+			hide(experiment)
+		}
+		i = i+1
+		}
+	})
+}
+
+function nextPage(){
+	let titles = Array.from(document.querySelectorAll('.listedTitle'))
+    let search = document.getElementById('search')
+	titles.forEach(title => {
+		if(!(title.id.toUpperCase().includes(search.value.toUpperCase()))){
+			console.log('ignored')
+		}else{
+			visToggle(title)
+		}
+	})
+}
+
 document.addEventListener("DOMContentLoaded", function(){
     document.addEventListener('keydown', function (event) {
         if (event.key == 'Escape'){

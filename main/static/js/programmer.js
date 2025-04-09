@@ -1,3 +1,15 @@
+    function showfinder(){
+        document.getElementById('finder').src = document.getElementById('finder').src
+        document.getElementById('plateContainer').classList.add('hidden') 
+        document.getElementById('finderContainer').classList.remove('hidden')
+    }
+    async function dblpresstimer_start() {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(x);
+        }, 100);
+      }); 
+    }
     document.addEventListener('DOMContentLoaded', function () {
       renderPlate()
       let addbutton = document.getElementById("add_instruction")
@@ -24,14 +36,25 @@
         render_experiment("autosave")
       }
 
-      finderButton.addEventListener('click', function(){
-        document.getElementById('finder').src = document.getElementById('finder').src
-        document.getElementById('plateContainer').classList.add('hidden') 
-        document.getElementById('finderContainer').classList.remove('hidden')
-      })
+      finderButton.addEventListener('click', showfinder)
+
       nameField.addEventListener("keypress", function (event) {
         if (event.key === "Enter") {
           nameField.blur(); // Remove focus from the input field
         }
       });
+      document.addEventListener("keypress", function(event){
+        if(event.key === " "){
+          console.log('hi')
+          if(!(window.dblpresstimer)){
+          window.dblpresstimer = true
+          await(dblpresstimer_start)
+          .then(window.dblpresstimer = false)
+        }else{
+          showfinder()
+          window.dblpresstimer = false
+        }
+      }
+      })
+
     })

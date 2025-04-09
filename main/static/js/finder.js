@@ -12,8 +12,9 @@ document.addEventListener('DOMContentLoaded', function () {
     })
     document.getElementById('delete').addEventListener('click', function(){
         let experiment = document.getElementsByClassName('selected')[0]
-        if(window.confirm(`are you sure you want to delete '${experiment}'`)){
-        console.log(`wouldve deleted ${experiment}`)
+        let version = experiment.firstElementChild.value
+        if(window.confirm(`are you sure you want to delete ${experiment.id}_v${version}`)){
+            backend_call('deleteExperiment', {'title':experiment.id, 'version':version})
         }
     })
     document.getElementById('edit').addEventListener('click', function(){
@@ -31,9 +32,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }else{
             allTitles.forEach(title => hide(title))
         }
-        displayed = allTitles.filter(title => title.id.includes(search.value))
+        displayed = allTitles.filter(title => title.id.toUpperCase().includes(search.value.toUpperCase()))
         displayed.forEach(title => {
             show(title)
         })
+        limitFinderDisplay()
     })
+    search.focus()
+    limitFinderDisplay()
+    
 })

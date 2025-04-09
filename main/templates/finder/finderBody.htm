@@ -28,10 +28,12 @@
     <div id = "searchContainer">
         <div id = "experimentList">
             {% for experiment in experiments %}
-            <div id = '{{ experiment["title"] }}' class = "experimentTitle">
+            <div id = '{{ experiment["title"] }}' class = "listedTitle experimentTitle">
                 <select id="{{experiment['title']}}_versionSelect" class="versionSelector">
                     {% for i in range(experiment['version']+1)%}
-                    <option value="{{(experiment['version'] - i)}}">v{{(experiment['version'] - i)}}</option>
+                    <option value="{{(experiment['version'] - i)}}" >
+                        v{{(experiment['version'] - i)}}
+                    </option>
                     {% endfor %}
                 </select>
                 {{experiment["title"]}} 
@@ -47,8 +49,10 @@
         <div id="plateContainer">
         <svg id="plateSvgElement" class = "SvgCanvas" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
-        <button id="edit">edit</button>
-        <button id="delete">delete</button>
+        <div class="cornerButtons">
+        <button id="edit" class="mediumButton">edit</button>
+        <button id="delete" class="mediumButton">delete</button>
+        </div>
     </div>
 
 
