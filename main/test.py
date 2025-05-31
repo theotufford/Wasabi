@@ -11,7 +11,7 @@ expdata = {
                'increment': 1,
                'from': 'a1',
                'to': 'h7'},
-    'form_2': {'pumpContents': 'empty',
+    'form_2': {'pumpContents': 'meeb',
                'method': 'gradient',
                'direction': 'down',
                'initialVolume': 0,
@@ -22,13 +22,13 @@ expdata = {
     'dimensions': {"x":12,"y":8}
 }
 
-alph = list("abcdefghijklmnopqrstuvwxyz")
+alph = list("abcdefghijklmnopqrstuvwxyz") #useful list for alphanumeric conversion
 
 def getCoordMap( fixtureMethod ): #placeholder for a function that would query the homing sequence data from the rtos
     wellmap = {}
     #spacing set to 5
     spacing = 5
-    for rowdex in range(expdata['dimensions']["y"]):
+    for rowdex in range(expdata['dimensions']["y"]): #iterate through rows and columns assigning xy coords to them
         row = alph[rowdex]
         for coldex in range(expdata['dimensions']['x']):
             wellmap[f'{row}{(coldex + 1)}'] = {"x": coldex*spacing, "y": rowdex*spacing}
@@ -36,65 +36,51 @@ def getCoordMap( fixtureMethod ): #placeholder for a function that would query t
 
 def getPumpMap():
     #placeholder for database stuff to get the pump -> motor getCoordMap
-    return {"empty": "p1"}
+    return {"empty": "p1", "meeb":"p2"}
 
-
-def byRows(data):
-    datfrom = data['from']
-    to = data['to']
+def byRows(data): # to group wells into subdictionaries by alphabetical row
     wells = {}
-    for char in alph:
-        wells[char] = []
-    fromcol = int(datfrom[1:])
-    tocol = int(to[1:])
-    fromrow = alph.index(datfrom[0])
-    torow = alph.index(to[0])
-    outwells = {}
+
+    fromcol = int(data['from'][1:])
+    tocol = int(data['to'][1:])
+    fromrow = alph.index(data['from'][0])
+    torow = alph.index(data['to'][0])
+
     for char in alph[fromrow:torow]:
-        for wellNumber in [num for num in range(fromcol,
-                                                tocol)]:
-            wells[char].append(f"{char}{wellNumber}")
-    for well in wells:
-        if wells[well] == []:
-            pass
-        else:
-            outwells[well] = wells[well]
-    return outwells
-def byCols(data):
-    wells = {}
-    datfrom = data['from']
-    to = data['to']
-    fromcol = int(datfrom[1:])
-    tocol = int(to[1:])
-    fromrow = alph.index(datfrom[0])
-    torow = alph.index(to[0])
-    for cord in range(1,
-                      tocol):
-        wells[str(cord)] = []
-    outwells = {}
-    for wellNumber in [num for num in range(fromcol,
-                                            tocol)]:
+        wells[char] = []
+    for char in alph[fromrow:torow]:
+        for column in range(fromcol, tocol):
+            wells[char].append(f"{char}{column}")
+    return wells
+
+def byCols(data): # groups wells by numbered column
+    wells = {} #init temp wells dict
+
+    fromcol = int(data['from'][1:]) #get edges
+    tocol = int(data['to'][1:])
+    fromrow = alph.index(data['from'][0])
+    torow = alph.index(data['to'][0])
+
+    for column in range(fromcol, tocol): #  
+        wells[str(column)] = [] 
         for char in alph[fromrow:torow]:
-            wells[str(wellNumber)].append(f"{char}{wellNumber}")
-    for well in wells:
-        if wells[well] == []:
-            pass
-        else:
-            outwells[well] = wells[well]
-    return outwells
+            wells[str(column)].append(f"{char}{column}") 
+    return wells
 def translator(expdata):
     wellmap = {} #end output dictionary of wells and and array of their contents
+    for col in range(1, expdata['dimensions']['x']):
+        for row in alph[:expdata['dimensions']['y']]:
+            wellmap[f'{row}{col}'] = {}
     for key in expdata: #iterate through experiment data keys 
         form = expdata[key] 
         if not "form" in key:#make sure that key is a form and not the title or something else
             pass
         else:
             contents = form['pumpContents']
-            for col in range(1,
-                             expdata['dimensions']['x']):
-                for row in alph[:expdata['dimensions']['y']]:
-                    wellmap[f'{row}{col}'] = {}
-                    wellmap[f'{row}{col}'][contents] = 0
+            if wellmap[list(wellmap.keys())[0]].get(contents) is None:
+                for col in range(1, expdata['dimensions']['x']):
+                    for row in alph[:expdata['dimensions']['y']]:
+                        wellmap[f'{row}{col}'][contents] = 0
             if form['method'] == 'gradient':
                 dir = form ['direction']
                 match dir:
@@ -103,25 +89,25 @@ def translator(expdata):
                         for row in welldict.keys().reverse():
                             rowObj = welldict[row]
                             for well in rowObj:
-                                wellmap[well][contents] += (form['increment']*alph.index(row) + form['initialVolume']) 
+                                wellmap[well][contents] += int(form['increment']*alph.index(row) + form['initialVolume']) 
                     case 'down':
                         welldict = byRows(form)
                         for row in welldict.keys():
                             rowObj = welldict[row]
                             for well in rowObj:
-                                wellmap[well][contents] += (form['increment']*alph.index(row) + form['initialVolume'])
+                                wellmap[well][contents] += int(form['increment']*alph.index(row) + form['initialVolume'])
                     case 'left':
                         welldict = byCols(form)
                         for col in welldict.keys().reverse():
                             colObj = welldict[col]
                             for well in colObj:
-                                wellmap[well][contents] += (form['increment']*int(col) + form['initialVolume']) 
+                                wellmap[well][contents] += int(form['increment']*int(col) + form['initialVolume']) 
                     case 'right':
                         welldict = byCols(form)
                         for col in welldict.keys():
                             colObj = welldict[col]
                             for well in colObj:
-                                wellmap[well][contents] += (form['increment']*int(col) + form['initialVolume']) 
+                                wellmap[well][contents] += int(form['increment']*int(col) + form['initialVolume']) 
             if form['method'] == "constant":
                 welldict = byCols(form)
                 for col in welldict.keys():
@@ -133,17 +119,21 @@ def translator(expdata):
         well = wellmap[wellid]
         for analyte in well:
             analyteVolume = well[analyte]
-            if optmap.get(wellid) is None and analyteVolume != 0:
-                optmap[wellid] = well
+            if analyteVolume != 0:
+                if optmap.get(wellid) is None:
+                    optmap[wellid] = {}
+                optmap[wellid][analyte] = analyteVolume
             else:
                 pass
     coordMap = getCoordMap("empty placeholder")
     outcode = ""
     pumpMap = getPumpMap()
     for well in optmap:
-        outcode += f"W0 X{coordMap[well]['x']} Y{coordMap[well]['y']}\n"
+        outcode += f"W0 X:{coordMap[well]['x']} Y:{coordMap[well]['y']}\n"
+        pumptemp = 'W0'
         for analyte in optmap[well]:
-            outcode += f"W0 {pumpMap[analyte]}{optmap[well][analyte]}\n"
+            pumptemp += f" {pumpMap[analyte]}:{optmap[well][analyte]}"
+        outcode += f"{pumptemp}\n"
     return outcode
 
 print(translator(expdata))
