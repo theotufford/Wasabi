@@ -7,7 +7,7 @@ pico_sdk_init()
 add_executable( motCon
   motCon.c
 )
-pico_enable_stdio_usb(motCon 0)
-pico_enable_stdio_uart(motCon 1)
+pico_enable_stdio_usb(motCon 1)
+pico_enable_stdio_uart(motCon 0)
 pico_add_extra_outputs(motCon)
 target_link_libraries(motCon pico_stdlib)
