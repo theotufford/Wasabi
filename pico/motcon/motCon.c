@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <pthread.h>
+#include "hardware/sync.h"
 #include <stdlib.h>
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
@@ -7,19 +9,26 @@
 #include <string.h>
 #include <math.h>
 
+volatile int moving;
+
 typedef struct motorStruct {
-  int target; // stores target position
-  int position; // stores initial pre-move position
-  int stepCount; // stores number of steps in current move
-  int stepsPerRev;// steps/revolution
-  int stepsPer_mm;
   int stepPin;
   int dirPin;
   int limitSwitchPin;
-  int mindelay;
-  float vMax; 
+  int stepsPerRev;// steps/revolution
+  int stepsPer_mm;
+  volatile int target; // stores target position
+  volatile int livePosition; // stores initial pre-move position
+  volatile int staticPosition;
+  int increment;
+  float vMax;
   float accel;
+  uint64_t initialMoveTime;
+  float accelStop;
+  float constStop;
+  float endTime;
 } Motor;
+
 
 typedef struct pumpStruct {
   float stepsPer_ul; //pretty much esteps
@@ -31,7 +40,7 @@ typedef struct pumpStruct {
   // everything else is handled by the translator
 } Pump;
 
-typedef struct MachineStruct{ // parent struct for storing all the motors and other info about the machine
+struct machine { // parent struct for storing all the motors and other info about the machine
   // dimensions
   float armLength;
   float handLength;
@@ -53,15 +62,82 @@ typedef struct MachineStruct{ // parent struct for storing all the motors and ot
   float Z0;
   int pumpCount;
   Pump** pumps;
-} Machine;
+};
 
+struct machine wasabi;
 
 void step(Motor* mot){
-  printf("attempting to step\n");
   gpio_put(mot->stepPin, 1);
-  sleep_us(1);
+  sleep_us(3);
   gpio_put(mot->stepPin, 0);
+  mot-> livePosition += mot-> increment;
 }
+
+uint64_t getStepTiming(Motor* mot){
+  float Q = (2*M_PI/mot->stepsPerRev)*abs(mot -> target - mot -> staticPosition); // gets the total distance of the move in rads
+  float theta = ((2*M_PI/mot->stepsPerRev) * (abs(mot -> livePosition - mot-> staticPosition) + 1));
+  float stepTiming;
+  if(mot -> livePosition == mot -> target){
+    mot -> staticPosition = mot->livePosition;
+    return 0;
+  }
+  if (theta < mot -> accelStop ){
+    stepTiming =  sqrt((2*theta)/mot -> accel);
+  } else if (theta < mot -> constStop){
+    stepTiming = (theta/mot->vMax) + (mot->vMax/(2*mot->accel));
+  } else {
+    stepTiming = mot -> endTime - sqrt((2*(Q-theta))/mot->accel);
+  }
+  uint64_t step_us = (uint64_t)(stepTiming * 1e6f) + mot-> initialMoveTime; 
+  return step_us;
+}
+
+absolute_time_t motor_callback(Motor* mot){
+    step(mot);
+    absolute_time_t next_time = getStepTiming(mot);
+    return next_time;
+}
+void aCallback(){
+  absolute_time_t next = motor_callback(wasabi.aMot);
+  if(next == 0){
+    hardware_alarm_unclaim(0);
+    return;
+  } else{
+    if (hardware_alarm_set_target(0, next) == 1){
+      aCallback();
+    }
+  }
+}
+void bCallback(){
+  absolute_time_t next = motor_callback(wasabi.bMot); // call the stepping function and get the timing of the next move
+  if(next == 0){ // if at position
+    hardware_alarm_unclaim(1); // free the alarm from the function
+    return;
+  } else{
+    if (hardware_alarm_set_target(1, next) == 1){
+      bCallback();
+    }
+  }
+}
+
+uint64_t initializeMove(Motor* mot){
+  float Q = (2*M_PI/mot->stepsPerRev)*fabs((float)(mot -> target - mot -> staticPosition)); // gets the total distance of the move in rads
+  float s = (Q/2) - ((mot->vMax*mot->vMax)/mot->accel); // positive if the motor will reach max v before hitting the halfway point
+  float v = mot->vMax;
+  if (s<=0){
+    v = sqrt(Q*mot->accel);
+  }
+  mot -> accelStop = (v*v)/(2*mot->accel); 
+  mot -> constStop = (Q - (v*v)/(2*mot->accel)); 
+  mot -> endTime = (Q/v + v/mot->accel);
+  printf("accelStop: %lf\n", mot-> accelStop);
+  printf("constStop: %lf\n", mot-> constStop);
+  uint64_t start_us = time_us_64()+20000;
+  mot->initialMoveTime = start_us;
+  moving += 1;
+  return 0;
+}
+
 void stepPump(Pump* mot){
   gpio_put(mot->stepPin, 1);
   sleep_us(1);
@@ -71,7 +147,7 @@ float degrees(float rads){
   return ((360*rads)/(2*M_PI));
 }
 
-int solve5bar(Machine machine, char* position) {
+int solve5bar(char* position) {
   // takes an input of a string of form "<gcode id> X:<x position> Y:<y position> Z:<z position>"
   printf("%s\n", position);
   float x;
@@ -79,17 +155,18 @@ int solve5bar(Machine machine, char* position) {
   float z;
   int success = sscanf(position, "G0 X:%f Y:%f Z:%f\n", &x, &y, &z);
   if (success == 0){
+    printf("data formatting failed, exiting\n");
     return -1; // handle poorly formatted data
   }
   printf("x:%f, y:%f, z:%f\n", x,y,z);
-//  x += machine.X0;
-//  y += machine.Y0;
-//  z += machine.Z0;
+//  x += wasabi.X0;
+//  y += wasabi.Y0;
+//  z += wasabi.Z0;
   float thetaR; // right motor angle
   float thetaL; // left motor angle 
-  float A = machine.armLength;
-  float H = machine.handLength;
-  float D = machine.spacing;
+  float A = wasabi.armLength;
+  float H = wasabi.handLength;
+  float D = wasabi.spacing;
   float b_R = D/2 - x; // distance of x coord from the origin of the right limb
   float b_L = D/2 + x; // distance of x coord from the origin of the left limb
   float d_R = sqrt(b_R*b_R + y*y); // length of segment connecting the end coord and the right limb origin
@@ -100,34 +177,34 @@ int solve5bar(Machine machine, char* position) {
   // solutions for the negative component of d_(R|L) (because it is a sqrt so technically it has a +- in front of it) 
   // needs to be adjusted by 180 to fit the correct solution for some reason and I dont really feel like I need to figure out why
   thetaR = acos( d_R/A - (d_R*d_R-A*A+H*H)/(2*d_R*A) ) + asin(y/d_R);
-  if (x>(machine.spacing/2)){
+  if (x>(wasabi.spacing/2)){
     thetaR = acos( d_R/A - (d_R*d_R-A*A+H*H)/(2*d_R*A) ) - asin(y/d_R) + M_PI;
   } 
   thetaL = acos(d_L/A - (d_L*d_L-A*A+H*H)/(2*d_L*A) ) + asin(y/d_L);
-  if (x < -machine.spacing/2){
+  if (x < -wasabi.spacing/2){
     thetaL = acos(d_L/A - (d_L*d_L-A*A+H*H)/(2*d_L*A) ) - asin(y/d_L) + M_PI;
   }
-  printf("theta_l:%f\ntheta_r:%f\n", thetaL, thetaR);
+  printf("R:%f, L:%f\n", thetaL, thetaR);
 
-  machine.aMot -> target = (thetaL / (2*M_PI/(float)(machine.aMot -> stepsPerRev)) );
-  machine.bMot -> target = (thetaR / (2*M_PI/(float)(machine.bMot -> stepsPerRev)) );
+  wasabi.aMot -> target = (thetaL / (2*M_PI/(float)(wasabi.aMot -> stepsPerRev)) );
+  wasabi.bMot -> target = (thetaR / (2*M_PI/(float)(wasabi.bMot -> stepsPerRev)) );
 
-//  machine.zMot -> target = (z / (float)(machine.zMot -> stepsPer_mm));
+  //wasabi.zMot -> target = (z / (float)(wasabi.zMot -> stepsPer_mm));
 }
-int dispenseAnalytes(Machine machine, char* inputData){
+int dispenseAnalytes(char* inputData){
   char *volumes = strchr(inputData, ' ');
   volumes++;
   char* tok = strtok(volumes, " :");
   while (tok != NULL) {  
     int targetPumpIndex;
     int found;
-    for (int i=0; i < machine.pumpCount; i++){
-      char* pumpAnalyte = machine.pumps[i] -> contents;
+    for (int i=0; i < wasabi.pumpCount; i++){
+      char* pumpAnalyte = wasabi.pumps[i] -> contents;
       if (strcmp(pumpAnalyte, tok) == 0){
         tok = strtok(NULL, " :");
         float volume;
         sscanf(tok,"%f", &volume); 
-        machine.pumps[i] -> target = volume*(machine.pumps[i] -> stepsPer_ul);
+        wasabi.pumps[i] -> target = volume*(wasabi.pumps[i] -> stepsPer_ul);
         found = 1;
       }
     } if (found == 0){
@@ -139,66 +216,63 @@ int dispenseAnalytes(Machine machine, char* inputData){
   }
   int delay = 1500;
   while(1){
-    for (int i=0; i < machine.pumpCount; i++){
-      if (machine.pumps[i] -> target != machine.pumps[i] -> position){
-        stepPump(machine.pumps[i]);
-      } else if ( i + 1 == machine.pumpCount){
+    for (int i=0; i < wasabi.pumpCount; i++){
+      if (wasabi.pumps[i] -> target != wasabi.pumps[i] -> position){
+        stepPump(wasabi.pumps[i]);
+      } else if ( i + 1 == wasabi.pumpCount){
         break;
       }
     }
     delay -= 10;
-    if (delay < 400){
-      delay = 400;
+    if (delay < 4000){
+      delay = 4000;
     }
     sleep_us(delay);
   }
 }
 
+
      
 int main() {
   stdio_init_all();
-  while (1){
-    printf("hi");
-    sleep_us(200);
-  }
-
   /*
     TODO: instead of this being done manually, there should be a function that 
    interacts with the python end to populate these automatically from a config file, 
    possibly editable via web interface
   */
+
+  float genAccelValue = 1000.0; // rads/s
+  float genVMax = 50.0;
+
   Motor driver1;
-  driver1.target = 0;
-  driver1.position = 0;
   driver1.stepsPerRev = 200;
   driver1.limitSwitchPin = 20;
   driver1.stepPin = 2;
   driver1.dirPin = 3;
-  driver1.vMax = 40;
-  driver1.accel = 1.5;
+  driver1.vMax = genVMax;
+  driver1.accel = genAccelValue;
+  driver1.staticPosition = 0;
+  driver1.target = 0;
 
   Motor driver2;
-  driver2.target = 0;
-  driver2.position = 0;
   driver2.stepsPerRev = 200;
   driver2.limitSwitchPin = 20;
   driver2.stepPin = 6;
   driver2.dirPin = 7;
-  driver2.vMax = 40;
-  driver2.accel = 1.5;
+  driver2.vMax = genVMax;
+  driver2.accel = genAccelValue;
+  driver2.staticPosition = 0;
+  driver2.target = 0;
 
   Pump driver3;
-  driver3.target = 0;
-  driver3.position = 0;
   driver3.stepsPer_ul = 3;
   driver3.contents = "D2.0R";
   driver3.stepPin = 4;
-  driver3.dirPin = 5;
+  driver3.dirPin = 1;
 
 
   Pump* pumpArray[] = {&driver3};
 
-  Machine wasabi;
   wasabi.armLength = 30;
   wasabi.handLength = 50;
   wasabi.spacing = 45;
@@ -227,106 +301,49 @@ int main() {
   // main control loop
   char inputBuf[64];
   while (1) {
-    printf("serial working\n");
-    fgets(inputBuf, sizeof(inputBuf), stdin);
-    printf("%s\n", inputBuf);
-    char* cleanedInput = strtok(inputBuf, "$");
-    char code[5];
-    sscanf(cleanedInput, "%s", code);
-    printf("cleaned input: %s\n", cleanedInput);
-
-    if (strcmp(code, "G0") == 0){
-      printf("a target:%d a position:%d\n", wasabi.aMot -> target, wasabi.aMot -> position);
-      printf("b target:%d b position:%d\n", wasabi.bMot -> target, wasabi.bMot -> position);
-      solve5bar(wasabi, cleanedInput);
-      printf("a target:%d a position:%d\n", wasabi.aMot -> target, wasabi.aMot -> position);
-      printf("b target:%d b position:%d\n", wasabi.bMot -> target, wasabi.bMot -> position);
-
-      //set directions
-      int adir = 1; 
-      int bdir = 1;
-      if (wasabi.aMot -> target - wasabi.aMot ->position < 0){
-        adir = -1;
-        gpio_put(wasabi.aMot -> dirPin, 0);
-      }
-      if (wasabi.bMot -> target - wasabi.bMot ->position < 0){
-        bdir = -1;
-        gpio_put(wasabi.bMot -> dirPin, 0);
-      }
-
-      // start initial move timer 
-      uint64_t startTime = time_us_64();
-      printf("startTime %llu\n", startTime);
-      while(1){
-        printf("hi\n");
-        uint64_t time = time_us_64() - startTime;
-        if ( wasabi.aMot -> target == wasabi.aMot -> position) {
-          if ( wasabi.bMot -> target == wasabi.bMot -> position ){
-            break; // break if both motors are at position
-          } else { //control b motor 
-            int delay = 1/ (wasabi.bMot -> stepsPerRev*wasabi.bMot ->accel*time / 2*M_PI*1000*1000);
-            printf("in b loop");
-            if (delay< wasabi.bMot -> mindelay){
-              delay = wasabi.bMot -> mindelay;
-            }
-            sleep_us(delay);
-            step(wasabi.bMot);
-            wasabi.bMot -> position += 1*bdir;
-          }
-        } else if (wasabi.bMot -> target == wasabi.bMot -> position){ // control a motor 
-          int delay = 1/ (wasabi.aMot -> stepsPerRev*wasabi.aMot ->accel*time / 2*M_PI*1000*1000);
-          printf("in a loop\n");
-          if (delay< wasabi.aMot -> mindelay){
-            delay = wasabi.aMot -> mindelay;
-          }
-          printf("var = %d\n", delay);
-          sleep_us(delay);
-          step(wasabi.aMot);
-          wasabi.aMot -> position += 1*adir;
-        } else { // control both motors
-
-          int delayA = 1/ (wasabi.aMot->stepsPerRev*wasabi.aMot->accel*time / 2*M_PI*1000*1000);
-          int delayB = 1/ (wasabi.bMot->stepsPerRev*wasabi.bMot->accel*time / 2*M_PI*1000*1000);
-
-          if (delayA< wasabi.aMot -> mindelay){
-            delayA = wasabi.aMot -> mindelay;
-          }
-
-          if (delayB< wasabi.bMot -> mindelay){
-            delayB = wasabi.bMot -> mindelay;
-          }
-
-          printf("in dual loop: \n a:%d\nb:\n-----", delayA, delayB);
-
-          if (delayA>delayB){
-            sleep_us(delayB);
-            step(wasabi.bMot);
-            sleep_us(delayA-delayB);
-            step(wasabi.aMot);
-          } else if (delayB>delayA){
-            sleep_us(delayA);
-            step(wasabi.bMot);
-            sleep_us(delayB-delayA);
-            step(wasabi.aMot);
-          } else {
-            sleep_us(delayA);
-            step(wasabi.bMot);
-            step(wasabi.aMot);
-          }
-          wasabi.aMot -> position += adir;
-          wasabi.bMot -> position += bdir;
-        }
-      } 
-    } else if (strcmp(code, "P0") == 0){
-      //      printf("sending input to volume solver: '%s'\n", cleanedInput);
-      dispenseAnalytes(wasabi, cleanedInput);
+    if(wasabi.aMot -> target != wasabi.aMot -> staticPosition && wasabi.bMot -> target != wasabi.bMot -> staticPosition) {
+      //printf("\n--\nA: %d, %d, %d\nB: %d, %d, %d\n--\n", wasabi.aMot-> target, wasabi.aMot-> staticPosition, wasabi.aMot-> livePosition , wasabi.bMot-> target, wasabi.bMot-> staticPosition, wasabi.bMot-> livePosition);
+      printf("moving\n");
+      continue;
     }
-    printf("drivers:%d, ", driver1.target);
-    printf("%d, ", driver2.target);
-    printf("%d, ", driver3.target);
+    else{
+      printf("not moving\n");
+      fgets(inputBuf, sizeof(inputBuf), stdin);
+      printf("%s\n", inputBuf);
+      char* cleanedInput = strtok(inputBuf, "$");
+      char code[5];
+      sscanf(cleanedInput, "%s", code);
+      printf("cleaned input: %s\n", cleanedInput);
+      if (strcmp(code, "G0") == 0){
+        solve5bar(cleanedInput);
+        //set directions
+        wasabi.aMot -> increment = 1;
+        wasabi.bMot -> increment = 1;
+        gpio_put(wasabi.aMot -> dirPin, 1);
+        gpio_put(wasabi.bMot -> dirPin, 1);
+        if (wasabi.aMot -> target - wasabi.aMot -> staticPosition < 0){
+          gpio_put(wasabi.aMot -> dirPin, 0);
+          wasabi.aMot -> increment = -1;
+        } 
+        if (wasabi.bMot -> target - wasabi.bMot ->staticPosition < 0){
+          gpio_put(wasabi.bMot -> dirPin, 0);
+          wasabi.bMot -> increment = -1;
+        }
+        hardware_alarm_claim(0);
+        hardware_alarm_claim(1);
+        hardware_alarm_set_callback(0, (hardware_alarm_callback_t) aCallback);
+        hardware_alarm_set_callback(1, (hardware_alarm_callback_t) bCallback);
+        initializeMove(wasabi.bMot);
+        initializeMove(wasabi.aMot);
+        aCallback();
+        bCallback();
 
+      } else if (strcmp(code, "P0") == 0){
+        //      printf("sending input to volume solver: '%s'\n", cleanedInput);
+        dispenseAnalytes(cleanedInput);
+      } 
+    }
   }
-
 }
 // depreciated movement and control code to be integrated with Gcode interpretation
 //        if (sscanf(inputBuf, "%d", &steps) == 1){
