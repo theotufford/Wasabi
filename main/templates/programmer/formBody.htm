@@ -1,6 +1,6 @@
 <div class = "selectors">
   <div class = "reagentSelect ">
-    <input id = "reagent" class = "reagentInput experiment_info" value="{% if renderData and renderData.get("reagent") %} {{ renderData.get("reagent") }}{% endif %}">
+    <input id = "reagent" class = "reagentInput experiment_info" value="{% if renderData and renderData.get("reagent") %}{{ renderData.get("reagent") }}{% endif %}">
     <div class= "reagentButtonDropMenu"> 
       {% for reagent in reagentLib %}
         <button class =  "hidden reagentButton" id="{{ reagent }}"> {{ reagent }} </button>

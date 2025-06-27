@@ -7,7 +7,7 @@ function dblpresstimer_start() {
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve();
-    }, 100);
+    }, 1000);
   });
 }
 document.addEventListener("DOMContentLoaded", function () {
@@ -45,7 +45,6 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   document.addEventListener("keypress", async function (event) {
     if (event.key === " ") {
-      console.log("hi");
       if (!(globalThis.dblpresstimer)) {
         globalThis.dblpresstimer = true;
         await dblpresstimer_start()

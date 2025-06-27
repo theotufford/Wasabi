@@ -313,6 +313,9 @@ class InstructionForm extends HTMLElement {
       } else {
         hide(button);
       }
+      if (document.activeElement != input) {
+        hide(button);
+      }
     });
     if (!found) {
       show(logReagentButton);

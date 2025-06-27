@@ -61,7 +61,7 @@ def reagentLibUpdate(data):
                 resp = db.execute('SELECT reagent FROM reagentLib WHERE reagent IS ? ', (reagent,)).fetchone()
                 print(f"{resp=}")
                 if resp is None:
-                    db.execute('INSERT INTO reagentLib (reagent) VALUES (?)', (reagent, ))
+                    db.execute('INSERT INTO reagentLib (reagent) VALUES (?)', (reagent,))
                     db.commit()
                     returnVal = "updatedReagents"
     print(f"reagent return value:{returnVal}")
