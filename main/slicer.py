@@ -66,11 +66,11 @@ def translator(): # turns a loaded experiment data form into a map of the volume
         if not "form" in key:#make sure that key is a form and not the title or something else
             pass
         else:
-            contents = form['pumpContents']
-            if wellmap[list(wellmap.keys())[0]].get(contents) is None:
+            reagent = form['reagent']
+            if wellmap[list(wellmap.keys())[0]].get(reagent) is None:
                 for col in range(1, expdata['dimensions']['x']):
                     for row in alph[:expdata['dimensions']['y']]:
-                        wellmap[f'{row}{col}'][contents] = 0
+                        wellmap[f'{row}{col}'][reagent] = 0
             if form['method'] == 'gradient':
                 dir = form ['direction']
                 match dir:
@@ -79,40 +79,40 @@ def translator(): # turns a loaded experiment data form into a map of the volume
                         for row in welldict.keys().reverse():
                             rowObj = welldict[row]
                             for well in rowObj:
-                                wellmap[well][contents] += int(form['increment']*alph.index(row) + form['initialVolume']) 
+                                wellmap[well][reagent] += int(form['increment']*alph.index(row) + form['initialVolume']) 
                     case 'down':
                         welldict = byRows(form)
                         for row in welldict.keys():
                             rowObj = welldict[row]
                             for well in rowObj:
-                                wellmap[well][contents] += int(form['increment']*alph.index(row) + form['initialVolume'])
+                                wellmap[well][reagent] += int(form['increment']*alph.index(row) + form['initialVolume'])
                     case 'left':
                         welldict = byCols(form)
                         for col in welldict.keys().reverse():
                             colObj = welldict[col]
                             for well in colObj:
-                                wellmap[well][contents] += int(form['increment']*int(col) + form['initialVolume']) 
+                                wellmap[well][reagent] += int(form['increment']*int(col) + form['initialVolume']) 
                     case 'right':
                         welldict = byCols(form)
                         for col in welldict.keys():
                             colObj = welldict[col]
                             for well in colObj:
-                                wellmap[well][contents] += int(form['increment']*int(col) + form['initialVolume']) 
+                                wellmap[well][reagent] += int(form['increment']*int(col) + form['initialVolume']) 
             if form['method'] == "constant":
                 welldict = byCols(form)
                 for col in welldict.keys():
                     colObj = welldict[col]
                     for well in colObj:
-                        wellmap[well][contents] += form['volume']
+                        wellmap[well][reagent] += form['volume']
     optmap = {}
     for wellid in wellmap:
         well = wellmap[wellid]
-        for analyte in well:
-            analyteVolume = well[analyte]
-            if analyteVolume != 0:
+        for reagent in well:
+            reagent = well[reagent]
+            if reagent != 0:
                 if optmap.get(wellid) is None:
                     optmap[wellid] = {}
-                optmap[wellid][analyte] = analyteVolume
+                optmap[wellid][reagent] = reagent
             else:
                 pass
     coordMap = getCoordMap("empty placeholder")
@@ -120,7 +120,7 @@ def translator(): # turns a loaded experiment data form into a map of the volume
     for well in optmap:
         outcode += f"G0 X:{coordMap[well]['x']} Y:{coordMap[well]['y']} Z:0\n"
         pumptemp = 'P0'
-        for analyte in optmap[well]:
-            pumptemp += f" {analyte}:{optmap[well][analyte]}"
+        for reagent in optmap[well]:
+            pumptemp += f" {reagent}:{optmap[well][reagent]}"
         outcode += f"{pumptemp}\n"
     return outcode

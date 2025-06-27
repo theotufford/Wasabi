@@ -1,4 +1,4 @@
-/* high level */
+css/* high level */
 
 @import url('red-hat-display.css');
 * {
@@ -194,4 +194,20 @@ label{
   height: 100vh;
   border: none;
   backdrop-filter: blur(10px);
+}
+
+.reagentButton{
+  margin: 0;
+  padding: 5px;
+  background-color: transparent;
+  border-radius: 0;
+}
+
+.reagentButtonDropMenu{
+  position: relative;
+  display:flex;
+  flex-direction: column;
+  flex-shrink: 4;
+  background-color: white; 
+
 }

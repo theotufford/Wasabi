@@ -8,7 +8,6 @@ WASABI stands for Well Applied Server Automated Biological Interface. Wasabi is 
 The core of Wasabi has three main goals:
 1. intuitively program and store experiments through a visual interface 
 2. run experiments and directly control the robot 
-3. configure machine parameters, plate dimensions, and pump contents
 
 ### diagram
 [insert diagram here]

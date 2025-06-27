@@ -191,7 +191,7 @@ int solve5bar(char* position) {
 
   //wasabi.zMot -> target = (z / (float)(wasabi.zMot -> stepsPer_mm));
 }
-int dispenseAnalytes(char* inputData){
+int dispenseReagent(char* inputData){
   char *volumes = strchr(inputData, ' ');
   volumes++;
   char* tok = strtok(volumes, " :");
@@ -199,8 +199,8 @@ int dispenseAnalytes(char* inputData){
     int targetPumpIndex;
     int found;
     for (int i=0; i < wasabi.pumpCount; i++){
-      char* pumpAnalyte = wasabi.pumps[i] -> contents;
-      if (strcmp(pumpAnalyte, tok) == 0){
+      char* pumpReagent= wasabi.pumps[i] -> contents;
+      if (strcmp(pumpReagent, tok) == 0){
         tok = strtok(NULL, " :");
         float volume;
         sscanf(tok,"%f", &volume); 
@@ -208,7 +208,7 @@ int dispenseAnalytes(char* inputData){
         found = 1;
       }
     } if (found == 0){
-      printf("formatting error, analyte \"%s\" not found\n...\naborting\n", tok);
+      printf("formatting error, Reagent\"%s\" not found\n...\naborting\n", tok);
       tok = strtok(NULL, " :");
       return -1;
     }
@@ -340,7 +340,7 @@ int main() {
 
       } else if (strcmp(code, "P0") == 0){
         //      printf("sending input to volume solver: '%s'\n", cleanedInput);
-        dispenseAnalytes(cleanedInput);
+        dispenseReagent(cleanedInput);
       } 
     }
   }

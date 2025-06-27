@@ -19,11 +19,11 @@ def finder():
         """
     ).fetchall()
     for experiment in experiments:
-        print(splitter(f"{experiment['title']}/n{experiment['version']}"))
+        print(splitter(f"{experiment['title']}\n{experiment['version']}"))
     with current_app.open_resource('./static/resources/config.json') as f:
-        plates = json.loads(f.read())["machineInfo"]["plates"]
+        config = f.read()
+        plates = json.loads(config)["machineInfo"]["plates"]
     return render_template("finder/finderBody.htm", plates = plates, experiments = experiments)
-
 @bp.route('/display', methods=["POST"])
 def display():
     experiment = request.get_json()['experiment']

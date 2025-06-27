@@ -34,10 +34,6 @@ def getCoordMap( fixtureMethod ): #placeholder for a function that would query t
             wellmap[f'{row}{(coldex + 1)}'] = {"x": coldex*spacing, "y": rowdex*spacing}
     return wellmap
 
-def getPumpMap():
-    #placeholder for database stuff to get the pump -> motor getCoordMap
-    return {"empty": "p1", "meeb":"p2"}
-
 def byRows(data): # to group wells into subdictionaries by alphabetical row
     wells = {}
 
@@ -129,11 +125,11 @@ def translator(expdata):
     outcode = ""
     pumpMap = getPumpMap()
     for well in optmap:
-        outcode += f"W0 X:{coordMap[well]['x']} Y:{coordMap[well]['y']}\n"
-        pumptemp = 'W0'
-        for analyte in optmap[well]:
-            pumptemp += f" {pumpMap[analyte]}:{optmap[well][analyte]}"
-        outcode += f"{pumptemp}\n"
+        outcode += f"G0 X:{coordMap[well]['x']} Y:{coordMap[well]['y']} Z:0\n"
+#        pumptemp = ''
+#        for analyte in optmap[well]:
+#            pumptemp += f" {pumpMap[analyte]}:{optmap[well][analyte]}"
+#        outcode += f"{pumptemp}\n"
     return outcode
 
 print(translator(expdata))

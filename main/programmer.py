@@ -12,7 +12,8 @@ bp = Blueprint('programmer', __name__, url_prefix='/program')
 def programmer():
     db = get_db()
     with current_app.open_resource('./static/resources/config.json') as f:
-        plates = json.loads(f.read())["machineInfo"]["plates"]
+        config = f.read()
+        plates = json.loads(config)["machineInfo"]["plates"]
     pumps = db.execute("SELECT pumpData FROM pumpAtlas ").fetchall()
     experiment = request.args.get('experiment') or None
     if experiment:

@@ -43,16 +43,11 @@ def init_db():
     with current_app.open_resource('schema.sql') as f:
         db.executescript(f.read().decode('utf8'))
     with current_app.open_resource('./static/resources/config.json') as j:
-        count = json.loads(j.read())["machineInfo"]["pumpCount"] 
+        config = j.read()
+        count = json.loads(config)["machineInfo"]["pumpCount"] 
         for id in range(1, count+1):
             name = "pump" + str(id)
             pumpUpdate({"name": name, "contents": "empty"})
-
-def query_db(query, args=(), one=False):
-    cur = get_db().execute(query, args)
-    rv = cur.fetchall()
-    cur.close()
-    return (rv[0] if rv else None) if one else rv
 
 
 @click.command('init-db')

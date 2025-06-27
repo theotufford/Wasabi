@@ -15,13 +15,17 @@ bp = Blueprint('home', __name__, url_prefix='/')
 def homePage():
     db = get_db()
     if request.method == "GET":
-        experiments = db.execute("SELECT title FROM experiments ").fetchall()
+        msg = 0 
+        experiment = request.get_json()[experiment]
+        if experiment:
+            msg = 1
         pumps  = json.loads(db.execute('SELECT pumpData FROM pumpatlas').fetchone()[0])
-        return render_template('home/mainHomePage.htm', experiments=experiments, pumps=pumps)
+        return render_template('home/mainHomePage.htm', msg = msg, experiment=experiment, pumps=pumps)
     else:
-        pump = request.get_json()['pump']
-        pumpValue = request.get_json()['pumpValue']
-        pumpUpdate({'name': pump, 'contents': pumpValue})
-        return "pumps updated"
+        if request.get_json()['pump']:
+            pump = request.get_json()['pump']
+            pumpValue = request.get_json()['pumpValue']
+            pumpUpdate({'name': pump, 'reagent': pumpValue})
+            return "pumps updated"
         ##do pump stuff here because its the post request area 
 
