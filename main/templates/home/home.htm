@@ -1,62 +1,91 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script rel="js" src="{{ url_for('static', filename='js/home.js') }}"></script> 
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
     <script rel="js" src="{{ url_for('static', filename='js/main.js') }}"></script> 
+    <script rel="js" src="{{ url_for('static', filename='js/home.js') }}"></script> 
     <script>
       assignUrl("{{url_for('agent.agent_handler')}}", 'agent');
       assignUrl("{{url_for('programmer.programmer')}}", 'programmer');
       assignUrl("{{url_for('finder.display')}}", 'display');
     </script>
   </head>
-
-
   <body>
+  <div id = "primaryContainer">
     <div id="finderContainer" class = 'hidden' >
       <iframe id="finder" src="{{url_for('finder.finder')}}" class = 'finder' frameborder="0"></iframe>
     </div>
-    <button class = "homebutton" onclick = "location.href = '/program' ">programmer</button>
-    <div>
-      <h1 id="pageHeader">Wasabi Home</h1>
-      <div class="headerlink">
+    <div id = "left">
+      <div class = "headContainer">
+        <h1 id="pageHeader">Wasabi Home</h1>
+        <div class="headerlink">
+          <button class = "navButton" onclick = "location.href = '/program'">programmer</button>
+        </div>
       </div>
-    </div>
-    {% if changes not NONE%}
-    <div>
-      material changes required:
-      <div>
-        {%for material in changes%}
-        {{material}}
-        {{%endfor%}}
-      </div>
-    </div>
-    {% endif %}
+      <table>
+        <thead>
+          <tr>
+            <th>selected experiment</th>
+            <th colspan = "4"> neccessary reagents: </th>
+          </tr>
+          <tr>
+            <td>{{experiment['title']}}</td>
+            <td colspan = "4" >
+              <div id = "reagentBay" >
+                {% for reagent in reagents %}
+                <button class="reagent" id = "{{reagent}}" >
+                  {{reagent}}
+                </button>
+                {% endfor %}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <th scope="col">pump</th>
+            <th scope="col">reagent</th>
+            <th scope="col">confirm<br>change</th>
+            <th scope="col">manual feed</th>
+            <th scope="col">buzz</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in pumps %}
+          <tr id = "{{ row['pumpID'] }}">
+            <td scope="row">{{ row['pumpID'] }}</th>
+            <td>
+              <div class="{{row['pumpID']}} pumpReagentContainer ">
+                <button class="reagent toReplace" id = "{{row['reagent']}}" >
+                  {{row['reagent']}}
+                  </button>
+            </div>
+            </td>
+            <td>
+              <button class="{{row['pumpID']}} confirmChange hidden">confirm</button>
+            </td>
+            <td> 
+              <div class = 'manualFeedContainer'>
 
-    <table>
-      <caption>
-        peristaltic pump table
-      </caption>
-      <thead>
-        <tr>
-          <th scope="col">pump</th>
-          <th scope="col">current contents</th>
-          <th scope="col">manual feed</th>
-          <th scope="col">buzz</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for pump in pumps %}
-        <tr id = "{{pump}}">
-          <th scope="row">{{pump}}</th>
-          <td>{{pumps[pump]}}</td>
-          <td>buzz: 
-            <button class = "mediumButton"></button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+                <div class="feedInputContainer">
+                <input  class = "manualFeedInput {{row['reagent']}}" placeholder="input µl"></input>
+                <button type="submitFeed">dispense volume</button>
+                <div class = "incrementalControl">
+                </div>
+                  <button class = "jogButton leftButton">+</button>
+                  <button class = "jogButton rightButton">-</button>
+                </div>
+              </div>
+            </td>
+            <td> 
+              <button class = "buzz">o</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div id = "right">
+    </div>
+  </div>
   </body>
 </html>
-

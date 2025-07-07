@@ -3,14 +3,22 @@ function showfinder() {
   document.getElementById("plateContainer").classList.add("hidden");
   document.getElementById("finderContainer").classList.remove("hidden");
 }
+dblSpaceWindowOpen = false;
 function dblpresstimer_start() {
+  if (dblSpaceWindowOpen){
+    showfinder();
+    return
+  }
+  dblSpaceWindowOpen = true;
   return new Promise((resolve) => {
     setTimeout(() => {
+      dblSpaceWindowOpen = false;
       resolve();
-    }, 1000);
+    }, 200);
   });
 }
-document.addEventListener("DOMContentLoaded", function () {
+
+document.addEventListener("DOMContentLoaded", () => {
   renderPlate();
   const addbutton = document.getElementById("add_instruction");
   const plateSelect = document.getElementById("plateSelector");
@@ -18,19 +26,19 @@ document.addEventListener("DOMContentLoaded", function () {
   const finderButton = document.getElementById("finderButton");
   const nameField = document.getElementById("title");
 
-  storeButton.addEventListener("click", function () {
+  storeButton.addEventListener("click", () => {
     dump_experiment();
   });
-  addbutton.addEventListener("click", function () {
+  addbutton.addEventListener("click", () => {
     const newform = new InstructionForm(); // Create instance
     document.getElementById("form_container").appendChild(newform); // Append to DOM
   });
-  plateSelect.addEventListener("change", function () {
+  plateSelect.addEventListener("change", () => {
     renderPlate();
   });
   document.addEventListener("resize", renderPlate());
 
-  if ((Experiment != "None") && (Experiment != undefined)) {
+  if ((Experiment !== "None") && (Experiment !== undefined)) {
     render_experiment(Experiment);
   } else {
     render_experiment("autosave");
@@ -38,21 +46,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
   finderButton.addEventListener("click", showfinder);
 
-  nameField.addEventListener("keypress", function (event) {
+  nameField.addEventListener("keypress", (event) => {
     if (event.key === "Enter") {
       nameField.blur(); // Remove focus from the input field
     }
   });
-  document.addEventListener("keypress", async function (event) {
+  document.addEventListener("keypress", async (event) => {
     if (event.key === " ") {
-      if (!(globalThis.dblpresstimer)) {
-        globalThis.dblpresstimer = true;
-        await dblpresstimer_start()
-          .then(globalThis.dblpresstimer = false);
-      } else {
-        showfinder();
-        globalThis.dblpresstimer = false;
-      }
+      const timer = dblpresstimer_start()
+      console.log(dblSpaceWindowOpen)
     }
   });
 });

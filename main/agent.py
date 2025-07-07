@@ -2,7 +2,7 @@ import json
 from flask import (
     Blueprint, redirect, current_app, render_template, request, session, url_for, jsonify
 )
-from main.db import get_db 
+from main.db import (get_db, pumpUpdate) 
 bp = Blueprint('agent', __name__, url_prefix='/agent')
 
 def splitter(message):
@@ -11,10 +11,10 @@ def splitter(message):
 def agent_handler(): # handle input from json calls and run the function from the global scope that they reference
     function_target = request.get_json()['function_target'] # get target function name
     function_args = request.get_json().get('args') # get target function args
-    #print(splitter(f"target: {function_target}\n arguments: {function_args}"))
     functionReturn = globals()[function_target](function_args) # run target function with args via return 
     print(f"called {function_target} with {function_args}, function returned: {functionReturn}")
     return functionReturn
+
 def render_form(data): #gets the parameters for the form from the request and renders the form template with them
     db = get_db()
     reagentResp = db.execute('SELECT reagent FROM reagentLib').fetchall() # grab all of the selectable reagents
@@ -52,7 +52,7 @@ def returnExperimentbyVersion(data): # returns some experiment by a specific ver
 def reagentLibUpdate(data):
     db = get_db()
     print("updating reagents")
-    returnVal = "noUpdate"
+    returnVal = "no update" # if not altered there was no update 
     for key, value in data.items():
         if "form" in key:
             if value.get("reagent"):
@@ -69,19 +69,21 @@ def reagentLibUpdate(data):
 
 def dump(data): # dumps all of the construction information for each form in the current experiment to the database
     db = get_db()
-    session['autosave'] = data
-    experimentJson = json.dumps(data)
+    session['autosave'] = data # convenient to auto-open the most recent experiment 
+    experimentJson = json.dumps(data) # convert the real json dict obj into a string 
     resp = returnExperimentbyVersion(data)
     version = 0
-    returnVal = reagentLibUpdate(data)
+    returnVal = reagentLibUpdate(data) # automatically attempt to log all the reagents, function has implicit duplicate protection
     if resp:
-        if resp['data'] == experimentJson:
+        if resp['data'] == experimentJson: # duplicate protection
             return jsonify('trying to save a perfect duplicate')
-        version = resp['version'] + 1
-        print(f"version: {resp['version']}")
+        version = resp['version']+1 # increment version if title exists
     db.execute(
-        'INSERT INTO experiments (data, title, version) VALUES (?, ?, ?)', (experimentJson, data['title'], version)
-        )
+        """
+        INSERT INTO experiments (data, title, version) VALUES (?, ?, ?)
+        """, 
+        (experimentJson, data['title'], version)
+    )
     db.commit()
     return jsonify("dumped!")
 
@@ -118,6 +120,5 @@ def deleteExperiment(data):
 
 def run_experiment(data):
     db = get_db()
-    pumps = json.loads(db.execute('SELECT pumpData FROM pumpatlas').fetchone()[0]) #
     missing_contents  = [data[form]["contents"] for form in data if data[form] not in pumpatlas]
     return jsonify( "run error" )

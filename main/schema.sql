@@ -1,14 +1,15 @@
 DROP TABLE IF EXISTS experiments;
-DROP TABLE IF EXISTS plateatlas;
-DROP TABLE IF EXISTS pumpatlas;
+DROP TABLE IF EXISTS pumpMap;
 DROP TABLE IF EXISTS reagentLib;
 
 CREATE TABLE reagentLib (
   reagent TEXT
 );
 
-CREATE TABLE pumpatlas (
-  pumpData TEXT
+CREATE TABLE pumpMap (
+  pumpID TEXT,
+  reagent TEXT DEFAULT "empty",
+  previousReagents TEXT
 );
 
 CREATE TABLE experiments (

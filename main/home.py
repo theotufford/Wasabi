@@ -7,25 +7,34 @@ from flask import (
 
 from main.db import (get_db, pumpUpdate)
 
-bp = Blueprint('home', __name__, url_prefix='/')
+from main.agent import *
+
+bp = Blueprint('home', __name__, url_prefix='/home')
 
 
 
-@bp.route('/', methods = ('GET','POST'))
+@bp.route('/', methods = ['GET','POST'])
 def homePage():
     db = get_db()
+    reagents = []
     if request.method == "GET":
-        msg = 0 
-        experiment = request.get_json()[experiment]
+        experiment = None
+        try:
+            experimentTitle = request.args.get('title') 
+            version = request.args.get('version') 
+            experiment = returnExperimentbyVersion({"title": experimentTitle, "version": version})
+            print(experiment["data"])
+        except Exception as e:
+            print(e)
         if experiment:
-            msg = 1
-        pumps  = json.loads(db.execute('SELECT pumpData FROM pumpatlas').fetchone()[0])
-        return render_template('home/mainHomePage.htm', msg = msg, experiment=experiment, pumps=pumps)
-    else:
-        if request.get_json()['pump']:
-            pump = request.get_json()['pump']
-            pumpValue = request.get_json()['pumpValue']
-            pumpUpdate({'name': pump, 'reagent': pumpValue})
-            return "pumps updated"
-        ##do pump stuff here because its the post request area 
-
+            data = json.loads(experiment["data"])
+            for field in data:
+                print(f"field: {field}")
+                if "form" in field:
+                    reagents.append(data[field]["reagent"])
+                    print(f"reagents:{reagents}")
+        pumps  = db.execute('SELECT * FROM pumpMap').fetchall()
+        for row in pumps:
+            print(f"pump: {row['pumpID']}")
+            print(f"reagent: {row['reagent']}")
+        return render_template('home/home.htm', reagents = reagents, experiment=experiment, pumps=pumps)

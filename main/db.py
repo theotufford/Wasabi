@@ -21,23 +21,38 @@ def close_db(e=None):
         db.close()
 
 
-def pumpUpdate(updatedict):
-    pumpData = {}
+def pumpUpdate(addition):
     db = get_db()
-    with current_app.open_resource('./static/resources/config.json') as f:
-        try:
-            pumpData = json.loads(db.execute('SELECT pumpData FROM pumpatlas').fetchone()[0])
-        except Exception as e:
-            print(e)
-    pumpData[updatedict['name']] = updatedict['contents']
-    print(json.dumps(pumpData))
-    db.execute("DELETE FROM pumpatlas")
-    db.execute(
-        'INSERT INTO pumpatlas (pumpData) VALUES (?)',(json.dumps(pumpData), )
-    )
-    db.commit()
-
-
+    pump = None
+    reagent = None
+    try:
+        pump = addition.get("pump")
+        reagent = addition.get("reagent")
+    except Error as e:
+        return(e)
+    if pump and reagent:
+        if reagent == "new-empty":
+            db.execute(
+                """
+                INSERT INTO pumpMap (pumpID) VALUES(?)
+                """,
+                (pump,)
+            )
+            db.commit()
+            return f"{pump} created"
+        else:
+            db.execute(
+                """
+                UPDATE pumpMap
+                SET reagent = ?
+                WHERE pumpID = ?
+                """, 
+                (reagent, pump) 
+            )
+            db.commit()
+            return f"pumps updated: {pump}:{reagent}"
+    else:
+        return f"value fail, {pump=} {reagent=}"
 def init_db():
     db = get_db()
     with current_app.open_resource('schema.sql') as f:
@@ -47,7 +62,8 @@ def init_db():
         count = json.loads(config)["machineInfo"]["pumpCount"] 
         for id in range(1, count+1):
             name = "pump" + str(id)
-            pumpUpdate({"name": name, "contents": "empty"})
+            print(pumpUpdate({"pump":name, "reagent":"new-empty"}))
+
 
 
 @click.command('init-db')
@@ -56,7 +72,6 @@ def init_db_command():
     """ \n WARNING: this will clear delete all of the data stored in the database and create new tables. 
        it should only be done if you are just building the application for the first time 
     \n if you are just updating the machine config you can use the \"configUpdate\" command 
-    or if you just want to update the pumps or plate specifically from the config file you can use \"plateUpdate\" and \"pumpUpdate\" 
     \n """)
     choice = input("do you want to proceed? \n y/n:  ")
     if choice == "y":

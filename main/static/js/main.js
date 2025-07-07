@@ -35,7 +35,7 @@ const staticColorLibrary = [
   "#556B2F",
   "#FF00A5",
 ]; //thanks chatgpt XD
-let colors = staticColorLibrary;
+const colors = staticColorLibrary;
 function getColor() {
   picked = colors.pop();
   return picked;
@@ -138,7 +138,7 @@ function canvasClear() {
 function svgResize() {
   let svg = document.getElementById("plateSvgElement");
   let bbox = svg.getBBox(); // Get bounding box of all elements
-  svg.classList.toggle("prePopulationSvgCanvas");
+  svg.classList.remove("prePopulationSvgCanvas");
   svg.setAttribute(
     "viewBox",
     `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`,
@@ -289,11 +289,9 @@ class InstructionForm extends HTMLElement {
     const buttons = this.querySelectorAll(".reagentButton");
     const input = this.querySelector(".reagentInput");
     buttons.forEach((button) => {
-      button.addEventListener("click", function () {
+      button.addEventListener("click", () => {
         input.value = button.id;
-        buttons.forEach((button) => {
-          hide(button);
-        });
+        this.handleSearch();
       });
     });
   }
@@ -301,33 +299,26 @@ class InstructionForm extends HTMLElement {
     console.log("handling search");
     const buttons = this.querySelectorAll(".reagentButton");
     const input = this.querySelector(".reagentInput");
-    const logReagentButton = this.querySelector("#logReagentButton");
-    let found = 0;
+    const logbutton = this.querySelector("#logReagentButton");
+    show(logbutton);
     buttons.forEach((button) => {
-      if (input.value == "" || input.value == " ") {
-        hide(button);
-        found = 1;
-      } else if (button.id.toUpperCase().includes(input.value.toUpperCase())) {
-        show(button);
-        found = 1;
-      } else {
-        hide(button);
+      if (button.id.toUpperCase() == input.value.toUpperCase()) {
+        hide(logbutton);
       }
       if (document.activeElement != input) {
         hide(button);
+      } else if (button.id.toUpperCase().includes(input.value.toUpperCase())) {
+        show(button);
+      } else {
+        hide(button);
       }
     });
-    if (!found) {
-      show(logReagentButton);
-    } else {
-      hide(logReagentButton);
-    }
   }
   reagentLibUpdate() {
     const logReagentButton = this.querySelector("#logReagentButton");
-    hide(logReagentButton);
-    console.log("logging reagent");
     const reagentInput = this.querySelector("#reagent");
+    this.handleSearch();
+    hide(logReagentButton);
     // data formatting is weird here because the lib update function
     // is designed to recursively auto input all of the reagents in
     // a given experiment
@@ -346,8 +337,8 @@ class InstructionForm extends HTMLElement {
     from.addEventListener("change", () => renderPlate());
     to.addEventListener("change", () => renderPlate());
     del.addEventListener("click", () => this.deleteform());
-    reagentInput.addEventListener("blur", () => this.handleSearch());
     reagentInput.addEventListener("input", () => this.handleSearch());
+    //  reagentInput.addEventListener("blur", () => this.handleSearch());
     logReagentButton.addEventListener("click", () => this.reagentLibUpdate());
   }
 }
