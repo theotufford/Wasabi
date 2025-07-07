@@ -1,17 +1,7 @@
-import json
-from flask import (
-    Blueprint, redirect, current_app, render_template, request, session, url_for, jsonify
-)
-from main.db import (get_db)
-bp = Blueprint('runExperiment', __name__, url_prefix='/run')
-
 def splitter(message):
     return f'\n-------------------\n{message}\n-------------------\n' 
-
-alph = "abcdefghijklmnopqrstuvwxyz".split("")
+alph = "a b c d e f g h i j k l m n o p q r s t u v w x y z".split(" ")
 invAlph = alph.reverse()
-
-
 alph = list("abcdefghijklmnopqrstuvwxyz")
 def byRows(data):
     datfrom = data['from']
@@ -54,12 +44,15 @@ def byCols(data):
             outwells[well] = wells[well]
     return outwells
 
-@bp.route('/', methods=["POST"])
-def translator(): # turns a loaded experiment data form into a map of the volumes in each well
-    expdata = request.get_json()['experiment']
+
+def translate(expdata): # turns a loaded experiment data form into a map of the volumes in each well
     wellmap = {} #end output dictionary of wells and and array of their contents
-    for col in range(1, expdata['dimensions']['x']):
-        for row in alph[:expdata['dimensions']['y']]:
+    dimensions = {
+            'x':int(expdata['dimensions']['x']),
+            'y':int(expdata['dimensions']['y'])
+            }
+    for col in range(1, dimensions['x']):
+        for row in alph[:dimensions['y']]:
             wellmap[f'{row}{col}'] = {}
     for key in expdata: #iterate through experiment data keys 
         form = expdata[key] 
@@ -68,8 +61,8 @@ def translator(): # turns a loaded experiment data form into a map of the volume
         else:
             reagent = form['reagent']
             if wellmap[list(wellmap.keys())[0]].get(reagent) is None:
-                for col in range(1, expdata['dimensions']['x']):
-                    for row in alph[:expdata['dimensions']['y']]:
+                for col in range(1, dimensions['x']):
+                    for row in alph[:dimensions['y']]:
                         wellmap[f'{row}{col}'][reagent] = 0
             if form['method'] == 'gradient':
                 dir = form ['direction']
@@ -104,23 +97,33 @@ def translator(): # turns a loaded experiment data form into a map of the volume
                     colObj = welldict[col]
                     for well in colObj:
                         wellmap[well][reagent] += form['volume']
+    print('done with wellmap \n\n\n')
+    print(wellmap,'\n\n\n')
     optmap = {}
     for wellid in wellmap:
         well = wellmap[wellid]
         for reagent in well:
-            reagent = well[reagent]
-            if reagent != 0:
+            reagentVolume = well[reagent]
+            if reagentVolume != 0:
                 if optmap.get(wellid) is None:
                     optmap[wellid] = {}
-                optmap[wellid][reagent] = reagent
+                optmap[wellid][reagent] = reagentVolume
             else:
                 pass
-    coordMap = getCoordMap("empty placeholder")
+    #spacing set to 5
+    coordMap = {}
+    spacing = 5
+    for rowdex in range(dimensions["y"]): #iterate through rows and columns assigning xy coords to them
+        row = alph[rowdex]
+        for coldex in range(dimensions['x']):
+            coordMap[f'{row}{(coldex + 1)}'] = {"x": coldex*spacing, "y": rowdex*spacing}
     outcode = ""
     for well in optmap:
         outcode += f"G0 X:{coordMap[well]['x']} Y:{coordMap[well]['y']} Z:0\n"
         pumptemp = 'P0'
-        for reagent in optmap[well]:
-            pumptemp += f" {reagent}:{optmap[well][reagent]}"
+        for key, value in optmap[well].items():
+            pumptemp += f" {key}:{value}"
         outcode += f"{pumptemp}\n"
+
+    print(outcode)
     return outcode

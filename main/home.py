@@ -1,5 +1,6 @@
 import functools 
 import json
+from .slicer import *
 
 from flask import (
     Blueprint, flash, g, redirect, render_template, request, session, url_for
@@ -10,8 +11,6 @@ from main.db import (get_db, pumpUpdate)
 from main.agent import *
 
 bp = Blueprint('home', __name__, url_prefix='/home')
-
-
 
 @bp.route('/', methods = ['GET','POST'])
 def homePage():
@@ -29,7 +28,6 @@ def homePage():
         if experiment:
             data = json.loads(experiment["data"])
             for field in data:
-                print(f"field: {field}")
                 if "form" in field:
                     reagents.append(data[field]["reagent"])
                     print(f"reagents:{reagents}")
@@ -38,3 +36,10 @@ def homePage():
             print(f"pump: {row['pumpID']}")
             print(f"reagent: {row['reagent']}")
         return render_template('home/home.htm', reagents = reagents, experiment=experiment, pumps=pumps)
+    else:
+        experimentTitle = request.args.get('title') 
+        version = request.args.get('version') 
+        rawData = returnExperimentbyVersion({"title": experimentTitle, "version": version})['data']
+        data = json.loads(rawData)
+        gcode = translate(data)
+        return "successful run init";

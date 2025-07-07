@@ -3,7 +3,11 @@ function showfinder() {
   document.getElementById("plateContainer").classList.add("hidden");
   document.getElementById("finderContainer").classList.remove("hidden");
 }
-dblSpaceWindowOpen = false;
+function hideFinder() {
+  show(document.getElementById("plateContainer"));
+  hide(document.getElementById("finderContainer"));
+}
+let dblSpaceWindowOpen = false;
 function dblpresstimer_start() {
   if (dblSpaceWindowOpen){
     showfinder();
@@ -23,7 +27,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const addbutton = document.getElementById("add_instruction");
   const plateSelect = document.getElementById("plateSelector");
   const storeButton = document.getElementById("store_experiment");
-  const finderButton = document.getElementById("finderButton");
   const nameField = document.getElementById("title");
 
   storeButton.addEventListener("click", () => {
@@ -44,7 +47,14 @@ document.addEventListener("DOMContentLoaded", () => {
     render_experiment("autosave");
   }
 
+  const finderButton = document.getElementById('finderButton')
+  const homeButton = document.getElementById('homeButton')
   finderButton.addEventListener("click", showfinder);
+  homeButton.addEventListener("click", () => {
+    globalThis.parent.location = `${
+      loadedurls["home"]
+    }?title=${Experiment.title}&version=${Experiment.version}`; // these values are loaded from the url in the header of the file already
+  });
 
   nameField.addEventListener("keypress", (event) => {
     if (event.key === "Enter") {
@@ -53,8 +63,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.addEventListener("keypress", async (event) => {
     if (event.key === " ") {
-      const timer = dblpresstimer_start()
-      console.log(dblSpaceWindowOpen)
+      dblpresstimer_start()
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      if (!(globalThis.parent)) {
+        hideFinder();
+      }
+      globalThis.parent.hideFinder();
     }
   });
 });

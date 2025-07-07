@@ -36,4 +36,5 @@ def create_app(test_config=None):
     from . import finder 
     app.register_blueprint(finder.bp)
 
+
     return app

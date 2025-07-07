@@ -10,20 +10,20 @@ document.addEventListener("DOMContentLoaded", () => {
       selected(select.parentElement);
     });
   });
-  document.getElementById("delete").addEventListener("click",  () => {
-    const experiment = document.getElementsByClassName("selected")[0];
-    const version = experiment.firstElementChild.value;
-    if (
-      globalThis.confirm(
-        `are you sure you want to delete ${experiment.id}_v${version}`,
-      )
-    ) {
-      backend_call("deleteExperiment", {
-        "title": experiment.id,
-        "version": version,
-      });
-    }
-  });
+//  document.getElementById("delete").addEventListener("click",  () => {
+//    const experiment = document.getElementsByClassName("selected")[0];
+//    const version = experiment.firstElementChild.value;
+//    if (
+//      globalThis.confirm(
+//        `are you sure you want to delete ${experiment.id}_v${version}`,
+//      )
+//    ) {
+//      backend_call("deleteExperiment", {
+//        "title": experiment.id,
+//        "version": version,
+//      });
+//    }
+//  });
   document.getElementById("edit").addEventListener("click",  () => {
     const experiment = document.getElementsByClassName("selected")[0];
     const version = experiment.firstElementChild.value;

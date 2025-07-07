@@ -154,7 +154,8 @@ function renderPlate() {
   const svgCanvas = document.getElementById("plateSvgElement");
   //svgCanvas.classList.toggle("prePopulationSvgCanvas")
   boundingRect = svgCanvas.getBoundingClientRect();
-  let selected = document.getElementById("plateSelector").value;
+  const selected = document.getElementById("plateSelector").value;
+  console.log(selected)
   let plate = JSON.parse(selected);
   let forms = document.querySelectorAll("instruction-form");
   let radius = 20;
@@ -208,7 +209,11 @@ class InstructionForm extends HTMLElement {
     const values = {};
     Array.from(info_containers).forEach((info_container) => {
       if (this.contains(info_container)) {
-        values[info_container.id] = info_container.value;
+        let value = info_container.value;
+        if (!(isNaN(value))) {
+          value = parseFloat(value);
+        }
+        values[info_container.id] = value
       }
     });
     return values;
@@ -355,7 +360,7 @@ function dump_experiment(arg) {
     dump[form.id] = form.get_values();
   });
   dump["title"] = document.getElementById("title").value;
-  dump["dimensions"] = document.getElementById("plateSelector").value;
+  dump["dimensions"] = JSON.parse(document.getElementById("plateSelector").value)
   backend_call("dump", dump);
 }
 
@@ -371,7 +376,7 @@ function render_experiment(selector) {
         document.getElementById("title").value = response["title"];
       }
       if (response["dimensions"] != undefined) {
-        document.getElementById("plateSelector").value = response["dimensions"];
+        document.getElementById("plateSelector").value = JSON.stringify(response["dimensions"]);
       }
 
       forms = Object.keys(response).filter((key) =>
@@ -413,10 +418,6 @@ function hide(obj) {
 function visToggle(obj) {
   obj.classList.toggle("hidden");
 }
-function hideFinder() {
-  show(document.getElementById("plateContainer"));
-  hide(document.getElementById("finderContainer"));
-}
 
 function limitFinderDisplay() {
   const experiments = Array.from(document.querySelectorAll(".listedTitle"));
@@ -446,13 +447,5 @@ function nextPage() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-  document.addEventListener("keydown", function (event) {
-    if (event.key == "Escape") {
-      if (!(globalThis.parent)) {
-        hideFinder();
-      }
-      globalThis.parent.hideFinder();
-    }
-  });
+document.addEventListener("DOMContentLoaded", () => {
 });

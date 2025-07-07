@@ -22,21 +22,21 @@
     console.log("page loading \n")
     assignUrl("{{url_for('agent.agent_handler')}}", 'agent');
     assignUrl("{{url_for('finder.finder')}}", 'finder');
+    assignUrl("{{url_for('home.homePage')}}", 'home');
     const params = new URLSearchParams(document.location.search);
     const Experiment = {'title':params.get('title'), 'version':params.get('version')};
   </script>
 
 </head>
 
-<div class="navbar">
-<button class="run_experiments mediumButton">run</button>
-<button id = "finderButton" class="browse_experiments mediumButton">browse</button>
-<button class="process_data mediumButton">process</button>
-</div>
 
 
 
 <body>
+<div class="navbar">
+  <button id = "finderButton" class="browse_experiments mediumButton"><p>browse</p></button>
+<button id = "homeButton" class="mediumButton"><p>home</p></button>
+</div>
 
 <div id="finderContainer" class = 'hidden' >
   <iframe id="finder" src="{{url_for('finder.finder')}}" class = 'finder' frameborder="0"></iframe>
@@ -54,8 +54,9 @@
         <label for="plateSelector">plate: </label>
         <select id="plateSelector" name="plateSelector" class = "experiment_info" onchange='renderPlate()'>
           {% for plate in plates %}
-          <option value='{"x":"{{ plate["columns"] }}","y":"{{ plate["rows"] }}"}'>{{ plate['columns'] }},
-            {{plate['rows']}}</option>
+          <option value='{"x":"{{ plate["columns"] }}","y":"{{ plate["rows"] }}"}'>
+          {{ plate["columns"] }},{{plate["rows"]}}
+          </option>
           {% endfor %}
         </select>
       </div>
@@ -70,9 +71,9 @@
 
     <div id="expansionButtons">
 
-      <button id="add_instruction" class="mediumButton"> add instruction </button>
+      <button id="add_instruction" class="mediumButton"><p>add instruction</p> </button>
 
-      <button id = "store_experiment"class="mediumButton" >Store Experiment</button>
+      <button id = "store_experiment"class="mediumButton" ><p>Store Experiment</p></button>
     </div>
 
   </div>

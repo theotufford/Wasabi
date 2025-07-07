@@ -52,11 +52,18 @@ background-color: transparent;
 }
 
 .manualFeedContainer{
-display:flex;
-flex-flow: column wrap;
-justify-content: flex-start;
-}
-.incrementalControl{
-display:flex;
+justify-content: space-between;
+flex-flow: row wrap;
 flex: 0 3 auto;
+}
+.manualFeedContainer > * {
+  margin: .5vw;
+}
+
+#right{
+  justify-content: space-between;
+}
+
+#right >*{
+  margin: 2vw;
 }

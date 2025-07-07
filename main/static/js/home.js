@@ -75,9 +75,7 @@ function confirmReagentChange(button){
 let reagentSelected = false;
 
 function handleSwap(secondSelect) {
-
   const firstSelect = reagentSelected
-
   const selects = [
     {
       initialObj:firstSelect,
@@ -90,9 +88,7 @@ function handleSwap(secondSelect) {
       target:firstSelect.parentElement
     }
   ]
-
   reagentSelected = false;
-
   selects.forEach((selectObj) => {
     if(selectObj.initialObj instanceof HTMLButtonElement){ 
     selectObj.target.appendChild(selectObj.obj)
@@ -105,8 +101,28 @@ function handleSwap(secondSelect) {
       return;
     }
   })
+}
+function showfinder() {
+  document.getElementById("finder").src = document.getElementById("finder").src;
+  document.getElementById("finderContainer").classList.remove("hidden");
+}
+function hideFinder() {
+  hide(document.getElementById("finderContainer"));
+}
 
-
+let dblSpaceWindowOpen = false;
+function dblpresstimer_start() {
+  if (dblSpaceWindowOpen){
+    showfinder();
+    return
+  }
+  dblSpaceWindowOpen = true;
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      dblSpaceWindowOpen = false;
+      resolve();
+    }, 200);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -121,4 +137,28 @@ document.addEventListener("DOMContentLoaded", () => {
       confirmReagentChange(ev.target)
     })
   })
+  document.addEventListener("keypress", async (event) => {
+    if (event.key === " ") {
+      dblpresstimer_start()
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      if (!(globalThis.parent)) {
+        hideFinder();
+      }
+      globalThis.parent.hideFinder();
+    }
+  });
+
+  const runButton = document.getElementById('runExperiment')
+
+  runButton.addEventListener('click', async () => {
+    const response = fetch(window.location.href, {
+      method:"post",
+      body: "run"
+    })
+    console.log(await response.text())
+  })
+
 });

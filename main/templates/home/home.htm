@@ -12,80 +12,96 @@
     </script>
   </head>
   <body>
-  <div id = "primaryContainer">
-    <div id="finderContainer" class = 'hidden' >
-      <iframe id="finder" src="{{url_for('finder.finder')}}" class = 'finder' frameborder="0"></iframe>
-    </div>
-    <div id = "left">
-      <div class = "headContainer">
-        <h1 id="pageHeader">Wasabi Home</h1>
-        <div class="headerlink">
-          <button class = "navButton" onclick = "location.href = '/program'">programmer</button>
+    <div id = "primaryContainer">
+      <div id="finderContainer" class = 'hidden' >
+        <iframe id="finder" src="{{url_for('finder.finder')}}" class = 'finder' frameborder="0"></iframe>
+      </div>
+      <div id = "left">
+        <div class = "headContainer">
+          <h1 id="pageHeader">Wasabi Home</h1>
+          <div class="headerlink">
+            <button class = "navButton" onclick = "location.href = '/program'">programmer</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>selected experiment</th>
+              <th colspan = "4"> neccessary reagents: </th>
+            </tr>
+            <tr>
+              <td>{{experiment['title']}}</td>
+              <td colspan = "4" >
+                <div id = "reagentBay" >
+                  {% for reagent in reagents %}
+                  <button class="reagent" id = "{{reagent}}" >
+                    {{reagent}}
+                  </button>
+                    {% endfor %}
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <th scope="col">pump</th>
+              <th scope="col">reagent</th>
+              <th scope="col">confirm<br>change</th>
+              <th scope="col">manual feed</th>
+              <th scope="col">buzz</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in pumps %}
+            <tr id = "{{ row['pumpID'] }}">
+              <td scope="row">{{ row['pumpID'] }}</th>
+              <td>
+                <div class="{{row['pumpID']}} pumpReagentContainer ">
+                  <button class="reagent toReplace" id = "{{row['reagent']}}" >
+                    {{row['reagent']}}
+                  </button>
+                </div>
+              </td>
+              <td>
+                <button class="{{row['pumpID']}} confirmChange hidden">confirm</button>
+              </td>
+              <td> 
+                <div class="manualFeedContainer">
+                  <input  class = "manualFeedInput {{row['reagent']}}" placeholder="input µl"></input>
+                  <button type="submitFeed">dispense volume</button>
+                  <div class = "incrementalControl">
+                    <button class = "jogButton dispense">+</button>
+                    <button class = "jogButton retract">-</button>
+                  </div>
+                </div>
+              </td>
+              <td> 
+                <button class = "buzz">o</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div id = "right">
+        <div id = "utilButtons">
+          <button id="home">home machine</button>
+          <button id="runExperiment">run loaded experiment</button>
+          <button id="configure">configure machine</button>
+          <button id="manage">manage past experiments</button>
+        </div>
+        <div id="dPad">
+          <input  id="jogIncrement" placeholder = "increment mm"></input>
+          <button id="left"><b>-x</b></button>
+          <button id="right"><b>+x</b></button>
+          <button id="up"><b>+y</b></button>
+          <button id="right"><b>-y</b></button>
+        </div>
+        <div id="gcodeComs">
+          <input id="gCodeOut" placeholder =  "gcode input">
+          <div id="gCodeResponse">
+            <p><b>gcode response:</b></p>
+          </div>
         </div>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>selected experiment</th>
-            <th colspan = "4"> neccessary reagents: </th>
-          </tr>
-          <tr>
-            <td>{{experiment['title']}}</td>
-            <td colspan = "4" >
-              <div id = "reagentBay" >
-                {% for reagent in reagents %}
-                <button class="reagent" id = "{{reagent}}" >
-                  {{reagent}}
-                </button>
-                {% endfor %}
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <th scope="col">pump</th>
-            <th scope="col">reagent</th>
-            <th scope="col">confirm<br>change</th>
-            <th scope="col">manual feed</th>
-            <th scope="col">buzz</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in pumps %}
-          <tr id = "{{ row['pumpID'] }}">
-            <td scope="row">{{ row['pumpID'] }}</th>
-            <td>
-              <div class="{{row['pumpID']}} pumpReagentContainer ">
-                <button class="reagent toReplace" id = "{{row['reagent']}}" >
-                  {{row['reagent']}}
-                  </button>
-            </div>
-            </td>
-            <td>
-              <button class="{{row['pumpID']}} confirmChange hidden">confirm</button>
-            </td>
-            <td> 
-              <div class = 'manualFeedContainer'>
-
-                <div class="feedInputContainer">
-                <input  class = "manualFeedInput {{row['reagent']}}" placeholder="input µl"></input>
-                <button type="submitFeed">dispense volume</button>
-                <div class = "incrementalControl">
-                </div>
-                  <button class = "jogButton leftButton">+</button>
-                  <button class = "jogButton rightButton">-</button>
-                </div>
-              </div>
-            </td>
-            <td> 
-              <button class = "buzz">o</button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
     </div>
-    <div id = "right">
-    </div>
-  </div>
   </body>
 </html>

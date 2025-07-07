@@ -1,8 +1,4 @@
 <div class = "selectors">
-    <select id = "method" class = "experiment_info methodSelect">
-        <option value="constant" {% if renderData and renderData.get("method")=="constant" %} selected {% endif %} > constant volume </option>
-        <option value="gradient" {% if renderData and renderData.get("method")=="gradient" %} selected {% endif %} > 1D gradient </option>
-    </select>
   <div class = "reagentSelect">
     <div class = "reagentInputContainer">
     <input id = "reagent" class = "reagentInput experiment_info" value="{% if renderData and renderData.get("reagent") %}{{ renderData.get("reagent") }}{% endif %}">
@@ -14,6 +10,10 @@
       {% endfor %}
     </div>
   </div>
+  <select id = "method" class = "experiment_info methodSelect">
+      <option value="constant" {% if renderData and renderData.get("method")=="constant" %} selected {% endif %} > constant volume </option>
+      <option value="gradient" {% if renderData and renderData.get("method")=="gradient" %} selected {% endif %} > 1D gradient </option>
+  </select>
 </div>
 <div id = "method_container" class="method_container">
 </div>
