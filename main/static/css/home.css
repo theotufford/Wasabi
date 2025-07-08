@@ -67,3 +67,29 @@ flex: 0 3 auto;
 #right >*{
   margin: 2vw;
 }
+
+#dPad{
+width: 10vw;
+height: 10vw;
+}
+
+#jogIncrement{
+display:flex;
+flex: 1 1 auto;
+margin: 1vw;
+width: 3vw;
+}
+
+#manualPositioning{
+display:flex;
+flex-flow: column wrap;
+}
+
+.dirButton{
+  width: 2vw;
+  height: 2vw;
+}
+.dirButton > * {
+  width: 2vw;
+  height: 2vw;
+}

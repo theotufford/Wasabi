@@ -63,7 +63,7 @@ function assignUrl(url, key) { //gets dynamic urls from render for use in calls
   loadedurls[key] = url;
 }
 async function backend_call(function_target, args) { //database call function. call<string>
-  const response = await fetch(loadedurls["agent"], {
+  const response = await fetch(loadedurls.agent, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ "function_target": function_target, "args": args }),
@@ -93,8 +93,8 @@ class wellElement extends HTMLElement {
     this.render();
   }
   addForm(form) {
-    this.forms = this.forms + form.id + " ";
-    if (well_color_obj[this.forms] != undefined) {
+    this.forms += `${form.id} `;
+    if (well_color_obj[this.forms] !== undefined) {
       this.color = well_color_obj[this.forms];
     } else {
       well_color_obj[this.forms] = getColor();
@@ -193,6 +193,7 @@ class InstructionForm extends HTMLElement {
   }
   async render_form() {
     try {
+      this.experiment_data.id = this.id
       const response = await backend_call("render_form", this.experiment_data);
       return response; // Ensure a return value
     } catch (error) {
@@ -220,17 +221,13 @@ class InstructionForm extends HTMLElement {
   }
 
   handle_fromto(obj_from, obj_to) {
-    let fromIn = undefined;
-    let toIn = undefined;
+    let fromIn = obj_from;
+    let toIn = obj_to;
 
-    if (obj_from) {
-      fromIn = obj_from;
-    } else {
+    if (!obj_from) {
       fromIn = this.querySelector(".from").value;
     }
-    if (obj_to) {
-      toIn = obj_to;
-    } else {
+    if (!obj_to) {
       toIn = this.querySelector(".to").value;
     }
 
@@ -243,25 +240,23 @@ class InstructionForm extends HTMLElement {
     // fix from-to order so (from<to) (commutativity: [a1:b1].output = [b1:a1].output)
 
     if (getColumn(fromIn) > getColumn(toIn)) {
-      from["x"] = getColumn(toIn);
-      to["x"] = getColumn(fromIn);
+      from.x = getColumn(toIn);
+      to.x = getColumn(fromIn);
     } else {
-      from["x"] = getColumn(fromIn);
-      to["x"] = getColumn(toIn);
+      from.x = getColumn(fromIn);
+      to.x = getColumn(toIn);
     }
 
     if (getRow(fromIn) > getRow(toIn)) {
-      from["y"] = getRow(toIn);
-      to["y"] = getRow(fromIn);
+      from.y = getRow(toIn);
+      to.y = getRow(fromIn);
     } else {
-      from["y"] = getRow(fromIn);
-      to["y"] = getRow(toIn);
+      from.y = getRow(fromIn);
+      to.y = getRow(toIn);
     }
 
-    let deltaX = to.x - from.x;
-    let deltaY = to.y - from.y;
-    let colArray = [];
-    let rowArray = alphabet.slice(from.y, to.y + 1);
+    const colArray = [];
+    const rowArray = alphabet.slice(from.y, to.y + 1);
 
     for (let i = from.x; i < to.x + 1; i++) {
       colArray.push(i + 1);
@@ -280,6 +275,7 @@ class InstructionForm extends HTMLElement {
 
   async method_update() {
     const method = this.querySelector(".methodSelect").value;
+    console.log(this.experiment_data)
     await backend_call("getMethodForm", {
       "method": method,
       "renderData": this.experiment_data,
@@ -354,13 +350,13 @@ function dump_experiment(arg) {
   const forms = document.querySelectorAll("instruction-form");
   const dump = {};
   if (arg == "auto") {
-    dump["autosave"] = true;
+    dump.autosave = true;
   }
   forms.forEach((form) => {
     dump[form.id] = form.get_values();
   });
-  dump["title"] = document.getElementById("title").value;
-  dump["dimensions"] = JSON.parse(document.getElementById("plateSelector").value)
+  dump.title = document.getElementById("title").value;
+  dump.dimensions = JSON.parse(document.getElementById("plateSelector").value)
   backend_call("dump", dump);
 }
 
@@ -372,19 +368,19 @@ function render_experiment(selector) {
     .then((response) => {
       console.log(response);
       response = JSON.parse(response);
-      if (response["title"] != undefined) {
+      if (response.title !== undefined) {
         document.getElementById("title").value = response["title"];
       }
-      if (response["dimensions"] != undefined) {
+      if (response.dimensions !== undefined) {
         document.getElementById("plateSelector").value = JSON.stringify(response["dimensions"]);
       }
 
       forms = Object.keys(response).filter((key) =>
-        key.substring(0, 5) == "form_"
+        key.substring(0, 5) === "form_"
       );
 
       forms.forEach((form) => {
-        let newform = new InstructionForm(response[form]); // Create instance
+        const newform = new InstructionForm(response[form]); // Create instance
         form_container.appendChild(newform); // Append to DOM
       });
       renderPlate();
@@ -392,60 +388,6 @@ function render_experiment(selector) {
   return forms;
 }
 
-async function selected(title) {
-  const experiment = title.id;
-  const version = document.getElementById(`${experiment}_versionSelect`).value;
-  const colors = staticColorLibrary;
-  const shorthandContainer = document.getElementById("shorthandBlock");
-  const forms = render_experiment({ "title": experiment, "version": version });
-  document.querySelectorAll(".experimentTitle").forEach((title) => {
-    title.classList.remove("selected");
-  });
-  console.log(experiment, "\nv", version);
-  title.classList.add("selected");
-  forms.forEach((form) => {
-    form = response[form];
-    console.log(form["reagent"], form["method"], "\n");
-  });
-}
-
-function show(obj) {
-  obj.classList.remove("hidden");
-}
-function hide(obj) {
-  obj.classList.add("hidden");
-}
-function visToggle(obj) {
-  obj.classList.toggle("hidden");
-}
-
-function limitFinderDisplay() {
-  const experiments = Array.from(document.querySelectorAll(".listedTitle"));
-  let i = 0;
-  experiments.forEach((experiment) => {
-    if (experiment.classList.contains("hidden")) {
-      i = i + 1;
-    } else {
-      show(experiment);
-      if (i > 20) {
-        hide(experiment);
-      }
-      i = i + 1;
-    }
-  });
-}
-
-function nextPage() {
-  const titles = Array.from(document.querySelectorAll(".listedTitle"));
-  const search = document.getElementById("search");
-  titles.forEach((title) => {
-    if (!(title.id.toUpperCase().includes(search.value.toUpperCase()))) {
-      console.log("ignored");
-    } else {
-      visToggle(title);
-    }
-  });
-}
 
 document.addEventListener("DOMContentLoaded", () => {
 });

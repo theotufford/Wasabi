@@ -88,12 +88,21 @@
           <button id="configure">configure machine</button>
           <button id="manage">manage past experiments</button>
         </div>
-        <div id="dPad">
-          <input  id="jogIncrement" placeholder = "increment mm"></input>
-          <button id="left"><b>-x</b></button>
-          <button id="right"><b>+x</b></button>
-          <button id="up"><b>+y</b></button>
-          <button id="right"><b>-y</b></button>
+        <div id="manualPositioning">
+          <input  id="jogIncrement" placeholder = "mm">
+          <div id = "dPad">
+            <div style = "display:flex;justify-content:center">
+              <button class = "dirButton"><b>+y</b></button>
+            </div>
+            <div style = "display:flex;justify-content:center">
+              <button class = "dirButton"><b>-x</b></button>
+              <div class="dirButton"></div>
+              <button class = "dirButton"><b>+x</b></button>
+            </div>
+            <div style = "display:flex;justify-content:center">
+              <button class = "dirButton"><b>-y</b></button>
+            </div>
+          </div>
         </div>
         <div id="gcodeComs">
           <input id="gCodeOut" placeholder =  "gcode input">

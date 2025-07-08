@@ -68,29 +68,41 @@ def translate(expdata): # turns a loaded experiment data form into a map of the 
                 dir = form ['direction']
                 match dir:
                     case 'up':
-                        welldict = byRows(form)
-                        for row in welldict.keys().reverse():
-                            rowObj = welldict[row]
-                            for well in rowObj:
-                                wellmap[well][reagent] += int(form['increment']*alph.index(row) + form['initialVolume']) 
-                    case 'down':
-                        welldict = byRows(form)
+                        welldict = byRows(form).reverse()
+                        i = 0
                         for row in welldict.keys():
                             rowObj = welldict[row]
+                            increment = form['increment'] * i
                             for well in rowObj:
-                                wellmap[well][reagent] += int(form['increment']*alph.index(row) + form['initialVolume'])
+                                wellmap[well][reagent] += increment + form['initialVolume']
+                            i += 1
+                    case 'down':
+                        welldict = byRows(form)
+                        i = 0
+                        for row in welldict.keys():
+                            rowObj = welldict[row]
+                            increment = form['increment'] * i
+                            for well in rowObj:
+                                wellmap[well][reagent] += increment + form['initialVolume']
+                            i += 1
                     case 'left':
                         welldict = byCols(form)
+                        i = 0
                         for col in welldict.keys().reverse():
                             colObj = welldict[col]
+                            increment = form['increment'] * i
                             for well in colObj:
-                                wellmap[well][reagent] += int(form['increment']*int(col) + form['initialVolume']) 
+                                wellmap[well][reagent] += increment + form['initialVolume']
+                            i += 1
                     case 'right':
                         welldict = byCols(form)
+                        i = 0
                         for col in welldict.keys():
                             colObj = welldict[col]
+                            increment = form['increment'] * i
                             for well in colObj:
-                                wellmap[well][reagent] += int(form['increment']*int(col) + form['initialVolume']) 
+                                wellmap[well][reagent] += increment + form['initialVolume']
+                            i += 1
             if form['method'] == "constant":
                 welldict = byCols(form)
                 for col in welldict.keys():

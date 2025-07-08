@@ -24,17 +24,11 @@
     </select>
     <br>
     <label for="initialVolume">initialVolume:</label>
-    <input id = "initialVolume" name = "initialVolume" class = "initialVolume experiment_info" 
-    {% if renderData and renderData.get('initialVolume') %}
-        value = "{{ renderData.get('initialVolume') }}"
-    {% endif %}>
+    <input id = "initialVolume" name = "initialVolume" class = "initialVolume experiment_info" value = "{{ renderData.get('initialVolume') }}"
     </input>
     <br>
     <label for="increment">increment:</label>
-    <input name = "increment" id = "increment" class = "increment experiment_info" style = "width: 3vw"
-    {% if renderData and renderData.get('initialVolume') %}
-        value = "{{ renderData.get('increment') }}"
-    {% endif %}>
+    <input name = "increment" id = "increment" class = "increment experiment_info" style = "width: 3vw" value = "{{ renderData.get('increment') }}"
     </input>
 </div>
 {% endif %}

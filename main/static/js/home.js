@@ -7,8 +7,10 @@ function removeDupes() {
     // if the first occurance of an element by our reagent id is not our selected current loop element it means that we have found a duplicate
     // we can use this to delete the first occurance (which is the one in the reagent bay)
     if (firstInst !== reagent) {
-      firstInst.remove()
-      reagent.classList.add("confirmed")
+      if (firstInst.parentElement.id === "reagentBay"){
+        firstInst.remove()
+        reagent.classList.add("confirmed")
+      }
     }
   })
 }

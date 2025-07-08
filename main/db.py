@@ -31,12 +31,12 @@ def pumpUpdate(addition):
     except Error as e:
         return(e)
     if pump and reagent:
-        if reagent == "new-empty":
+        if reagent == "not-configured":
             db.execute(
                 """
-                INSERT INTO pumpMap (pumpID) VALUES(?)
+                INSERT INTO pumpMap (pumpID, reagent) VALUES(?,?)
                 """,
-                (pump,)
+                (pump,reagent)
             )
             db.commit()
             return f"{pump} created"
@@ -62,7 +62,7 @@ def init_db():
         count = json.loads(config)["machineInfo"]["pumpCount"] 
         for id in range(1, count+1):
             name = "pump" + str(id)
-            print(pumpUpdate({"pump":name, "reagent":"new-empty"}))
+            print(pumpUpdate({"pump":name, "reagent":"not-configured"}))
 
 
 
