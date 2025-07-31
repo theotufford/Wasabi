@@ -1,0 +1,40 @@
+<div class = "selectors">
+  <div class = "reagentSelect">
+    <div class = "reagentInputContainer">
+    <input id = "reagent" class = "reagentInput experiment_info" value="{% if renderData and renderData.get("reagent") %}{{ renderData.get("reagent") }}{% endif %}">
+    <button class = "hidden logReagentButton" id = "logReagentButton">log reagent</button>
+    </div>
+    <div class= "reagentButtonDropMenu"> 
+      {% for reagent in reagentLib %}
+        <button class =  "hidden reagentButton" id="{{ reagent }}"> {{ reagent }} </button>
+      {% endfor %}
+    </div>
+  </div>
+  <select id = "method" class = "experiment_info methodSelect">
+      <option value="constant" {% if renderData and renderData.get("method")=="constant" %} selected {% endif %} > constant volume </option>
+      <option value="gradient" {% if renderData and renderData.get("method")=="gradient" %} selected {% endif %} > 1D gradient </option>
+  </select>
+</div>
+<div id = "method_container" class="method_container">
+</div>
+<div class = "endContainer">
+<button id = "deleteBtn">x</button>
+<div class = "fromTo">
+    <input id = "from" class = "well_selector experiment_info from" 
+    {% if renderData.get("from") %}
+    value = "{{renderData['from']}}">
+    {% else %}
+    placeholder = "from"> 
+    {% endif %}
+    </input>
+    <input id = "to" class = "well_selector experiment_info to" 
+    {% if renderData.get("to") %}
+    value = "{{renderData['to']}}">
+    {% else %}
+    placeholder = "to"> 
+    {% endif %}
+    </input>
+    <div class="vertSpacer">
+    </div>
+</div>
+</div>

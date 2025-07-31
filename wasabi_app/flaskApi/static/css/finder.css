@@ -1,0 +1,22 @@
+body{
+  display: flex;
+  flex-flow: row wrap;
+  margin: 3vw;
+}
+#run{
+  flex: 3 2 100%;
+}
+#finderDisplayContainer{
+  width: 50%;
+  height: 50%;
+  margin: 2vw;
+}
+#finderDisplayContainer > * {
+  margin: 2vw;
+}
+.cornerButtons{
+display:flex;
+width: 100%;
+flex-flow: row wrap;
+justify-content: flex-end;
+}

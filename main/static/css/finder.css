@@ -1,7 +1,0 @@
-body{
-  display: flex;
-  justify-content: space-evenly;
-}
-#run{
-  flex: 3 2 100%;
-}

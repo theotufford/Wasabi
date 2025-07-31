@@ -1,0 +1,14 @@
+.legendContainer {
+  display: flex;
+  flex-flow: column wrap;
+}
+.legendRowContainer {
+  display: flex;
+  flex-flow: row wrap;
+}
+.childColorContainer{
+  display: flex;
+  flex-flow: row wrap;
+}
+
+

@@ -1,0 +1,28 @@
+#experiment{
+display:flex;
+flex-direction: row;
+justify-content: space-between;
+margin: 3vw;
+}
+.instructionForm{
+display:flex;
+flex-flow: row wrap;
+}
+.plateRow{
+  display:flex;
+  flex-flow: row nowrap;
+}
+
+#visuaElements{
+  flex-flow: column wrap;
+  justify-content: flex-start;
+}
+
+#plateContainer {
+  height:  auto;
+  width: 40vw;
+}
+.wellObject{
+display:flex;
+margin: .15vw;
+}
