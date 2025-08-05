@@ -111,14 +111,14 @@ function InstructionForm(props) {
     name="from"
     placeholder = "from"
     value = {props.from} 
-    onInput = {handleFormUpdate}
+    onChange = {handleFormUpdate}
     />
     <input 
     type="text"
     name="to"
     value = {props.to} 
     placeholder = "to"
-    onInput = {handleFormUpdate}
+    onChange = {handleFormUpdate}
     />
     <div>
     </div>

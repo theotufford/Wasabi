@@ -2,9 +2,22 @@ import { useState } from 'react'
 import { useEffect } from 'react';
 import InstructionForm from './InstructionForm.jsx'
 import './legend.css'
+
+const diffBlockDefault = {
+  width: "2vw",
+  height: "1vh"
+}
+const keyDefault ={
+  display: "flex",
+  flexFlow: "column nowrap",
+  margin: "2vw",
+  justifyContent: "center"
+
+}
+
 function LegendElement(props) {
-  const formArray = props.formArray
-  const [legend, setLegend] = useState({'initial':{html:'empty'}})
+  const experiment = props.formArray
+  const [legend, setLegend] = useState([<div> empty </div>])
   const updateLegend = () => {
     const colorMap = props.colorMap
     const keyArray = Array.from(colorMap.keys())
@@ -20,230 +33,125 @@ function LegendElement(props) {
       sizeSeparatedKeySets[keySize].push(keySet)
     })
 
-    sizeSeparatedKeySets = sizeSeparatedKeySets.filter(set => set).reverse(); // remove empty indexes and set order descending 
+    sizeSeparatedKeySets = sizeSeparatedKeySets.filter(set => set) // remove empty indexes, shortening the list to its order 
 
-    const keyHeap = new Map()
+    if (sizeSeparatedKeySets.length < 1) {
+      return
+    }
 
-    sizeSeparatedKeySets.forEach((layer, layerIndex) => {
-      const nextLayer = sizeSeparatedKeySets.length === 1 ? sizeSeparatedKeySets[0] : sizeSeparatedKeySets[layerIndex+1]
-      layer.forEach((keySet) => {
-        const baseValueObject = {
-            selfKey: keySet,
-            closestParent: new Set(),
-            color: colorMap.get(JSON.stringify([...keySet])),
-        }
-        if (!keyHeap.get(keySet)){
-          keyHeap.set(keySet, baseValueObject) 
-        }
-        if (keySet.size === 1) {
-          return
+    const minKeySize = sizeSeparatedKeySets[0][0].size // grab smallest key size (useful if for all the wells have n contents where n>1)
+    const desc_siSepKeySets = sizeSeparatedKeySets.reverse(); // set order descending 
+    const sizeCount = desc_siSepKeySets.length
+
+    const tree = new Map()
+    const renderedBranches = []
+
+    const defaultRender = (args) => {
+    const diffColor = args.diffColor
+    const selfColor = args.selfColor
+    const addingSymbol = diffColor?['', '']:'' 
+    const info = args.info
+    const children = args.children ? <div class = 'children'> {args.children.map((child) => (child?.html))} </div> :''
+      return(
+      <div key = {selfColor} style = {{...keyDefault, border:'solid', borderColor: selfColor}} class = 'keyContainer'> 
+        <div class = 'keyBase'>
+        { addingSymbol[0]} <div class="diffColorBlock" style = {{...diffBlockDefault, backgroundColor:diffColor}} />
+        {addingSymbol[1]}{info}
+        <div class="selfColorBlock" style = {{backgroundColor:selfColor}} /> 
+        </div>
+        {children}
+      </div>
+      )
+    }
+    desc_siSepKeySets.forEach((layer, layerIndex) => {
+      if (layerIndex > sizeCount) {
+        console.log('no parents found and len not min size ? basically how did this key get here: ', layer)
+        return
+      }
+      const nextLayer = desc_siSepKeySets.length === 1 ? desc_siSepKeySets[0] : desc_siSepKeySets[layerIndex+1]
+      keyLoop: for (const keySet of layer) {
+        const color = colorMap.get(JSON.stringify([...keySet]))
+        const branch = tree.get(keySet)
+        if (keySet.size === minKeySize) {
+          let singlet_info = '';
+          for (const formIndex of [...keySet]) {
+            const form = experiment[formIndex]
+            singlet_info += `${form.method} volume of ${form.reagent}\n`
+          }
+          const renderData = { info:singlet_info, selfColor: color, children: branch?.children }
+          const render = defaultRender(renderData)
+          tree.set(keySet, {
+            html: render, 
+            children:branch?.children
+          })
+          renderedBranches.push(render)
+          continue
         }
         if (!nextLayer) {
           return
         }
-        nextLayer.forEach((compKey) => {
-          if (compKey.isSubsetOf(keySet)) {
-            const addedKeySetValue = keySet.difference(compKey)
-            let addedColor;
-            let realKeySet;
-            for (const keySet of colorMap.keys()) {
-              const setsAreIdentical = addedKeySetValue.difference(keySet).size === 0
-              if (setsAreIdentical) {
-                addedColor = colorMap.get(keySet)
-                realKeySet = keySet
-              }
+
+        for (const smallerKey of nextLayer) {
+          if (smallerKey.isSubsetOf(keySet)) {
+
+            let info = ''
+            let children = [];
+
+            if (branch) {
+              children = branch.children
             }
-            const formIds = [...realKeySet]
-            let info = '+ '
-            for (const formId of formIds) {
-              const form = experiment[formId]
+
+            const diffKeys = keySet.difference(smallerKey)
+            const diffColor = colorMap.get(JSON.stringify([...diffKeys]))
+
+            for (const formIndex of [...diffKeys]) {
+              const form = experiment[formIndex]
               info += `${form.method} volume of ${form.reagent}\n`
             }
 
-            const addedElement = (
-              <div class = 'additionContainer' >
-              <div class = 'verticalSpanColorBlock' style = {{backgroundColor:addedColor}}>
-              </div>
-              <p class = 'additionInfoText'>{info}</p>
-              </div>
-            )
-            keyHeap.set(keySet, {
-              ...baseValueObject,
-              closestParent:compKey,
-              addedElement: addedElement
+            const keySetHtml = defaultRender({
+              diffColor: diffColor,
+              info : info, 
+              children:children,
+              selfColor:color
             })
+
+            tree.set(keySet, {
+              html:keySetHtml,
+              children:children
+            }) 
+
+            const newBranch = tree.get(keySet)
+
+            let parent = tree.get(smallerKey)
+            if (!parent) {
+              tree.set(smallerKey, {children:[]})
+              parent = tree.get(smallerKey)
+            }
+            parent.children.push(newBranch)
+            continue keyLoop;
           }
-        })
-      })
+        }
+        nextLayer.push(keySet)
+      }
     })
-
-
-    const descendingSizeColorKeys = Array.from(keyHeap.keys()).sort((key1, key2) => (key2.size - key1.size))
-    const getHtml = () => {
-      if (descendingSizeColorKeys.length === 0) {
-          console.log('0 return')
-        return (
-          <div>
-          hi  
-          </div>
-        )
-      }
-      const tree = new Map()
-      //console.log('keyHeap: ', keyHeap)
-      //console.log('orderedKeys', descendingSizeColorKeys)
-      for (const keyHeapKey of descendingSizeColorKeys){
-        const keyHeapValue = keyHeap.get(keyHeapKey)
-        let path = []
-        let currentParentObj = keyHeap.get(keyHeapValue.closestParent) 
-        if (!currentParentObj) {
-          keyHeapValue.isMapped = true
-          tree.set(keyHeapValue.selfKey, path)
-          continue
-        }
-        //console.log('initiating mapping loop on ', currentParentObj)
-        while (true){
-          //console.log(currentParentObj)
-          if (currentParentObj.isMapped) {
-            path = path.reverse();
-            if (!tree.get(currentParentObj.selfKey)) {
-              tree.set(currentParentObj.selfKey, [path])
-              break
-            }
-            tree.get(currentParentObj.selfKey).push([path])
-            break
-          }
-          if (currentParentObj.selfKey.size === 1) {
-            path.push(currentParentObj.selfKey)
-            path = path.reverse();
-            currentParentObj.isMapped = true
-            tree.set(keyHeapValue.selfKey, [path])
-            break
-          }
-          path.push(currentParentObj.selfKey)
-          currentParentObj.isMapped = true
-          currentParentObj = keyHeap.get(currentParentObj.closestParent)
-        }
-        console.log(tree)
-      }
-
-      let rootKey = Array.from(tree.keys())[0];
-      let loopCount = 0
-
-      while (true) {
-        loopCount++;
-        if (loopCount > 9999) break; 
-        const root = tree.get(rootKey)
-        const keyHeapObj = keyHeap.get(rootKey)
-        console.log('root -> ', root)
-        const selfColor = root.color
-        let info = '' 
-        for (const formID of keyHeapObj.selfKey) {
-          const form = formArray[formID]
-          info += `${form.method} volume of ${form.reagent}\n`
-        }
-        if (!root.html) {
-          root.html = {
-            branchHtml : [],
-            rendered: (
-              <div>
-              <div class = "legendAdded">
-              {keyHeap.get(selfKey)?.addedHtml}
-              </div>
-              <div class = "legendMain" style = {{backgroundColor: selfColor}}></div>
-              <div class="branchHtml">
-              { (() => 
-                ( if (branchHtml.length > 0) (
-                  branchHtml.map(
-                    (branch) => (
-                      branch?.html?.rendered
-                  )
-                )))
-              )()} </div>
-              </div>
-            )
-          }
-        }
-        console.log('in legend rending loop, ', loopCount, '\nroot: ', root)
-        branchLoop: for (const branchPath of root) {
-          if (!root.length || root?.rendered) {
-            rootKey = root.backRootKey
-            break
-          }
-          // if for every branch in branchpath, branch.isRendered, root = backroot 
-          // else, for every branch in branchPath, root.html.append(renderedhtml)
-          // renderedHtml looks like
-          /*
-            <div>
-            <div>
-              root html
-            </div>
-            <div>
-              map root.htmlArray
-                if branch of root has renderedHtml, return rendered 
-                else: render based on data 
-            </div>
-            </div>
-          */
-          if (root?.rendered) {
-            rootKey = root.backRootKey
-            break
-          }
-          for (const branch of branchPath) {
-            const subBranch = tree.get(branch.selfKey)
-            if (subBranch?.length === 0) {
-            }
-            if (subBranch) {
-              branch.backRootKey = rootKey
-              rootKey = branch.selfKey 
-              break branchLoop
-            }
-          }
-        }
-      }
-    }
-    getHtml()
+    return renderedBranches
   }
-
   useEffect(() => {
-    updateLegend()
-  }, [formArray])
-
+    setLegend([])
+    const html = updateLegend()
+    if (!html) {
+      return
+    }
+    console.log('updateLegend')
+    setLegend(html)
+  }, [experiment])
   return (
-    <div>
+    <div class = "legendContainer">
+    {legend.map((legendBranch) =>  (legendBranch) )}
     </div>
   )
-
-
-
-//  return (
-//    <div class = "legendContainer">
-//    {legend.reverse().map((layer, index) => {
-//      return (
-//        <div class = {`legendRowContainer`} key = {layer.mapKey}>
-//        layer: {index}
-//        {
-//          layer.map((legendObject) => {
-//            return (
-//              <div  key = {legendObject.primaryColor} style = {{margin: '1.25vw'}}>
-//              <div class="parentColorBox" style = {{backgroundColor:legendObject.primaryColor, width: '2vw', height: '2vw'}}>
-//              </div>
-//
-//              {legendObject.info}
-//
-//              <div class = 'childColorContainer'>
-//              {legendObject.childColors.map((color) => (
-//                <div key = {color} style = {{backgroundColor: color, width: '2vw', height: '2vw'}}>
-//                </div>
-//              ))}
-//              </div>
-//              </div>
-//            )
-//          })
-//        }
-//        </div>
-//      )})}
-//    </div>
-//  )
 }
+
 
 export default LegendElement

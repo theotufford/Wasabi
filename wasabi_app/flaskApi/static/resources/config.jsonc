@@ -31,15 +31,13 @@
       }
 
     },
-
     "pinDefinitions": {
+      "motorEnablePin": 0,
       "endStops":{
         "a":0,
         "b":0,
         "z":0,
       },
-
-      "motorEnablePin": 0,
       "motors": {
         "a": {"step": 0, "direction": 0},
         "b": {"step": 0, "direction": 0},

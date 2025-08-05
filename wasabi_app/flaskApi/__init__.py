@@ -1,8 +1,10 @@
 from flask import Flask
+from flask_cors import CORS  
 import os
 def create_app(test_config=None):
     # create and configure the app
-    app = Flask(__name__, instance_relative_config=True)
+    app = Flask(__name__)
+    CORS(app)  # Enable CORS for all routes
     app.config.from_mapping(
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'WasabiData.sqlite'),
@@ -24,17 +26,9 @@ def create_app(test_config=None):
     from . import db
     db.init_app(app)
 
-    from . import home 
-    app.register_blueprint(home.bp)
 
-    from . import programmer
-    app.register_blueprint(programmer.bp)
-
-    from . import agent
-    app.register_blueprint(agent.bp)
-
-    from . import finder 
-    app.register_blueprint(finder.bp)
+    from . import api 
+    app.register_blueprint(api.bp)
 
     os.system("npm run dev &")
 

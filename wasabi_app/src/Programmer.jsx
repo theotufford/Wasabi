@@ -4,6 +4,7 @@ import PlateElement from './plateElement.jsx'
 import InstructionForm from './InstructionForm.jsx'
 import './programmer.css'
 import LegendElement from './legend.jsx'
+import * as flaskApi from './flaskApi'
 const alph = "abcdefghijklmnopqrstuvwxyz".split('')
 
 const staticColorLibrary = [
@@ -41,7 +42,8 @@ function Programmer(){
     columns:12
   })
   const [colorMap, setColorMap] = useState(new Map())
-  const liveColorMap = new Map()
+  let liveColorMap = new Map()
+  let deadColorSet = new Set()
 
   const initPlateMatrix = []
   for (let row = 0; row <= plateDimensions.rows; row++) {
@@ -54,6 +56,7 @@ function Programmer(){
         colorHandler: function(currentformArray) {
           // need to sort to avoid keying errors associated with insertion order
           if(!this.formAttachmentData || this.formAttachmentData.length === 0){
+            this.color = ''
             return -1
           }
 
@@ -62,11 +65,9 @@ function Programmer(){
           if (liveColorMap.has(formComboStringKey)){
             this.color = liveColorMap.get(formComboStringKey)
           } else {
-
             const newColor = getColor()
             liveColorMap.set(formComboStringKey, newColor)
-            setColorMap(prevColorMap => new Map([...prevColorMap, [formComboStringKey, newColor]]))
-
+            deadColorSet.add(newColor)
             sortedFormAttachmentData.forEach((id) => {
               currentformArray .forEach((formObject) => {
                 if (formObject.id === id) {
@@ -79,8 +80,10 @@ function Programmer(){
                 }
               })
             })
+            setColorMap(liveColorMap)
             this.color = newColor
-            return newColor 
+            deadColorSet = deadColorSet.difference(new Set([newColor]))
+            return {deadColorSet:deadColorSet, liveColorMap:liveColorMap} 
           }
         },
         deleteId: function(id) {
@@ -97,7 +100,7 @@ function Programmer(){
             const hasId = (this.formAttachmentData.indexOf(id) !== -1) 
             outBool = hasId
           } catch (error) {
-            console.log("hasId error: ",error)
+            console.log("hasId error: ", error)
           }
           return outBool
         }, 
@@ -182,8 +185,10 @@ function Programmer(){
     }
     const cornerRange = formattedRange.range 
     formObject.area = cornerRange.area
-    mutablePlateMatrix.forEach((rowObject, row) => {
 
+    let colorHandlerResponse;
+    const added = []
+    mutablePlateMatrix.forEach((rowObject, row) => {
       rowObject.forEach((wellElement, column) => {
         const subRange_row = cornerRange[row]
         let cornerRange_wellElement = false  
@@ -193,11 +198,25 @@ function Programmer(){
           if (!cornerRange_wellElement) {
           } else if (!wellElement.hasId(formObject.id)){
             wellElement.addId(formObject.id)
+            added.push(wellElement.id) 
           }
         } 
-        wellElement.colorHandler(formArray)
+        colorHandlerResponse = wellElement.colorHandler(formArray)
       })
     })
+    if (colorHandlerResponse === -1) {
+      return
+    }
+
+    for (colorEntry in Array.from(liveColorMap)) {
+      const color = colorEntry[1]
+      const key = colorEntry[0]
+      if (deadColorSet.has(color)) {
+        liveColorMap.delete(key)
+      }
+    }
+    setColorMap(liveColorMap)
+    console.log('setting color map, deleting ', deadColorSet)
     setPlateMatrix(mutablePlateMatrix)
   }
 
@@ -223,9 +242,21 @@ function Programmer(){
     modifyFormArray (emptyForm)
   }
 
-  
-
   const [experiment, setExperiment] = useState({plate:plateDimensions, forms:formArray, colorMap:colorMap})
+
+  useEffect(() => {
+    setExperiment({plate:plateDimensions, forms:formArray, colorMap:colorMap})
+    console.log(experiment)
+  }, [formArray, colorMap])
+
+
+  const awesomeClick = () => {
+    console.log(flaskApi)
+    const resp = flaskApi.hlwrld('click!')
+    console.log(resp)
+    return resp
+  }
+
 
   return (
     <div id = "experiment">
@@ -241,6 +272,9 @@ function Programmer(){
     <PlateElement plateMatrix = {plateMatrix}/>
     <LegendElement formArray = {formArray} colorMap = {colorMap}/>
     </div>
+
+    <button type="submit" onClick = {awesomeClick}> </button>
+
     </div>
   )
 }

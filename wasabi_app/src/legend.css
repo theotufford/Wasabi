@@ -1,14 +1,29 @@
-.legendContainer {
-  display: flex;
-  flex-flow: column wrap;
-}
-.legendRowContainer {
-  display: flex;
-  flex-flow: row wrap;
-}
-.childColorContainer{
-  display: flex;
-  flex-flow: row wrap;
+.diffColorblock{
+  background-color: inherit;
+  width: 2vw;
+  height: 1vh;
 }
 
+.selfColorBlock {
+  width: 2vw;
+  height:1vh;
+  background-color: inherit;
+}
+
+.legendContainer{
+  display: flex;
+  flex-flow: row nowrap;
+}
+
+.children{
+  display: flex;
+  flex-flow:row nowrap;
+}
+
+.keyBase{
+  display: flex;
+  flex-flow: column nowrap;
+  margin: 2vw;
+  justify-content: center;
+}
 
