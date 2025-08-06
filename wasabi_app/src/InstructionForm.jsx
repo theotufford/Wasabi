@@ -71,14 +71,21 @@ function InstructionForm(props) {
   useEffect(() => {
     props.modifyFormArray(formObject)
   }, [formObject])
-  
-  
 
 
   const handleFormUpdate = (event) => {
     const update = {}
     update[event.target.name] = event.target.value
     setFormValues(prev => ({...prev, ...update}))
+  }
+
+  const keydownHandler = (event) => {
+    console.log('keydown event ')
+    if (
+      ["from", "to"].includes(event.target.name) &&
+      ["Enter", "Escape"].includes(event.key)){
+      event.target.blur()
+    }
   }
 
 
@@ -111,14 +118,16 @@ function InstructionForm(props) {
     name="from"
     placeholder = "from"
     value = {props.from} 
-    onChange = {handleFormUpdate}
+    onBlur = {handleFormUpdate}
+    onKeyDown = {keydownHandler}
     />
     <input 
     type="text"
     name="to"
     value = {props.to} 
     placeholder = "to"
-    onChange = {handleFormUpdate}
+    onBlur = {handleFormUpdate}
+    onKeyDown = {keydownHandler}
     />
     <div>
     </div>

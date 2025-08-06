@@ -1,10 +1,9 @@
-import { useState } from 'react'
-import { useEffect } from 'react';
+import { useState, useRef, useEffect  } from 'react'
 import PlateElement from './plateElement.jsx'
 import InstructionForm from './InstructionForm.jsx'
 import './programmer.css'
 import LegendElement from './legend.jsx'
-import * as flaskApi from './flaskApi'
+import ApiElement from './flaskApi'
 const alph = "abcdefghijklmnopqrstuvwxyz".split('')
 
 const staticColorLibrary = [
@@ -36,19 +35,42 @@ function alphNumToCoords(idString){
   }
 }
 function Programmer(){
-
-  const [plateDimensions, setPlateDimensions] = useState({
+const [experiment, setExperiment] = useState({
+  plateDimensions: {
     rows:8,
     columns:12
-  })
-  const [colorMap, setColorMap] = useState(new Map())
+  },
+  formArray: [{
+    id:0
+  }],
+  colorMap:new Map()
+})
+
+  const setPlateDimensions = (value) => {
+    setExperiment(prev => ({...prev, plateDimensions:value}))
+  } 
+  const setformArray = (value) => {
+    setExperiment(prev => ({...prev, formArray:value}))
+  } 
+  const setColorMap = (value) => {
+    setExperiment(prev => ({...prev, colorMap:value}))
+  } 
+  const setTitle = (value) => {
+    setExperiment(prev => ({...prev, title:value}))
+  } 
+
+  const titleChange = (event) => {
+    const newTitle = event.target.value
+    setTitle(newTitle)
+  }
+
   let liveColorMap = new Map()
   let deadColorSet = new Set()
 
   const initPlateMatrix = []
-  for (let row = 0; row <= plateDimensions.rows; row++) {
+  for (let row = 0; row <= experiment.plateDimensions.rows; row++) {
     const rowArray = []
-    for( let column = 1; column <= plateDimensions.columns; column++){
+    for( let column = 1; column <= experiment.plateDimensions.columns; column++){
       rowArray.push({
         id:`${alph[row]}${column}`,
         formAttachmentData:[],
@@ -146,8 +168,8 @@ function Programmer(){
     const outOfBounds = (
       outCoordRange.lowerBound.x < 0 ||
       outCoordRange.lowerBound.y < 0 ||
-      outCoordRange.upperBound.x > plateDimensions.columns ||
-      outCoordRange.upperBound.y > plateDimensions.rows
+      outCoordRange.upperBound.x > experiment.plateDimensions.columns ||
+      outCoordRange.upperBound.y > experiment.plateDimensions.rows
     )
 
     if (outOfBounds) {
@@ -201,7 +223,7 @@ function Programmer(){
             added.push(wellElement.id) 
           }
         } 
-        colorHandlerResponse = wellElement.colorHandler(formArray)
+        colorHandlerResponse = wellElement.colorHandler(experiment.formArray)
       })
     })
     if (colorHandlerResponse === -1) {
@@ -221,60 +243,49 @@ function Programmer(){
   }
 
   const modifyFormArray = (formObject) => {
-    if (formArray [formObject.id]) {
-      const tmpArrObj = formArray .map((form) => (form))
+    if (experiment.formArray [formObject.id]) {
+      const tmpArrObj = experiment.formArray .map((form) => (form))
       tmpArrObj[formObject.id] = formObject
       setformArray ([...tmpArrObj])
     } else {
-      setformArray ([...formArray , formObject])
+      setformArray ([...experiment.formArray , formObject])
     }
   }
 
-  const [formArray , setformArray ] = useState([{
-    id:0
-  }])
-
   const addEmptyForm = () => {
-    const latestForm = formArray [formArray .length - 1]
+    const latestForm = experiment.formArray [experiment.formArray .length - 1]
     const emptyForm = {
      id:(latestForm.id+1)
     }
     modifyFormArray (emptyForm)
   }
 
-  const [experiment, setExperiment] = useState({plate:plateDimensions, forms:formArray, colorMap:colorMap})
 
-  useEffect(() => {
-    setExperiment({plate:plateDimensions, forms:formArray, colorMap:colorMap})
-    console.log(experiment)
-  }, [formArray, colorMap])
-
-
-  const awesomeClick = () => {
-    console.log(flaskApi)
-    const resp = flaskApi.hlwrld('click!')
-    console.log(resp)
-    return resp
+  const [button, setButton] = useState(false)
+  const flip = () => {
+    console.log('button value, ', button)
+    const fVal = button? false:true
+    setButton(fVal)
   }
 
 
   return (
     <div id = "experiment">
     <div id="forms">
-    {formArray.map((form) => (
+    <input type="text" name="experimentTitle" onchange = {titleChange} placeholder = "insert title"/>
+    {experiment.formArray.map((form) => (
     <div key = {form.id} class="instructionForm">
       <InstructionForm id = {form.id} rangeHandler = {rangeHandler} modifyFormArray = {modifyFormArray} />
     </div>
   ))}
-    <button type="submit" onClick = {addEmptyForm}></button>
+    <button type="submit" onClick = {addEmptyForm}> add form </button>
+    <button type="button" onClick = {flip}> save experiment</button>
     </div>
     <div id = "visualElements">
     <PlateElement plateMatrix = {plateMatrix}/>
-    <LegendElement formArray = {formArray} colorMap = {colorMap}/>
+    <LegendElement formArray = {experiment.formArray} colorMap = {experiment.colorMap}/>
     </div>
-
-    <button type="submit" onClick = {awesomeClick}> </button>
-
+    <ApiElement experiment = {experiment} />
     </div>
   )
 }
