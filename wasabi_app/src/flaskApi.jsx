@@ -10,7 +10,7 @@ function ApiElement(props){
   const experiment = props.experiment
 
   useEffect(() => {
-   socket.emit('saveExperiment', {data:JSON.stringify(experiment)})
+   socket.emit('dumpExperimentToSession', experiment)
   }, [experiment])
 
   socket.on('timer', (data) => {

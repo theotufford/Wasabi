@@ -3,6 +3,7 @@ from flask import Flask, jsonify, Blueprint, request, session
 from .db import get_db
 import threading
 import time
+import json
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -10,20 +11,25 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 def returnSession():
     return jsonify(session)
 
-
 @api_bp.route('/getExperiment', methods=["GET", "POST"])
 def getExperiment(data):
-    title = data.get('title')
-    if title == "autosave":
-        data = session.get('autosave')
-        if data:
-            return data
-        else:
-            return jsonify("no autosave")
-    resp = returnExperimentbyVersion(data)
-    if resp:
-        resp = resp['data']
-    else: 
-        resp = "not found"
+    db = get_db()
+    print(data)
+    if data.get('version'):
+        resp = db.execute( 
+        """
+        SELECT * FROM experiments
+            WHERE title = ? 
+            AND version = ?
+        """, (data['title'], data['version'],)).fetchone()
+    else: # if no version is given the highest versioned instance is returned 
+        resp = db.execute(
+        """
+        SELECT * FROM experiments
+            WHERE title = ?
+            ORDER BY version DESC
+            LIMIT 1
+        """, (data['title'],)).fetchone()
+    print(f"{resp=}")
     return resp
 

@@ -35,6 +35,14 @@ function alphNumToCoords(idString){
   }
 }
 function Programmer(){
+
+  useEffect(() => {
+    console.log("i was called on first Render!")
+    return () => {
+      console.log('i am a cleanup function')
+    }
+  }, [])
+
 const [experiment, setExperiment] = useState({
   plateDimensions: {
     rows:8,
@@ -43,7 +51,8 @@ const [experiment, setExperiment] = useState({
   formArray: [{
     id:0
   }],
-  colorMap:new Map()
+  colorMap:new Map(),
+  version:0,
 })
   function tmpFormArr() {
     const tmp = experiment.formArray.map(_ => _) // structured clone except it tolerates functions

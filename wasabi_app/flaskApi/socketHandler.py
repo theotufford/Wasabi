@@ -1,71 +1,78 @@
+from flask import session, jsonify
 from .socketInstance import socketInstance 
 from .db import get_db
 import json
 from .api import getExperiment
+if __name__ == "__main__":
+    pass
 
 def register(socketio):
-    def saveExperiment(experiment):
-        db = get_db()
-        title = experiment.title
-        experimentObject = getExperiment(title)
-        if experiment.toDB:
-            db.execute(
-                    ''' 
-                    INSERT INTO experiments (title, data) VALUES (?,?)
-                    ''' , (title, experiment)
-            )
 
-    def reagentLibUpdate(data):
+    @socketio.on('updateReagents')
+    def reagentLibUpdate(experiment):
         db = get_db()
-        data = json.loads(data)
-        print("updating reagents")
         returnVal = "no update" # if not altered there was no update 
-        for form in data['formArray']:
+        for form in experiment.get('formArray') or []:
             reagent = form.get("reagent")
-            if reagent:
-                print(f"selected reagent: {reagent}")
-                reagentRecord = db.execute(
-                    '''
-                    SELECT reagent FROM reagentLib WHERE reagent IS ? 
-                    ''', (reagent,)).fetchone()
-                if reagentRecord is None:
-                    db.execute('INSERT INTO reagentLib (reagent) VALUES (?)', (reagent,))
-                    db.commit()
-                    returnVal = "updatedReagents"
-        print(f"reagent return value:{returnVal}")
+            if reagent is None: continue
+            reagentRecord = db.execute(
+            '''
+            SELECT reagent 
+            FROM reagentLib
+            WHERE reagent IS ? 
+            ''', (reagent,)).fetchone()
+            if reagentRecord: continue 
+            db.execute('INSERT INTO reagentLib (reagent) VALUES (?)', (reagent,))
+            returnVal = "updatedReagents"
+        db.commit()
         return returnVal
-    @socketio.on('dumpExperiment')
-    def dump(data): # dumps all of the construction information for each form in the current experiment to the database
+
+    @socketio.on('dumpExperimentToSession')
+    def dump(experiment): # dumps all of the construction information for each form in the current experiment to the database
+        print(f'dumping!\n{experiment}' )
         db = get_db()
-        session['autosave'] = data # convenient to auto-open the most recent experiment 
-        experimentJson = json.dumps(data) # convert the real json dict obj into a string 
-        resp = getExperiment(data)
+        if not session.get('autosave'):
+            session['autosave'] = experiment # convenient to auto-open the most recent experiment 
+        return jsonify("dumped!")
+
+    @socketio.on('saveExperiment')
+    def saveExperiment(experiment):
+
+        dump(experiment)
+        experiment = session.get('autosave')
+        db = get_db()
+
+        title = experiment.get("title")
         version = 0
-        returnVal = reagentLibUpdate(data) # automatically attempt to log all the reagents, function has implicit duplicate protection
-        if resp:
-            if resp['data'] == experimentJson: # duplicate protection
+        experimentJson = json.dumps(experiment)
+        currentExperimentOfTitle = getExperiment({"title":title})
+
+        if currentExperimentOfTitle:
+            reagentLibUpdate(experiment)
+            version = currentExperimentOfTitle.get("version")
+            if currentExperimentOfTitle.get('data') == experimentJson: # duplicate protection
                 return jsonify('trying to save a perfect duplicate')
-            version = resp['version']+1 # increment version if title exists
+
         db.execute(
             """
             INSERT INTO experiments (data, title, version) VALUES (?, ?, ?)
             """, 
-            (experimentJson, data['title'], version)
+            (experimentJson, title, version)
         )
+
         db.commit()
-        return jsonify("dumped!")
 
     @socketio.on('deleteExperiment')
-    def deleteExperiment(data):
+    def deleteExperiment(experiment):
         db = get_db()
-        db.execute( " DELETE FROM experiments WHERE title = ? AND version = ?", (data['title'],data['version']))
+        db.execute( " DELETE FROM experiments WHERE title = ? AND version = ?", (experiment['title'],experiment['version']))
+        print( f"deleted: {experiment['title']}")
         db.commit()
-        print(splitter(f'{data["title"]}_v{data["version"]} deleted'))
-        return jsonify( f'{data["title"]}_v{data["version"]} deleted' )
 
-    def run_experiment(data):
-
+    def run_experiment(experimentTitle):
         db = get_db()
-        experiment = getExperiment({"title": data})
-        missing_contents  = [experiment[form]["contents"] for form in experimentif data[form]["contents"] not in pumpatlas]
-        return jsonify( "run error" )
+        if type(experimentTitle) is not str:
+            raise ValueError("this function wants an experiment title, you gave it:\"{experimentTitle}\" ")
+        missing_contents  = [experiment[form]["contents"] for form in experiment if data[form]["contents"] not in pumpatlas]
+        if len(missing_contents) > 0:
+            return jsonify( f"run error, missing contents: {missing_contents}" )
