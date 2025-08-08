@@ -31,8 +31,8 @@ def create_app(test_config=None):
     from .api import api_bp
     app.register_blueprint(api_bp)
 
-    from . import socketApi 
-    socketApi.register(socketInstance)
+    from . import socketHandler
+    socketHandler.register(socketInstance)
 
     socketInstance.init_app(app)
 

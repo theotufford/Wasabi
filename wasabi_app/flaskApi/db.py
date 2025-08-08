@@ -53,13 +53,14 @@ def pumpUpdate(addition):
             return f"pumps updated: {pump}:{reagent}"
     else:
         return f"value fail, {pump=} {reagent=}"
+
 def init_db():
     db = get_db()
     with current_app.open_resource('schema.sql') as f:
         db.executescript(f.read().decode('utf8'))
-    with current_app.open_resource('./static/resources/config.json') as j:
+    with current_app.open_resource('../../config.json') as j:
         config = j.read()
-        count = json.loads(config)["machineInfo"]["pumpCount"] 
+        count = json.loads(config)["machine"]["pumpCount"] 
         for id in range(1, count+1):
             name = "pump" + str(id)
             print(pumpUpdate({"pump":name, "reagent":"not-configured"}))

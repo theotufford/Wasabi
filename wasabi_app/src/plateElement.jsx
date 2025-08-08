@@ -13,7 +13,7 @@ function PlateElement(props){
   return (
     <div id = "plateContainer">
     { plateMatrix.map((rowElement,row) => (
-      <div key = {row} class = "plateRow">
+      <div key = {row} className = "plateRow">
       { rowElement.map((element,column) => (
           <WellElement {...plateMatrix[row][column]} key = {column}/>
       ))}

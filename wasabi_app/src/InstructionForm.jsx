@@ -82,7 +82,6 @@ function InstructionForm(props) {
   const keydownHandler = (event) => {
     console.log('keydown event ')
     if (
-      ["from", "to"].includes(event.target.name) &&
       ["Enter", "Escape"].includes(event.key)){
       event.target.blur()
     }
@@ -96,7 +95,8 @@ function InstructionForm(props) {
     name="reagent"
     placeholder = "input reagent"
     value = {props.reagent}
-    onChange = {handleFormUpdate}
+    onKeyDown = {keydownHandler}
+    onBlur = {handleFormUpdate}
     />
     <button type="submit">log reagent</button>
     <select
@@ -109,10 +109,10 @@ function InstructionForm(props) {
     <option value="constant">constant</option>
     <option value="gradient">gradient</option>
     </select>
-    <div class = "method">
+    <div className = "method">
     {getMethodForm(formObject)}
     </div>
-    <div class="fromTo">
+    <div className="fromTo">
     <input 
     type="text"
     name="from"

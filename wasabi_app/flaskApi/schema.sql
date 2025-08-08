@@ -14,6 +14,7 @@ CREATE TABLE pumpMap (
 
 CREATE TABLE experiments (
   title TEXT,
+  experimentID INT,
   created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   version INT DEFAULT 0,
   pastRunData TEXT,

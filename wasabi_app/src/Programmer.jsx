@@ -45,6 +45,10 @@ const [experiment, setExperiment] = useState({
   }],
   colorMap:new Map()
 })
+  function tmpFormArr() {
+    const tmp = experiment.formArray.map(_ => _) // structured clone except it tolerates functions
+    return(tmp)
+  }
 
   const setPlateDimensions = (value) => {
     setExperiment(prev => ({...prev, plateDimensions:value}))
@@ -76,12 +80,11 @@ const [experiment, setExperiment] = useState({
         formAttachmentData:[],
         color:'', 
         colorHandler: function(currentformArray) {
-          // need to sort to avoid keying errors associated with insertion order
           if(!this.formAttachmentData || this.formAttachmentData.length === 0){
             this.color = ''
             return -1
           }
-
+          // sort to avoid keying errors associated with insertion order carrying into value of string 
           const sortedFormAttachmentData = this.formAttachmentData.sort((a,b) => a - b) // this is javascript for "sort in ascending order", which is stupid
           const formComboStringKey = JSON.stringify(sortedFormAttachmentData)
           if (liveColorMap.has(formComboStringKey)){
@@ -135,8 +138,8 @@ const [experiment, setExperiment] = useState({
   }
   const [plateMatrix, setPlateMatrix] = useState(initPlateMatrix)
   const orderFromTo = (formObject) => {
-    const parsedFrom = alphNumToCoords(formObject.from)
-    const parsedTo = alphNumToCoords(formObject.to)
+    const parsedFrom = alphNumToCoords(formObject.from.toLowerCase())
+    const parsedTo = alphNumToCoords(formObject.to.toLowerCase())
 
 
     if (parsedFrom === -1 || parsedTo === -1) {
@@ -203,6 +206,7 @@ const [experiment, setExperiment] = useState({
     const mutablePlateMatrix = plateMatrix.map((row) => ([...row]))
     const formattedRange = getRange(formObject)
     if (formattedRange.invalid) {
+      console.log('invalid range!')
       return -1
     }
     const cornerRange = formattedRange.range 
@@ -230,23 +234,15 @@ const [experiment, setExperiment] = useState({
       return
     }
 
-    for (colorEntry in Array.from(liveColorMap)) {
-      const color = colorEntry[1]
-      const key = colorEntry[0]
-      if (deadColorSet.has(color)) {
-        liveColorMap.delete(key)
-      }
-    }
-    setColorMap(liveColorMap)
-    console.log('setting color map, deleting ', deadColorSet)
     setPlateMatrix(mutablePlateMatrix)
+    console.log('set plate materix')
   }
 
   const modifyFormArray = (formObject) => {
     if (experiment.formArray [formObject.id]) {
-      const tmpArrObj = experiment.formArray .map((form) => (form))
-      tmpArrObj[formObject.id] = formObject
-      setformArray ([...tmpArrObj])
+      const tmp = tmpFormArr()
+      tmp[formObject.id] = formObject
+      setformArray ([...tmp])
     } else {
       setformArray ([...experiment.formArray , formObject])
     }
@@ -260,26 +256,34 @@ const [experiment, setExperiment] = useState({
     modifyFormArray (emptyForm)
   }
 
-
-  const [button, setButton] = useState(false)
-  const flip = () => {
-    console.log('button value, ', button)
-    const fVal = button? false:true
-    setButton(fVal)
+  const deleteForm = (id) => {
+    const shortenedFormArray = tmpFormArr().filter((form) => {
+      const isntForm = form.id !== id
+      console.log('filtering')
+      return isntForm
+    })
+    setformArray(shortenedFormArray)
   }
+
+
 
 
   return (
     <div id = "experiment">
     <div id="forms">
-    <input type="text" name="experimentTitle" onchange = {titleChange} placeholder = "insert title"/>
+    <input type="text" name="experimentTitle" onChange = {titleChange} placeholder = "insert title"/>
     {experiment.formArray.map((form) => (
-    <div key = {form.id} class="instructionForm">
-      <InstructionForm id = {form.id} rangeHandler = {rangeHandler} modifyFormArray = {modifyFormArray} />
+    <div key = {form.id} className="instructionForm">
+      <InstructionForm 
+        id = {form.id}
+        rangeHandler = {rangeHandler}
+        modifyFormArray = {modifyFormArray}
+        deleteForm = {deleteForm}
+      />
     </div>
   ))}
     <button type="submit" onClick = {addEmptyForm}> add form </button>
-    <button type="button" onClick = {flip}> save experiment</button>
+    <button type="button" onClick = {deleteForm}> save experiment</button>
     </div>
     <div id = "visualElements">
     <PlateElement plateMatrix = {plateMatrix}/>

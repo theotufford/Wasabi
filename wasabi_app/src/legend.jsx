@@ -51,13 +51,13 @@ function LegendElement(props) {
     const selfColor = args.selfColor
     const addingSymbol = diffColor?['', '']:'' 
     const info = args.info
-    const children = args.children ? <div class = 'children'> {args.children.map((child) => (child?.html))} </div> :''
+    const children = args.children ? <div className = 'children'> {args.children.map((child) => (child?.html))} </div> :''
       return(
-      <div key = {selfColor} style = {{...keyDefault, border:'solid', borderColor: selfColor}} class = 'keyContainer'> 
-        <div class = 'keyBase'>
-        { addingSymbol[0]} <div class="diffColorBlock" style = {{...diffBlockDefault, backgroundColor:diffColor}} />
+      <div key = {selfColor} style = {{...keyDefault, border:'solid', borderColor: selfColor}} className = 'keyContainer'> 
+        <div className = 'keyBase'>
+        { addingSymbol[0]} <div className="diffColorBlock" style = {{...diffBlockDefault, backgroundColor:diffColor}} />
         {addingSymbol[1]}{info}
-        <div class="selfColorBlock" style = {{backgroundColor:selfColor}} /> 
+        <div className="selfColorBlock" style = {{backgroundColor:selfColor}} /> 
         </div>
         {children}
       </div>
@@ -147,7 +147,7 @@ function LegendElement(props) {
     setLegend(html)
   }, [experiment])
   return (
-    <div class = "legendContainer">
+    <div className = "legendContainer">
     {legend.map((legendBranch) =>  (legendBranch) )}
     </div>
   )
