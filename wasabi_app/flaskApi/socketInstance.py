@@ -1,4 +1,4 @@
 from flask_socketio import SocketIO
 
-socketInstance = SocketIO(cors_allowed_origins="*")
+socketInstance = SocketIO(cors_allowed_origins="*", manage_session = False)
 

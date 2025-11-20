@@ -1,27 +1,25 @@
-import { useEffect } from 'react';
-import { useRef } from 'react';
-import {io} from 'socket.io-client'
+import { useEffect, useRef, useState } from 'react';
+import { socket, apiCall } from './backendConfig.jsx';
+const SaveButton = (props) => {
 
-const backendUrl = 'http://localhost:5000'
-const socket = io(backendUrl)
+	const autoSave = useRef(true)
+	const save = (experiment) => {
+		console.log('autosave = ', autoSave)
+			socket.emit('saveExperiment', {...experiment, autoSave : autoSave.current})
+	}
 
+	let experiment = props.experiment
+	const explicitSave = () => {
+		autoSave.current = false
+		save(experiment)
+	}
+	useEffect(() => { //save on change 
+		autoSave.current = true
+		save(experiment)
 
-function ApiElement(props){
-  const experiment = props.experiment
-
-  useEffect(() => {
-   socket.emit('dumpExperimentToSession', experiment)
-  }, [experiment])
-
-  socket.on('timer', (data) => {
-    console.log(data)
-  })
-
+	}, [experiment])
+	return (
+		<button onClick={explicitSave}>Save version {experiment.version}</button>
+	)
 }
-
-export default ApiElement
-
-
-
-
-
+export default SaveButton

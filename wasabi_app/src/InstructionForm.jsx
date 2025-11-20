@@ -79,60 +79,63 @@ function InstructionForm(props) {
     setFormValues(prev => ({...prev, ...update}))
   }
 
-  const keydownHandler = (event) => {
-    console.log('keydown event ')
-    if (
-      ["Enter", "Escape"].includes(event.key)){
-      event.target.blur()
-    }
-  }
+
+	const keydownHandler = props.keydownHandler
 
 
   return (
-    <>
-    <input 
-    type="text"
-    name="reagent"
-    placeholder = "input reagent"
-    value = {props.reagent}
-    onKeyDown = {keydownHandler}
-    onBlur = {handleFormUpdate}
-    />
-    <button type="submit">log reagent</button>
-    <select
-    type="text"
-    name="method"
-    placeholder = "pickMethod"
-    selected = {props.method} 
-    onChange = {handleFormUpdate}
-    >
-    <option value="constant">constant</option>
-    <option value="gradient">gradient</option>
-    </select>
-    <div className = "method">
-    {getMethodForm(formObject)}
-    </div>
-    <div className="fromTo">
-    <input 
-    type="text"
-    name="from"
-    placeholder = "from"
-    value = {props.from} 
-    onBlur = {handleFormUpdate}
-    onKeyDown = {keydownHandler}
-    />
-    <input 
-    type="text"
-    name="to"
-    value = {props.to} 
-    placeholder = "to"
-    onBlur = {handleFormUpdate}
-    onKeyDown = {keydownHandler}
-    />
-    <div>
-    </div>
-    </div>
-    </>
+    <tr>
+		<td><button id = {props.id} onClick = {props.deleteForm}></button></td>
+		<td>
+			<input 
+				type="text"
+				name="reagent"
+				placeholder = "input reagent"
+				value = {props.reagent}
+				onKeyDown = {keydownHandler}
+				onBlur = {handleFormUpdate}
+			/>
+			<button type="submit" style = {{display:"none"}} >log reagent</button>
+		</td>
+
+		<td>
+			<select
+				type="text"
+				name="method"
+				placeholder = "pickMethod"
+				selected = {props.method} 
+				onChange = {handleFormUpdate} 
+			>
+				<option value="constant">constant</option>
+				<option value="gradient">gradient</option>
+			</select>
+			<div className = "method">
+				{getMethodForm(formObject)}
+			</div>
+		</td>
+
+		<td>
+			<div className="fromTo">
+				<input 
+					type="text"
+					name="from"
+					placeholder = "from"
+					value = {props.from} 
+					onBlur = {handleFormUpdate}
+					onKeyDown = {keydownHandler}
+				/>
+				<input 
+					type="text"
+					name="to"
+					value = {props.to} 
+					placeholder = "to"
+					onBlur = {handleFormUpdate}
+					onKeyDown = {keydownHandler}
+				/>
+			</div>
+		</td>
+
+    </tr>
   )
 }
 export default InstructionForm

@@ -3,7 +3,7 @@ import PlateElement from './plateElement.jsx'
 import InstructionForm from './InstructionForm.jsx'
 import './programmer.css'
 import LegendElement from './legend.jsx'
-import ApiElement from './flaskApi'
+import SaveButton from './flaskApi'
 const alph = "abcdefghijklmnopqrstuvwxyz".split('')
 
 const staticColorLibrary = [
@@ -18,6 +18,7 @@ const staticColorLibrary = [
   "DarkBlue",
   "DarkOrange",
 ]; //thanks chatgpt XD
+
 function getColor() {
   const picked = staticColorLibrary.pop();
   return picked;
@@ -34,52 +35,46 @@ function alphNumToCoords(idString){
     y:y
   }
 }
-function Programmer(){
 
-  useEffect(() => {
-    console.log("i was called on first Render!")
-    return () => {
-      console.log('i am a cleanup function')
-    }
-  }, [])
+function Programmer(props){
+	const experimentTemplate = {
+			title:"unnamed",
+			version:0,
+			plateDimensions:{ rows:8, columns:12 },
+			formArray:[{ id:0 }],
+			colorMap:new Map(),
+		}
 
-const [experiment, setExperiment] = useState({
-  plateDimensions: {
-    rows:8,
-    columns:12
-  },
-  formArray: [{
-    id:0
-  }],
-  colorMap:new Map(),
-  version:0,
-})
+	const initial = {...experimentTemplate, ...props.experiment}
+	const [experiment, setExperiment] = useState(initial)
+
+	const setTitle = (value) => {
+		setExperiment(prev => ({...prev, title:value}))
+	}
+	const setPlateDimensions = (value) => {
+		setExperiment(prev => ({...prev, plateDimensions:value}))
+	}
+	const setformArray = (value) => {
+		setExperiment(prev => ({...prev, formArray:value}))
+	}
+	const setColorMap = (value) => {
+		setExperiment(prev => ({...prev, colorMap:value}))
+	}
+
   function tmpFormArr() {
     const tmp = experiment.formArray.map(_ => _) // structured clone except it tolerates functions
     return(tmp)
   }
-
-  const setPlateDimensions = (value) => {
-    setExperiment(prev => ({...prev, plateDimensions:value}))
-  } 
-  const setformArray = (value) => {
-    setExperiment(prev => ({...prev, formArray:value}))
-  } 
-  const setColorMap = (value) => {
-    setExperiment(prev => ({...prev, colorMap:value}))
-  } 
-  const setTitle = (value) => {
-    setExperiment(prev => ({...prev, title:value}))
-  } 
-
-  const titleChange = (event) => {
-    const newTitle = event.target.value
-    setTitle(newTitle)
-  }
-
-  let liveColorMap = new Map()
-  let deadColorSet = new Set()
-
+	let tempTitle;
+	const titleInputHandler = (ev) => {
+		tempTitle = ev.target.value
+	}
+	const titleChange = (event) => {
+		if ( tempTitle === undefined ) return; 
+		setTitle(tempTitle)
+	}
+	const activeKeys = useRef(new Set())
+  let mutableColorMap = new Map()
   const initPlateMatrix = []
   for (let row = 0; row <= experiment.plateDimensions.rows; row++) {
     const rowArray = []
@@ -96,14 +91,14 @@ const [experiment, setExperiment] = useState({
           // sort to avoid keying errors associated with insertion order carrying into value of string 
           const sortedFormAttachmentData = this.formAttachmentData.sort((a,b) => a - b) // this is javascript for "sort in ascending order", which is stupid
           const formComboStringKey = JSON.stringify(sortedFormAttachmentData)
-          if (liveColorMap.has(formComboStringKey)){
-            this.color = liveColorMap.get(formComboStringKey)
+					activeKeys.current.add(formComboStringKey)
+          if (mutableColorMap.has(formComboStringKey)){
+            this.color = mutableColorMap.get(formComboStringKey)
           } else {
             const newColor = getColor()
-            liveColorMap.set(formComboStringKey, newColor)
-            deadColorSet.add(newColor)
+            mutableColorMap.set(formComboStringKey, newColor)
             sortedFormAttachmentData.forEach((id) => {
-              currentformArray .forEach((formObject) => {
+              currentformArray.forEach((formObject) => {
                 if (formObject.id === id) {
                   if (!formObject.colors) {
                     formObject.colors = [newColor]
@@ -114,11 +109,11 @@ const [experiment, setExperiment] = useState({
                 }
               })
             })
-            setColorMap(liveColorMap)
+            setColorMap(mutableColorMap)
             this.color = newColor
-            deadColorSet = deadColorSet.difference(new Set([newColor]))
-            return {deadColorSet:deadColorSet, liveColorMap:liveColorMap} 
           }
+					console.log(mutableColorMap)
+					console.log(activeKeys.current)
         },
         deleteId: function(id) {
           const forms = this.formAttachmentData
@@ -194,7 +189,6 @@ const [experiment, setExperiment] = useState({
 
   const getRange = (formObject) => {
     const formattedCorners = orderFromTo(formObject)
-
     if (formattedCorners.invalid){
       return {invalid:true}
     }
@@ -212,6 +206,7 @@ const [experiment, setExperiment] = useState({
   }
 
   const rangeHandler = (formObject) => {
+		activeKeys.current.clear()
     const mutablePlateMatrix = plateMatrix.map((row) => ([...row]))
     const formattedRange = getRange(formObject)
     if (formattedRange.invalid) {
@@ -222,7 +217,7 @@ const [experiment, setExperiment] = useState({
     formObject.area = cornerRange.area
 
     let colorHandlerResponse;
-    const added = []
+
     mutablePlateMatrix.forEach((rowObject, row) => {
       rowObject.forEach((wellElement, column) => {
         const subRange_row = cornerRange[row]
@@ -233,7 +228,6 @@ const [experiment, setExperiment] = useState({
           if (!cornerRange_wellElement) {
           } else if (!wellElement.hasId(formObject.id)){
             wellElement.addId(formObject.id)
-            added.push(wellElement.id) 
           }
         } 
         colorHandlerResponse = wellElement.colorHandler(experiment.formArray)
@@ -242,9 +236,7 @@ const [experiment, setExperiment] = useState({
     if (colorHandlerResponse === -1) {
       return
     }
-
     setPlateMatrix(mutablePlateMatrix)
-    console.log('set plate materix')
   }
 
   const modifyFormArray = (formObject) => {
@@ -263,44 +255,78 @@ const [experiment, setExperiment] = useState({
      id:(latestForm.id+1)
     }
     modifyFormArray (emptyForm)
+		console.log(activeKeys)
   }
 
-  const deleteForm = (id) => {
+  const deleteForm = (event) => {
+		const id = parseInt(event.target.id)
     const shortenedFormArray = tmpFormArr().filter((form) => {
+			console.log(form.id)
       const isntForm = form.id !== id
       console.log('filtering')
+			console.log(isntForm)
       return isntForm
     })
+		console.log(shortenedFormArray)
     setformArray(shortenedFormArray)
   }
 
 
+  const keydownHandler = (event) => {
+    console.log('keydown event ')
+    if (
+      ["Enter", "Escape"].includes(event.key)){
+      event.target.blur()
+    }
+  }
 
+	let initialTitle = {}
+	if( initial.title !== "unnamed" ){
+		initialTitle = {value:initial.title}
+		return
+	}
 
-  return (
-    <div id = "experiment">
-    <div id="forms">
-    <input type="text" name="experimentTitle" onChange = {titleChange} placeholder = "insert title"/>
-    {experiment.formArray.map((form) => (
-    <div key = {form.id} className="instructionForm">
-      <InstructionForm 
-        id = {form.id}
-        rangeHandler = {rangeHandler}
-        modifyFormArray = {modifyFormArray}
-        deleteForm = {deleteForm}
-      />
-    </div>
-  ))}
-    <button type="submit" onClick = {addEmptyForm}> add form </button>
-    <button type="button" onClick = {deleteForm}> save experiment</button>
-    </div>
-    <div id = "visualElements">
-    <PlateElement plateMatrix = {plateMatrix}/>
-    <LegendElement formArray = {experiment.formArray} colorMap = {experiment.colorMap}/>
-    </div>
-    <ApiElement experiment = {experiment} />
-    </div>
-  )
+	return (
+		<div id = "experiment">
+		<div id="forms">
+		<input 
+			type="text"
+			name="experimentTitle" 
+			onInput = {titleInputHandler}
+			onBlur = {titleChange}
+			onKeyDown = {keydownHandler}
+			placeholder = "insert title"
+			{...initialTitle}
+		/>
+		<table>
+			<thead>
+				<tr>
+					<th> reagent </th>
+					<th> method </th>
+					<th> coordinates </th>
+				</tr>
+			</thead>
+			<tbody>
+			{experiment.formArray.map((form) => (
+				<InstructionForm key = {form.id} className="instructionForm"
+					id = {form.id}
+					rangeHandler = {rangeHandler}
+					modifyFormArray = {modifyFormArray}
+					deleteForm = {deleteForm}
+					keydownHandler = {keydownHandler}
+				/>
+			))}
+			</tbody>
+		</table>
+		<button onClick = {addEmptyForm}> add form </button>
+		</div>
+		<div id = "visualElements">
+		<PlateElement plateMatrix = {plateMatrix}/>
+		<LegendElement activeKeys = {activeKeys} formArray = {experiment.formArray} colorMap = {experiment.colorMap}/>
+		</div>
+		<SaveButton experiment={experiment} setExperiment = {setExperiment}/>
+		</div>
+	)
 }
 
 export default Programmer

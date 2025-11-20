@@ -1,39 +1,35 @@
-from flask import Flask
+from flask import Flask, session
 from .socketInstance import socketInstance
+from flask_session import Session
+from flask_cors import CORS
 import threading
 import os
-def create_app(test_config=None):
-    # create and configure the app
-    app = Flask(__name__)
-    app.config.from_mapping(
-        SECRET_KEY='dev',
-        DATABASE=os.path.join(app.instance_path, 'WasabiData.sqlite'),
-    )
-    app.debug = True
 
+def create_app(test_config=None):
+    app = Flask(__name__)
+    app.debug = True
     if test_config is None:
         # load the instance config, if it exists, when not testing
         app.config.from_pyfile('config.py', silent=True)
     else:
         # load the test config if passed in
         app.config.from_mapping(test_config)
-
     # ensure the instance folder exists
     try:
         os.makedirs(app.instance_path)
     except OSError:
         pass
-
     # import the database into the app
     from . import db
     db.init_app(app)
-
-    from .api import api_bp
-    app.register_blueprint(api_bp)
+    socketInstance.init_app(app)
 
     from . import socketHandler
     socketHandler.register(socketInstance)
 
-    socketInstance.init_app(app)
+    from . import dataApi 
+    app.register_blueprint(dataApi.bp)
+    Session(app)
+    CORS(app)
 
     return app

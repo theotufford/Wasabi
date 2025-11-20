@@ -20,7 +20,7 @@ function LegendElement(props) {
   const [legend, setLegend] = useState([<div> empty </div>])
   const updateLegend = () => {
     const colorMap = props.colorMap
-    const keyArray = Array.from(colorMap.keys())
+    const keyArray = Array.from(props.activeKeys.current)
     const formKeySets = keyArray.map( (formKeyString) => (new Set(JSON.parse(formKeyString))) )
 
     let sizeSeparatedKeySets = []
