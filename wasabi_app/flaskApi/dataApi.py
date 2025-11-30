@@ -20,10 +20,7 @@ def getExperiment(data):
                 ORDER BY version DESC
                 LIMIT 1
                 """, (data['title'],)).fetchone()
-    if resp is not None:
-        for key in resp.keys():
-          print(f"{key} : {resp[f'{key}']}")
-    print(f"database {resp=}")
+
     return resp
 
 bp = Blueprint('dataApi', __name__, url_prefix='/dataApi')
@@ -47,9 +44,65 @@ def deleteExperiment(experiment):
 def fetchExperiment():
     data = request.get_json()
     print(data)
-    experiment = jsonify(dict(getExperiment(data)))
-    return experiment
+    dbRepsonse = getExperiment(data)
+    try: 
+        experiment = jsonify(dict(dbRepsonse))
+        print(f"{dict(dbRepsonse)=}")
+        return experiment
+    except: 
+        return 'oops'
 
+def reagentLibUpdate(experiment):
+    db = get_db()
+    returnVal = "no update" # if not altered there was no update 
+    for form in experiment.get('formArray') or []:
+        reagent = form.get("reagent")
+        if reagent is None: continue
+        reagentRecord = db.execute(
+                '''
+                SELECT reagent 
+                FROM reagentLib
+                WHERE reagent IS ? 
+                ''', (reagent,)).fetchone()
+        if reagentRecord: continue 
+        db.execute('INSERT INTO reagentLib (reagent) VALUES (?)', (reagent,))
+        returnVal = "updatedReagents"
+    db.commit()
+    return returnVal
+
+@bp.route('/saveExperiment', methods = ["POST"])
+def saveExperiment():
+    data = request.get_json()
+    if not data.get('formArray'):
+        print('no data')
+        return
+    db = get_db()
+    autoSave = data["autosave"]
+    title = data["title"]
+    experimentJson = json.dumps(data)
+    dbFetch = getExperiment({"title":title})
+    selected = {}
+    if dbFetch != None: selected = dict(dbFetch)
+    version = selected.get("version") or 0
+    reagentLibUpdate(data)
+    if selected.get('data') == experimentJson: # duplicate protection
+        print('trying to save duplicate, aborting')
+        return jsonify('trying to save a perfect duplicate')
+    if not autoSave:
+        if selected is not {}: version = version+1
+        db.execute("""
+                   INSERT INTO experiments (data, title, version) VALUES (?, ?, ?)
+                   """, 
+                   (experimentJson, title, version))
+        db.commit()
+        return jsonify({"version":version})
+    db.execute("""
+               UPDATE experiments 
+               SET data = ?
+               WHERE (title = ?)
+               """, (experimentJson, "autosave"))
+    db.commit()
+    return jsonify({"status":1})
 @bp.route('/dbDump', methods = ["POST"])
 def dbDump():
     db = get_db()
@@ -61,7 +114,6 @@ def dbDump():
                """).fetchall()
     for row in dump:
         expArray.append(dict(row))
-        print(dict(row))
     return jsonify({"data":expArray})
 @bp.route('/run_experiment', methods = ["POST"])
 def run_experiment(experimentTitle):

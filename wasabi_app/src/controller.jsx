@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect  } from 'react'
-import {socket, apiCall} from './backendConfig.jsx'
+import apiCall from './backendConfig.jsx'
 import TestButton from './browserFrame.jsx'
 
 function Controller(){

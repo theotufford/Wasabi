@@ -1,5 +1,3 @@
-import { useState } from 'react'
-
 function WellElement(props) {
   const wellId = props.id
   const color = props.color

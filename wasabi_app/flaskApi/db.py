@@ -63,6 +63,11 @@ def init_db():
         for id in range(1, count+1):
             name = "pump" + str(id)
             print(pumpUpdate({"pump":name, "reagent":"not-configured"}))
+        db.execute("""
+                   INSERT INTO experiments (title, version) 
+                   VALUES (?,?)
+                   """, ("autoSave",0))
+        db.commit()
 
 
 

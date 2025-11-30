@@ -1,5 +1,4 @@
 from flask import Flask, session
-from .socketInstance import socketInstance
 from flask_session import Session
 from flask_cors import CORS
 import threading
@@ -22,10 +21,6 @@ def create_app(test_config=None):
     # import the database into the app
     from . import db
     db.init_app(app)
-    socketInstance.init_app(app)
-
-    from . import socketHandler
-    socketHandler.register(socketInstance)
 
     from . import dataApi 
     app.register_blueprint(dataApi.bp)

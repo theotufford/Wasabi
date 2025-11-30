@@ -1,16 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import { socket, apiCall } from './backendConfig.jsx';
+import  apiCall  from './backendConfig.jsx';
 const SaveButton = (props) => {
 
 	const autoSave = useRef(true)
 	const save = (experiment) => {
 		console.log('autosave = ', autoSave)
-			socket.emit('saveExperiment', {...experiment, autoSave : autoSave.current})
+		experiment.autosave = autoSave.current
+		console.log('color map save : ', experiment.colorMap)
+		apiCall({
+			route:"saveExperiment",
+			body:experiment
+		})
 	}
 
-	let experiment = props.experiment
+	const experiment = props.experiment
+	const setExperiment = props.setExperiment
+	const version = props.version
 	const explicitSave = () => {
 		autoSave.current = false
+		setExperiment({...experiment, version:(experiment.version + 1)})
 		save(experiment)
 	}
 	useEffect(() => { //save on change 
@@ -19,7 +27,7 @@ const SaveButton = (props) => {
 
 	}, [experiment])
 	return (
-		<button onClick={explicitSave}>Save version {experiment.version}</button>
+		<button onClick={explicitSave}>Save</button>
 	)
 }
 export default SaveButton
