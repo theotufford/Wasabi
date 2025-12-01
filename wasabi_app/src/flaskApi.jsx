@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import  apiCall  from './backendConfig.jsx';
 const SaveButton = (props) => {
-
 	const autoSave = useRef(true)
 	const save = (experiment) => {
 		console.log('autosave = ', autoSave)
@@ -12,7 +11,6 @@ const SaveButton = (props) => {
 			body:experiment
 		})
 	}
-
 	const experiment = props.experiment
 	const setExperiment = props.setExperiment
 	const version = props.version

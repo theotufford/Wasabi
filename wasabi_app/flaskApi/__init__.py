@@ -19,12 +19,16 @@ def create_app(test_config=None):
     except OSError:
         pass
     # import the database into the app
+
     from . import db
     db.init_app(app)
 
+    from . import serialComs
+    app.register_blueprint(serialComs.bp)
+
     from . import dataApi 
     app.register_blueprint(dataApi.bp)
+    CORS(app, origins="http://localhost:5173", methods=["GET", "POST"]) # in final version the node server should start this one and pass its url
     Session(app)
-    CORS(app)
 
     return app

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import  apiCall from './backendConfig.jsx'
+
 const getTitles = (set_titleList) => {
 	let tempList = []
 	apiCall({ route: "dbDump" })
@@ -21,12 +22,18 @@ const deletePrompt = (title) => {
 //----------------------------------------- individual list item element
 const Exp_li = (props) => {
 	const title = props.title
-	const search = props.search
+	const search = props.searchValue
 	const [visible, setVis] = useState(true)
-	const select = () => {
-		props.explicitRedir.current = true
-		props.set_select(title)
-		console.log('set selected')
+
+	const run = () => {
+		props.setEndpoint("controller")
+		props.enableRedirect.current = true
+		props.selectTitle(title)
+	}
+	const edit = () => {
+		props.setEndpoint("editor")
+		props.enableRedirect.current = true
+		props.selectTitle(title)
 	}
 
 	useEffect(() => {
@@ -43,7 +50,8 @@ const Exp_li = (props) => {
 
 	return (
 		<li style={{ visibility: visible ? 'visible' : 'hidden', }}>
-			<button class="selectButton" onClick={select}>o</button>
+			<button class="selectButton" onClick={edit}>edit</button>
+			<button class="selectButton" onClick={run}>run</button>
 			{title}
 		</li>
 	)
@@ -51,8 +59,6 @@ const Exp_li = (props) => {
 //----------------------------------------- list element
 const ListElement = (props) => {
 	const [titleList, set_titleList] = useState(["loading"])
-	const search = props.searchValue
-	const set_select = props.set_select
 	useEffect(() => {
 		getTitles(set_titleList)
 	}, [])
@@ -62,15 +68,14 @@ const ListElement = (props) => {
 				<Exp_li
 					key={title}
 					title={title}
-					set_select={set_select}
-					search={search}
-					explicitRedir={props.explicitRedir}
+					{...props}
 				/>
 			))}
 		</ul>
 	)
 }
 //----------------------------------------- search bar
+
 const SearchElement = (props) => {
 	const search = (event) => {
 		const searchValue = event.target.value
@@ -85,12 +90,16 @@ const BrowserElement = (props) => {
 	const experiment = props.experiment
 	const setExperiment = props.setExperiment
 	const initialLoad = useRef(false)
+	const [redirectTarget, setredirectTarget] = useState()
 	useEffect(() => {
+
 		if (!initialLoad.current) {
-			console.log("escaped autoredirect")
+			console.log("escaped autoredirect") // i dont know why this happens and this is a sloppy fix
 			return
 		}
+
 		console.log('succesful redirect call')
+
 		apiCall({
 			route: "fetchExperiment",
 			body: {
@@ -102,16 +111,24 @@ const BrowserElement = (props) => {
 				setExperiment(data)
 				console.log('set experiment to: ', data)
 			})
-			.then(() => props.goToEditor())
+			.then(() => {
+			if (redirectTarget === "editor"){
+					props.goToEditor()
+				}
+			if (redirectTarget === "controller"){
+					props.goToController()
+				}
+			})
 	}, [selectedTitle, setExperiment])
 	return (
 		<div>
 			<button onClick={props.goToEditor}>new</button>
 			<ListElement
-				explicitRedir={initialLoad}
+				enableRedirect={initialLoad}
 				searchValue={searchValue}
 				selected={selectedTitle}
-				set_select={set_selectedTitle}
+				selectTitle={set_selectedTitle}
+				setEndpoint={setredirectTarget}
 			/>
 			<SearchElement set_search={set_searchValue} />
 		</div>

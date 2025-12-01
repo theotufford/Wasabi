@@ -23,8 +23,8 @@ def getExperiment(data):
 
     return resp
 
-bp = Blueprint('dataApi', __name__, url_prefix='/dataApi')
 
+bp = Blueprint('dataApi', __name__, url_prefix='/dataApi')
 @bp.route('/deleteExperiment', methods = ["POST"])
 def deleteExperiment(experiment):
     db = get_db()
