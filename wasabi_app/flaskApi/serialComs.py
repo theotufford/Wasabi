@@ -2,7 +2,8 @@ from flask import Flask, jsonify, Blueprint, Response, request, session
 import serial
 import time
 def connectSerial():
-    ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1) 
+    ser = serial.Serial('/dev/ttys0', 115200, timeout=1) 
+    return ser
 bp = Blueprint('serialComs', __name__, url_prefix='/serialComs')
 @bp.route('/', methods = ["GET"])
 def sse():
@@ -23,3 +24,18 @@ def sse():
     }
     return Response(pingstream(), headers=headers)
 
+def monitorSerial():
+    pico=connectSerial()
+    time.sleep(1)
+    print(pico)
+    while 1:
+        line = pico.readline()
+        if line is not None or "":
+            print(line)
+        time.sleep(0.1)
+
+
+
+
+if __name__ == "__main__":
+    monitorSerial()
