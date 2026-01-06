@@ -2,6 +2,7 @@
 #include "fiveBar.hpp"
 #include "dma_uart.hpp"
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <hardware/gpio.h>
@@ -10,15 +11,13 @@
 #include <memory>
 #include <pico/time.h>
 #include <pico/types.h>
-#include <ratio>
-#include <set>
-#include <span>
 #include <vector>
 
-Motor::Motor(const MotorConfig &motor_config)
-    : _step_pin(motor_config.step_pin), _dir_pin(motor_config.dir_pin),
-      _stp_per_rev(motor_config.stp_per_rev), _daemon(motor_config.daemon) {
-  // initialize all of the pins
+Motor::Motor(const std::vector<float> &argumentVector)
+    : _step_pin((int)argumentVector[step_pin_arg]),
+      _dir_pin((int)argumentVector[dir_pin_arg]),
+      _stp_per_rev((int)argumentVector[stp_per_rev_arg]) {
+  // claim pins and stuff
 }
 
 void Motor::step() {
@@ -29,10 +28,9 @@ void Motor::step() {
 
 void AxisMotor::queue_movement(float target) {}
 
-Pump::Pump(const MotorConfig &motor_config, float eSteps_ul, float flowrate)
-    : Motor(motor_config), _eSteps_ul(eSteps_ul), flowrate_max(flowrate) {
-  // also dont know
-}
+Pump::Pump(const std::vector<float> &argumentVector)
+    : Motor(argumentVector), flowrate_max(argumentVector[flowrate_max_arg]),
+      _eSteps_ul(argumentVector[eSteps_ul_arg]) {}
 
 void Pump::queue_dispense(float volume) {
   // add to step delta, put motor into daemon vector
@@ -41,115 +39,123 @@ void Pump::queue_aspiration(float volume) {
   // flip direction, add to step delta, put motor into daemon vector
 }
 
-MotorDaemon::MotorDaemon() {}
-
-int MotorDaemon::handle_liquid() {}
-
-int MotorDaemon::handle_move() {}
-void ComsInstance::writeString(std::string toWrite) {
-  toWrite += "\n";
-  write_and_flush(reinterpret_cast<const uint8_t *>(toWrite.c_str()),
-                  toWrite.size());
+void ComsInstance::send_data(const uint8_t code, const uint8_t *data) {
+  write(&code, 1);
+  write(&COMS_PUNCTUATION_BYTE, 1);
+  write(data, (sizeof(*data) / sizeof(data[0])));
+  write(&COMS_PUNCTUATION_BYTE, 1);
+  flush();
 }
-uint ComsInstance::awaitMessage() {
-  uint loadstatus = 3;
+void ComsInstance::send_data(uint8_t code) {
+  write(&code, 1);
+  flush();
+}
+void ComsInstance::send_string(std::string toWrite) {
+  send_data(MESSAGE, (reinterpret_cast<const uint8_t *>(toWrite.c_str(),
+                                                          toWrite.size())));
+}
+uint ComsInstance::await_data() {
+  coms_rx_state = WAITING;
+  argumentVector.clear();
   absolute_time_t startTime = get_absolute_time();
   uint64_t elapsedTime = 0;
-  uint8_t rx_data[64];
+  uint8_t rx_data[4];
+  float tmpFloat;
   bool bytesAvailable = false;
-  uint16_t buffIndex = 0;
-
+  uint buffIndex = 0;
   while (true) {
+    if (coms_rx_state == CONFIRM) {
+      break;
+    }
     elapsedTime =
         (absolute_time_diff_us(startTime, get_absolute_time())) / 1000;
     if (elapsedTime > timeLimit) {
-      loadstatus = 2;
-      break;
+			send_string("timeout");
+			return 1;
     }
     bytesAvailable = read_byte(&rx_data[buffIndex]);
     if (!bytesAvailable) {
       continue;
     }
-    switch (rx_data[buffIndex]) {
-    case '\n': {
-      loadstatus = 0;
-      break;
-    }
-    case ':': {
-      comsCode = rx_data[buffIndex - 1];
-      buffIndex = 0;
-    }
-    case ';': {
-      argumentVector.push_back(rx_data);
+    startTime = get_absolute_time();
+    bool ispunctuationByte = rx_data[buffIndex] == COMS_PUNCTUATION_BYTE;
+    if (coms_rx_state == WAITING && ispunctuationByte) {
+      coms_rx_state = rx_data[buffIndex - 1];
       buffIndex = 0;
       memset(rx_data, 0, sizeof(rx_data));
+      send_data(CONFIRM);
+      continue;
     }
+    if (buffIndex == 0 && ispunctuationByte) {
+      return 0;
     }
-    startTime = get_absolute_time();
-    buffIndex++;
-    if (buffIndex == 64) {
-      loadstatus = 1;
-      break;
+    if (buffIndex == 3) {
+      memcpy(&tmpFloat, rx_data, sizeof(float));
+      argumentVector.push_back(tmpFloat);
     }
-    if (loadstatus > 0) {
-      return 1;
-    }
+    buffIndex = (buffIndex + 1) % 4;
   }
-  return loadstatus;
 }
 
 AxisMotor::AxisMotor(std::vector<float> argumentVector)
-    : Motor(argumentVector), v_max(argumentVector[axis_ArgVecCodex::v_max_arg]),
-      accel_max(argumentVector[axis_ArgVecCodex::accel_max_arg]),
-      _lin_eSteps(argumentVector[axis_ArgVecCodex::accel_max_arg]),
-      _rad_esteps(2 * M_PI / argumentVector[Motor::motor_ArgVecKey::stp_per_rev_arg]){}
-}
+    : Motor(argumentVector), v_max(argumentVector[v_max_arg]),
+      accel_max(argumentVector[accel_max_arg]),
+      _lin_eSteps(argumentVector[accel_max_arg]),
+      _rad_esteps(2 * M_PI / argumentVector[stp_per_rev_arg]) {}
 
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
     : DmaUart(uart, baudrate) {
-  sendMessage(WAKE, 0);
+  // wakeup
+  send_data(WAKE);
   while (true) {
-    uint messageFound = awaitMessage();
-    if (comsCode == WAKE && messageFound == 0) {
+    uint messageFound = await_data();
+		if (messageFound == 1) {
+			continue;
+		}
+    if (coms_rx_state == WAKE) {
       break;
     }
   }
-  sendMessage(CONFIRM, 0);
+  send_data(CONFIRM);
+}
+FiveBar ComsInstance::setup_machine() {
+  FiveBar new_machine;
   while (true) {
-    uint messageFound = awaitMessage();
-    if (messageFound != 0) {
+    uint messageFound = await_data();
+    if (messageFound != 1) {
       continue;
     }
-    if (comsCode == CONFIRM) {
+    if (coms_rx_state == CONFIRM) {
       break;
     }
-    if (!(comsCode >= NEW_PUMP && comsCode <= MACHINE_DIMENSIONS)) {
+    if (!(coms_rx_state >= NEW_PUMP && coms_rx_state <= MACHINE_DIMENSIONS)) {
+			send_string("calling settings setup but coms code outside range");
       continue;
     }
-    switch (comsCode) {
+    switch (coms_rx_state) {
     case NEW_PUMP: {
+      new_machine.pumps.push_back(std::make_unique<Pump>(argumentVector));
     }
     case A_MOTOR: {
-      settings.a_motor = new_axis_motor(argumentVector);
-      sendMessage(CONFIRM, 0);
+      new_machine.a_motor = std::make_unique<AxisMotor>(argumentVector);
     }
     case B_MOTOR: {
-      settings.b_motor = new_axis_motor(argumentVector);
-      sendMessage(CONFIRM, 0);
+      new_machine.b_motor = std::make_unique<AxisMotor>(argumentVector);
     }
     case Z_MOTOR: {
-      settings.z_motor = new_axis_motor(argumentVector);
-      sendMessage(CONFIRM, 0);
+      new_machine.z_motor = std::make_unique<AxisMotor>(argumentVector);
     }
     case MACHINE_PIN_DEFINITIONS: {
+      // blank for now
     }
     case MACHINE_DIMENSIONS: {
+      // blank for now
     }
     }
+		send_data(coms_rx_state);
   }
+  return new_machine;
 }
-
-FiveBar::FiveBar(uart_inst_t *uart, uint baudrate) {}
 
 int FiveBar::kinematic_solver(float x_target, float y_target) {}
 void FiveBar::unlock_movement() {}
