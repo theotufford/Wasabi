@@ -1,9 +1,5 @@
 #pragma once
-#include <cstdint>
 #include <hardware/uart.h>
-#include <hardware/gpio.h>
-#include <iostream>
-#include <pico/types.h>
 
 constexpr uint8_t kRxBuffLengthPow = 5;
 constexpr uint8_t kTxBuffLengthPow = 5;
@@ -11,10 +7,8 @@ constexpr uint16_t kRxBuffLength = 1 << (kRxBuffLengthPow);
 constexpr uint16_t kTxBuffLength = 1 << (kTxBuffLengthPow);
 constexpr int kUartRxChannel = 0;
 constexpr int kUartTxChannel = 1;
-constexpr int kUartTxPin = 16;
-constexpr int kUartRxPin = 17;
-constexpr int defautTimeLimit = 50;
-
+constexpr int kUartTxPin = 17;
+constexpr int kUartRxPin = 16;
 
 class DmaUart {
  private:
@@ -32,36 +26,15 @@ class DmaUart {
 
  public:
   DmaUart(uart_inst_t* uart, uint baudrate);
-
   uint16_t write(const uint8_t* data, uint16_t length);
   void flush();
   void write_and_flush(const uint8_t* data, uint16_t length);
-
-  bool read_byte(uint8_t* data);
+  uint16_t read_byte(uint8_t* data);
   uint16_t read(uint8_t* data, uint16_t length);
   uint16_t read_all(uint8_t* data);
-
   
  private:
   void init_uart(uart_inst_t* uart, uint baudrate);
   void init_dma();
+  
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

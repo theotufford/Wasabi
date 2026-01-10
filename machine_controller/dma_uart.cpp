@@ -3,20 +3,21 @@
 #include <hardware/gpio.h>
 #include <hardware/irq.h>
 #include <hardware/uart.h>
-#include <pico/time.h>
-#include <pico/types.h>
 #include <string.h>
 
 #include <dma_uart.hpp>
 
-DmaUart::DmaUart(uart_inst_t *uart, uint baudrate)
-    : uart_(uart), rx_user_index_(0), rx_dma_index_(0), tx_user_index_(0),
+DmaUart::DmaUart(uart_inst_t* uart, uint baudrate)
+    : uart_(uart),
+      rx_user_index_(0),
+      rx_dma_index_(0),
+      tx_user_index_(0),
       tx_dma_index_(0) {
   init_uart(uart_, baudrate);
   init_dma();
 }
 
-void DmaUart::init_uart(uart_inst_t *uart, uint baudrate) {
+void DmaUart::init_uart(uart_inst_t* uart, uint baudrate) {
   gpio_set_function(kUartTxPin, GPIO_FUNC_UART);
   gpio_set_function(kUartRxPin, GPIO_FUNC_UART);
   uart_init(uart, baudrate);
@@ -54,7 +55,7 @@ void DmaUart::init_dma() {
   dma_channel_set_write_addr(kUartTxChannel, &uart0_hw->dr, false);
 }
 
-uint16_t DmaUart::write(const uint8_t *data, uint16_t length) {
+uint16_t DmaUart::write(const uint8_t* data, uint16_t length) {
   if (length == 0) {
     return 0;
   }
@@ -84,7 +85,7 @@ uint16_t DmaUart::write(const uint8_t *data, uint16_t length) {
       }
     }
     tx_user_index_ = (tx_user_index_ + length) & (kTxBuffLength - 1);
-  } else { // no enougth space to write
+  } else {  // no enougth space to write
     // TODO: write as much data as possible
     return 0;
   }
@@ -104,30 +105,30 @@ void DmaUart::flush() {
   while (dma_channel_is_busy(kUartTxChannel))
     ;
 
-  uint8_t *start = &tx_buffer_[tx_dma_index_];
+  uint8_t* start = &tx_buffer_[tx_dma_index_];
   dma_channel_transfer_from_buffer_now(kUartTxChannel, start, size);
   tx_dma_index_ = (tx_dma_index_ + size) & (kTxBuffLength - 1);
 }
 
-void DmaUart::write_and_flush(const uint8_t *data, uint16_t length) {
+void DmaUart::write_and_flush(const uint8_t* data, uint16_t length) {
   write(data, length);
   flush();
 }
 
-bool DmaUart::read_byte(uint8_t *data) {
+uint16_t DmaUart::read_byte(uint8_t* data) {
   // Update dma index
   rx_dma_index_ =
       kRxBuffLength - dma_channel_hw_addr(kUartRxChannel)->transfer_count;
 
   if (rx_dma_index_ == rx_user_index_) {
-    return 0;
+    return -1;
   }
   *data = rx_buffer_[rx_user_index_];
   rx_user_index_ = (rx_user_index_ + 1) & (kRxBuffLength - 1);
-  return 1;
+  return 0;
 }
 
-uint16_t DmaUart::read(uint8_t *data, uint16_t length) {
+uint16_t DmaUart::read(uint8_t* data, uint16_t length) {
   // Update DMA index
   rx_dma_index_ =
       kRxBuffLength - dma_channel_hw_addr(kUartRxChannel)->transfer_count;
@@ -136,12 +137,12 @@ uint16_t DmaUart::read(uint8_t *data, uint16_t length) {
   available = (rx_user_index_ <= rx_dma_index_)
                   ? (rx_dma_index_ - rx_user_index_)
                   : (kRxBuffLength + rx_dma_index_ - rx_user_index_);
-
+  
   if (available < length) {
     // read as much as we have
     length = available;
   }
-
+  
   if (length == 0) {
     return 0;
   }
@@ -167,7 +168,7 @@ uint16_t DmaUart::read(uint8_t *data, uint16_t length) {
   return length;
 }
 
-uint16_t DmaUart::read_all(uint8_t *data) {
+uint16_t DmaUart::read_all(uint8_t* data) {
   // Update DMA index
   rx_dma_index_ =
       kRxBuffLength - dma_channel_hw_addr(kUartRxChannel)->transfer_count;

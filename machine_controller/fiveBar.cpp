@@ -1,17 +1,18 @@
 #pragma once
-#include "fiveBar.hpp"
-#include "dma_uart.hpp"
-#include <cmath>
-#include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <hardware/gpio.h>
-#include <hardware/uart.h>
+#include <dma_uart.hpp>
+#include <fiveBar.hpp>
 #include <iostream>
 #include <memory>
 #include <pico/time.h>
 #include <pico/types.h>
+#include <string>
 #include <vector>
+// this is stupid and is only here for convenience blink should go in a proper
+// folder / section
+#define LED_PIN 25
+#define BLINK_DELAY 100
 
 Motor::Motor(const std::vector<float> &argumentVector)
     : _step_pin((int)argumentVector[step_pin_arg]),
@@ -41,59 +42,103 @@ void Pump::queue_aspiration(float volume) {
 
 void ComsInstance::send_data(const uint8_t code, const uint8_t *data) {
   write(&code, 1);
-  write(&COMS_PUNCTUATION_BYTE, 1);
+  write(&COMS_START_BYTE, 1);
   write(data, (sizeof(*data) / sizeof(data[0])));
-  write(&COMS_PUNCTUATION_BYTE, 1);
+  write(&COMS_END_BYTE, 1);
   flush();
 }
+
 void ComsInstance::send_data(uint8_t code) {
   write(&code, 1);
+  write(&COMS_START_BYTE, 1);
+  write(&COMS_END_BYTE, 1);
   flush();
 }
 void ComsInstance::send_string(std::string toWrite) {
   send_data(MESSAGE, (reinterpret_cast<const uint8_t *>(toWrite.c_str(),
-                                                          toWrite.size())));
+                                                        toWrite.size())));
 }
+void blink(int count) {
+  for (int blinked; blinked < count; blinked++) {
+    gpio_put(LED_PIN, 1);
+    sleep_ms(BLINK_DELAY);
+    gpio_put(LED_PIN, 0);
+    sleep_ms(BLINK_DELAY);
+  }
+}
+
 uint ComsInstance::await_data() {
-  coms_rx_state = WAITING;
+
   argumentVector.clear();
-  absolute_time_t startTime = get_absolute_time();
-  uint64_t elapsedTime = 0;
-  uint8_t rx_data[4];
-  float tmpFloat;
-  bool bytesAvailable = false;
-  uint buffIndex = 0;
+	coms_rx_state = WAITING;
+
+  uint buff_index = 0;
+  uint rx_stack_ind = 0;
+  uint8_t float_buffer[4];
+
+  float tmp_float;
+  bool bytes_available = false;
+  bool is_startbyte;
+  bool is_endbyte;
+
+  uint64_t elapsed_time = 0;
+  absolute_time_t start_time = get_absolute_time();
+
   while (true) {
-    if (coms_rx_state == CONFIRM) {
-      break;
+    elapsed_time =
+        (absolute_time_diff_us(start_time, get_absolute_time())) / 1000;
+
+    if (elapsed_time > interbit_time_limit) {
+      return 1;
     }
-    elapsedTime =
-        (absolute_time_diff_us(startTime, get_absolute_time())) / 1000;
-    if (elapsedTime > timeLimit) {
-			send_string("timeout");
-			return 1;
-    }
-    bytesAvailable = read_byte(&rx_data[buffIndex]);
-    if (!bytesAvailable) {
+
+    uint8_t tmpbyte = 0;
+
+    bytes_available = read_byte(&tmpbyte);
+    if (!bytes_available) {
+      if (is_endbyte) { // references last byte evaluation
+        return 0;
+      }
       continue;
     }
-    startTime = get_absolute_time();
-    bool ispunctuationByte = rx_data[buffIndex] == COMS_PUNCTUATION_BYTE;
-    if (coms_rx_state == WAITING && ispunctuationByte) {
-      coms_rx_state = rx_data[buffIndex - 1];
-      buffIndex = 0;
-      memset(rx_data, 0, sizeof(rx_data));
-      send_data(CONFIRM);
+    rx_data_stack[rx_stack_ind] = tmpbyte;
+    rx_stack_ind = (rx_stack_ind + 1) % 256;
+    start_time = get_absolute_time();
+
+    is_startbyte = memcmp(&tmpbyte, &COMS_START_BYTE, 1);
+    is_endbyte = memcmp(&tmpbyte, &COMS_END_BYTE, 1);
+
+    if (buff_index == 1 && !is_startbyte) {
+			send_data(ERROR);
+      return 1;
+    }
+      if (rx_stack_ind ==0) {
+        coms_rx_state = tmpbyte;
       continue;
+      }
+    float_buffer[buff_index] = tmpbyte;
+    // if (buff_index == 3) {
+    //   memcpy(&tmp_float, float_buffer, sizeof(float));
+    //   // python should send checksum that is of the entire float
+    //   // checksum verify (checksum input)
+    //   // look into hw integrated crc32
+    //   argumentVector.push_back(tmp_float);
+    // }
+
+    buff_index = (buff_index + 1) % 4;
+    // send_data(ERROR);
+  }
+}
+
+void ComsInstance::loopback() {
+  for (float notnum : argumentVector) {
+    float num = 38.28374;
+    uint8_t converted_float[sizeof(float)];
+    memcpy(converted_float, &num, sizeof(float));
+    while (true) {
+      send_data(MESSAGE, converted_float);
+      sleep_ms(100);
     }
-    if (buffIndex == 0 && ispunctuationByte) {
-      return 0;
-    }
-    if (buffIndex == 3) {
-      memcpy(&tmpFloat, rx_data, sizeof(float));
-      argumentVector.push_back(tmpFloat);
-    }
-    buffIndex = (buffIndex + 1) % 4;
   }
 }
 
@@ -104,58 +149,7 @@ AxisMotor::AxisMotor(std::vector<float> argumentVector)
       _rad_esteps(2 * M_PI / argumentVector[stp_per_rev_arg]) {}
 
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
-    : DmaUart(uart, baudrate) {
-  // wakeup
-  send_data(WAKE);
-  while (true) {
-    uint messageFound = await_data();
-		if (messageFound == 1) {
-			continue;
-		}
-    if (coms_rx_state == WAKE) {
-      break;
-    }
-  }
-  send_data(CONFIRM);
-}
-FiveBar ComsInstance::setup_machine() {
-  FiveBar new_machine;
-  while (true) {
-    uint messageFound = await_data();
-    if (messageFound != 1) {
-      continue;
-    }
-    if (coms_rx_state == CONFIRM) {
-      break;
-    }
-    if (!(coms_rx_state >= NEW_PUMP && coms_rx_state <= MACHINE_DIMENSIONS)) {
-			send_string("calling settings setup but coms code outside range");
-      continue;
-    }
-    switch (coms_rx_state) {
-    case NEW_PUMP: {
-      new_machine.pumps.push_back(std::make_unique<Pump>(argumentVector));
-    }
-    case A_MOTOR: {
-      new_machine.a_motor = std::make_unique<AxisMotor>(argumentVector);
-    }
-    case B_MOTOR: {
-      new_machine.b_motor = std::make_unique<AxisMotor>(argumentVector);
-    }
-    case Z_MOTOR: {
-      new_machine.z_motor = std::make_unique<AxisMotor>(argumentVector);
-    }
-    case MACHINE_PIN_DEFINITIONS: {
-      // blank for now
-    }
-    case MACHINE_DIMENSIONS: {
-      // blank for now
-    }
-    }
-		send_data(coms_rx_state);
-  }
-  return new_machine;
-}
+    : DmaUart(uart, baudrate) {}
 
 int FiveBar::kinematic_solver(float x_target, float y_target) {}
 void FiveBar::unlock_movement() {}

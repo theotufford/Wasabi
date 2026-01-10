@@ -1,5 +1,5 @@
 #pragma once
-#include "dma_uart.hpp"
+#include <dma_uart.hpp>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -11,7 +11,8 @@
 #include <string>
 #include <vector>
 
-constexpr uint8_t COMS_PUNCTUATION_BYTE = 0x02;
+constexpr uint8_t COMS_START_BYTE = 0xf8;
+constexpr uint8_t COMS_END_BYTE = 0xf6;
 
 class MotorDaemon;
 
@@ -79,6 +80,8 @@ enum comsCodex : uint8_t {
 	WAITING,
   WAKE,
   CONFIRM,
+	MESSAGE,
+	ERROR,
   NEW_PUMP,
   A_MOTOR,
   B_MOTOR,
@@ -96,7 +99,6 @@ enum comsCodex : uint8_t {
 	X_POSITION,
 	Y_POSITION,
 	Z_POSITION,
-	MESSAGE
 };
 
 // two way codex, pico reflects status with the same code used to set it 
@@ -113,7 +115,7 @@ public:
   void unlock_movement();
   void unlock_pumps();
   void estop();
-  uint8_t machine_state = WAITING; // determines how the comsInstance handles incoming data
+  uint8_t machine_state = WAITING; //MOVE state should trigger motor daemon
   int homing_routine();
 };
 
@@ -122,11 +124,12 @@ public:
   void send_string(std::string toWrite);
   void send_data(const uint8_t code, const uint8_t *data);
   void send_data(const uint8_t code);
-  uint64_t timeLimit;
+  uint64_t interbit_time_limit;
   uint await_data();// needs to be called in main loop
   std::vector<float> argumentVector;
-  uint8_t coms_rx_state = WAITING; // determines how the comsInstance handles incoming data
+  uint8_t rx_data_stack[256];
+  uint8_t coms_rx_state; // determines how the comsInstance handles incoming data
   FiveBar setup_machine();
+	void loopback();
   ComsInstance(uart_inst_t *uart, uint baudrate);
 };
-
