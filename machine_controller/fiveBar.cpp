@@ -55,8 +55,8 @@ void ComsInstance::send_data(uint8_t code) {
   flush();
 }
 void ComsInstance::send_string(std::string toWrite) {
-  send_data(MESSAGE, (reinterpret_cast<const uint8_t *>(toWrite.c_str(),
-                                                        toWrite.size())));
+  const uint8_t* data_ptr = reinterpret_cast<const uint8_t*>(toWrite.c_str());
+  send_data(MESSAGE, data_ptr);
 }
 void blink(int count) {
   for (int blinked; blinked < count; blinked++) {
@@ -101,31 +101,31 @@ uint ComsInstance::await_data() {
       }
       continue;
     }
-    rx_data_stack[rx_stack_ind] = tmpbyte;
-    rx_stack_ind = (rx_stack_ind + 1) % 256;
     start_time = get_absolute_time();
 
-    is_startbyte = memcmp(&tmpbyte, &COMS_START_BYTE, 1);
-    is_endbyte = memcmp(&tmpbyte, &COMS_END_BYTE, 1);
+    is_startbyte = memcmp(&tmpbyte, &COMS_START_BYTE, 1) == 0;
+    is_endbyte = memcmp(&tmpbyte, &COMS_END_BYTE, 1) == 0; // literally why does this return zero as true
 
     if (buff_index == 1 && !is_startbyte) {
 			send_data(ERROR);
       return 1;
     }
-      if (rx_stack_ind ==0) {
+      if (rx_stack_ind == 0) {
         coms_rx_state = tmpbyte;
+				send_data(coms_rx_state);
       continue;
       }
+    if (buff_index == 3) {
+      memcpy(&tmp_float, float_buffer, sizeof(float));
+       // python should send checksum that is of the entire message
+       // checksum verify (checksum input)
+       // look into hw integrated crc32
+      argumentVector.push_back(tmp_float);
+    }
+    rx_data_stack[rx_stack_ind] = tmpbyte;
     float_buffer[buff_index] = tmpbyte;
-    // if (buff_index == 3) {
-    //   memcpy(&tmp_float, float_buffer, sizeof(float));
-    //   // python should send checksum that is of the entire float
-    //   // checksum verify (checksum input)
-    //   // look into hw integrated crc32
-    //   argumentVector.push_back(tmp_float);
-    // }
-
     buff_index = (buff_index + 1) % 4;
+    rx_stack_ind = (rx_stack_ind + 1) % 256;
     // send_data(ERROR);
   }
 }
@@ -149,7 +149,7 @@ AxisMotor::AxisMotor(std::vector<float> argumentVector)
       _rad_esteps(2 * M_PI / argumentVector[stp_per_rev_arg]) {}
 
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
-    : DmaUart(uart, baudrate) {}
+    : DmaUart(uart, baudrate), interbit_time_limit(300) {}
 
 int FiveBar::kinematic_solver(float x_target, float y_target) {}
 void FiveBar::unlock_movement() {}
