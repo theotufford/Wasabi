@@ -122,10 +122,10 @@ public:
 class ComsInstance : public DmaUart {
 public:
   void send_string(std::string toWrite);
-  void send_data(const uint8_t code, const uint8_t *data);
-  void send_data(const uint8_t code);
-  uint64_t interbit_time_limit;
-  uint await_data();// needs to be called in main loop
+  void send_data(const uint8_t code, const uint8_t *data, const uint8_t length);
+  uint64_t interbit_time_limit_us;
+  uint get_packet();// needs to be called in main loop
+	bool timeout_read(uint8_t *rx_byte);
   std::vector<float> argumentVector;
   uint8_t rx_data_stack[256];
   uint8_t coms_rx_state; // determines how the comsInstance handles incoming data

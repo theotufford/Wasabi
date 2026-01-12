@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <ctime>
@@ -42,24 +43,21 @@ void Pump::queue_aspiration(float volume) {
   // flip direction, add to step delta, put motor into daemon vector
 }
 
-void ComsInstance::send_data(const uint8_t code, const uint8_t *data) {
-  write(&COMS_START_BYTE, 1);
-  write(&code, 1);
-  write(data, (sizeof(*data) / sizeof(data[0])));
-  write(&COMS_END_BYTE, 1);
-  sleep_ms(10);
+void ComsInstance::send_data(const uint8_t code, const uint8_t *data = nullptr,
+                             const uint8_t data_length = 0) {
+  flush();
+  uint8_t header[] = {COMS_START_BYTE, code, data_length};
+  write(header, 3);
+  if (data_length > 0) {
+    write(data, data_length);
+  }
   flush();
 }
 
-void ComsInstance::send_data(uint8_t code) {
-  write(&COMS_START_BYTE, 1);
-  write(&code, 1);
-  write(&COMS_END_BYTE, 1);
-  flush();
-}
 void ComsInstance::send_string(std::string toWrite) {
-  const uint8_t *data_ptr = reinterpret_cast<const uint8_t *>(toWrite.c_str());
-  send_data(MESSAGE, data_ptr);
+  size_t stringlen = toWrite.length();
+  const uint8_t *text_data = reinterpret_cast<const uint8_t *>(toWrite.c_str());
+  send_data(MESSAGE, text_data, stringlen);
 }
 void blink(int count) {
   for (int blinked; blinked < count; blinked++) {
@@ -69,47 +67,62 @@ void blink(int count) {
     sleep_ms(BLINK_DELAY);
   }
 }
-uint ComsInstance::await_data() {
-  coms_rx_state = WAITING;
-  uint8_t tmpbyte;
-  uint8_t rxbuff[4];
-  int index = 0;
 
-  while (true) {
-    bool bytes_available = read_byte(&tmpbyte);
-    bool is_startbyte = memcmp(&tmpbyte, &COMS_START_BYTE, 1) == 0;
-		if (!bytes_available) {
-			continue;
-		}
-    if (!is_startbyte) {
-			send_data(ERROR, &tmpbyte);
-      return 1;
-    }
-		break;
-  }
-  while (true) {
-    bool bytes_available = read_byte(&tmpbyte);
-    if (!bytes_available) {
-      absolute_time_t timerStart = get_absolute_time();
-      while (true) {
-        absolute_time_t elapsed_time =
-            absolute_time_diff_us(timerStart, get_absolute_time());
-        if (elapsed_time > interbit_time_limit) {
-          return 1;
-        }
-        bytes_available = read_byte(&tmpbyte);
-        if (bytes_available) {
-          break;
-        }
+bool ComsInstance::timeout_read(uint8_t *rx_byte) {
+  bool bytes_available = read_byte(rx_byte);
+  if (!bytes_available) {
+    absolute_time_t timerStart = get_absolute_time();
+    while (true) {
+      absolute_time_t elapsed_time =
+          absolute_time_diff_us(timerStart, get_absolute_time());
+      if (elapsed_time > interbit_time_limit_us) {
+        return false;
+      }
+      bytes_available = read_byte(rx_byte);
+      if (bytes_available) {
+        return true;
       }
     }
-    bool is_endbyte = COMS_END_BYTE == tmpbyte;
-    if (is_endbyte) {
-      return 0;
-    }
-    rxbuff[index] = tmpbyte;
-    index = (index + 1) % 4;
   }
+}
+
+uint ComsInstance::get_packet() {
+  uint8_t header[3];
+  absolute_time_t timerStart = get_absolute_time();
+  while (true) {
+    uint16_t available = get_available();
+    if (available >= 3) {
+      read(header, 3);
+      break;
+    }
+    absolute_time_t elapsed_time =
+        absolute_time_diff_us(timerStart, get_absolute_time());
+    if (elapsed_time > interbit_time_limit_us) {
+      send_string("timout error (header)");
+      return 1;
+    }
+  }
+  if (header[0] != COMS_START_BYTE) {
+    return 2;
+  }
+  uint8_t &len = header[2];
+  coms_rx_state = header[1];
+  uint8_t body[len];
+  timerStart = get_absolute_time();
+  while (true) {
+    uint16_t available = get_available();
+    if (available >= len) {
+      read(body, len);
+      break;
+    }
+    absolute_time_t elapsed_time =
+        absolute_time_diff_us(timerStart, get_absolute_time());
+    if (elapsed_time > interbit_time_limit_us) {
+      send_string("timout error (body)");
+      return 1;
+    }
+  }
+  return 0;
 }
 
 void ComsInstance::loopback() {
@@ -118,7 +131,7 @@ void ComsInstance::loopback() {
     uint8_t converted_float[sizeof(float)];
     memcpy(converted_float, &num, sizeof(float));
     while (true) {
-      send_data(MESSAGE, converted_float);
+      send_data(MESSAGE, converted_float, 4);
       sleep_ms(100);
     }
   }
@@ -131,7 +144,7 @@ AxisMotor::AxisMotor(std::vector<float> argumentVector)
       _rad_esteps(2 * M_PI / argumentVector[stp_per_rev_arg]) {}
 
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
-    : DmaUart(uart, baudrate), interbit_time_limit(100) {}
+    : DmaUart(uart, baudrate), interbit_time_limit_us(500 * 1000) {}
 
 int FiveBar::kinematic_solver(float x_target, float y_target) {}
 void FiveBar::unlock_movement() {}

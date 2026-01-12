@@ -27,9 +27,10 @@ class DmaUart {
  public:
   DmaUart(uart_inst_t* uart, uint baudrate);
   uint16_t write(const uint8_t* data, uint16_t length);
+	uint16_t get_available();
   void flush();
   void write_and_flush(const uint8_t* data, uint16_t length);
-  uint16_t read_byte(uint8_t* data);
+  bool read_byte(uint8_t* data);
   uint16_t read(uint8_t* data, uint16_t length);
   uint16_t read_all(uint8_t* data);
   

@@ -1,4 +1,6 @@
 
+#include <cstdint>
+#include <cstdlib>
 #include <hardware/dma.h>
 #include <hardware/gpio.h>
 #include <hardware/irq.h>
@@ -115,17 +117,26 @@ void DmaUart::write_and_flush(const uint8_t* data, uint16_t length) {
   flush();
 }
 
-uint16_t DmaUart::read_byte(uint8_t* data) {
+uint16_t DmaUart::get_available(){
+  rx_dma_index_ =
+      kRxBuffLength - dma_channel_hw_addr(kUartRxChannel)->transfer_count;
+  rx_user_index_ = (rx_user_index_ + 1) & (kRxBuffLength - 1);
+	return (rx_user_index_ <= rx_dma_index_)
+                  ? (rx_dma_index_ - rx_user_index_)
+                  : (kRxBuffLength + rx_dma_index_ - rx_user_index_);
+}
+
+bool DmaUart::read_byte(uint8_t* data) { // THIS IS CHANGED FROM THE EXTERNAL LIBRARY
   // Update dma index
   rx_dma_index_ =
       kRxBuffLength - dma_channel_hw_addr(kUartRxChannel)->transfer_count;
 
   if (rx_dma_index_ == rx_user_index_) {
-    return -1;
+    return false;
   }
   *data = rx_buffer_[rx_user_index_];
   rx_user_index_ = (rx_user_index_ + 1) & (kRxBuffLength - 1);
-  return 0;
+  return true;
 }
 
 uint16_t DmaUart::read(uint8_t* data, uint16_t length) {
@@ -133,11 +144,7 @@ uint16_t DmaUart::read(uint8_t* data, uint16_t length) {
   rx_dma_index_ =
       kRxBuffLength - dma_channel_hw_addr(kUartRxChannel)->transfer_count;
 
-  uint16_t available;
-  available = (rx_user_index_ <= rx_dma_index_)
-                  ? (rx_dma_index_ - rx_user_index_)
-                  : (kRxBuffLength + rx_dma_index_ - rx_user_index_);
-  
+  uint16_t available = get_available();
   if (available < length) {
     // read as much as we have
     length = available;
