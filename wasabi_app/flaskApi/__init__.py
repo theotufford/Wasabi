@@ -23,8 +23,8 @@ def create_app(test_config=None):
     from . import db
     db.init_app(app)
 
-    from . import serialComs
-    app.register_blueprint(serialComs.bp)
+    # from . import serialComs
+    # app.register_blueprint(serialComs.bp)
 
     from . import dataApi 
     app.register_blueprint(dataApi.bp)

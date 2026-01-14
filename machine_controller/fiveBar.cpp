@@ -87,16 +87,23 @@ bool ComsInstance::timeout_read(uint8_t *rx_byte) {
 }
 
 uint ComsInstance::get_packet() {
+  /*
+   * function to get waiting packet from dma output buffer
+   * structure of packet:
+   *		[START BYTE][coms code][body length][body 0][...][body n]
+   */
   uint8_t header[3];
-  absolute_time_t timerStart = get_absolute_time();
+  absolute_time_t timerStart = get_absolute_time(); // start waiting timer
   while (true) {
     uint16_t available = get_available();
     if (available >= 3) {
+      // wait until full header is available and then read
       read(header, 3);
       break;
     }
     absolute_time_t elapsed_time =
         absolute_time_diff_us(timerStart, get_absolute_time());
+    // ensure elapsed
     if (elapsed_time > interbit_time_limit_us) {
       send_string("timout error (header)");
       return 1;
