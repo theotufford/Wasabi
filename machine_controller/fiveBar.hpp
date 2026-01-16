@@ -1,8 +1,8 @@
 #pragma once
-#include <dma_uart.hpp>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <dma_uart.hpp>
 #include <hardware/gpio.h>
 #include <hardware/uart.h>
 #include <iostream>
@@ -27,7 +27,8 @@ public:
   MotorDaemon *_daemon;
   bool enabled;
   int current_step_position;
-  int abs_step_delta;
+  int abs_step_delta; // child class action function modifies this and then
+                      // pushes itself to the appropriate motor daemon vector
   int direction;
   void step();
   Motor(const std::vector<float> &argumentVector);
@@ -36,7 +37,7 @@ public:
 class AxisMotor : public Motor {
 private:
   const float _lin_eSteps, _rad_esteps;
-  enum { v_max_arg = 2, accel_max_arg, lin_eSteps_arg };
+  enum { v_max_arg = 3, accel_max_arg, lin_eSteps_arg };
 
 public:
   const float v_max;
@@ -50,10 +51,10 @@ class Pump : public Motor {
 private:
   const float _eSteps_ul;
   float est_remainingVolume;
-  enum { flowrate_max_arg = 2, eSteps_ul_arg };
+  enum { flowrate_max_arg = 3, eSteps_ul_arg };
 
 public:
-	std::string reagent;
+  std::string reagent;
   const float flowrate_max;
   float aspirant_volume;
   void buzz();
@@ -62,46 +63,49 @@ public:
   Pump(const std::vector<float> &argumentVector);
 };
 
-class MotorDaemon {
+class MotorDaemon { // main loop checks for motors in
+                    // vectors then handles movement
 public:
   std::vector<AxisMotor *> move_queue;
   std::vector<Pump *> handler_queue;
-  int handle_Movement();
+
+  int handle_Movement(); // runs on second core
+                         // handles initial accel/const/decel point calc
+                         // sets irq hw timer recursively on completion
+                         // according to initial calcs
+
+  int handle_liquids(); // similiar to movement but all motors are in sync
+  MotorDaemon();        // claim timers for async
 };
 
-struct machineSettings {
-  std::unique_ptr<AxisMotor> a_motor;
-  std::unique_ptr<AxisMotor> b_motor;
-  std::unique_ptr<AxisMotor> z_motor;
-  std::vector<std::unique_ptr<Pump>> pumps;
-  float dimensions;
-};
 enum comsCodex : uint8_t {
-	WAITING,
+  // basic state codes
+  WAITING,
   WAKE,
   CONFIRM,
-	MESSAGE,
-	ERROR,
+  MESSAGE,
+  ERROR,
+  // settings codes
   NEW_PUMP,
   A_MOTOR,
   B_MOTOR,
   Z_MOTOR,
   MACHINE_PIN_DEFINITIONS,
   MACHINE_DIMENSIONS,
+  // action codes
   MOVE,
   DISPENSE,
   ASPIRATE,
-	TOGGLE_PUMPS,
-	TOGGLE_MOTORS,
-	ZERO_MOTORS,
-	A_POSITION,
-	B_POSITION,
-	X_POSITION,
-	Y_POSITION,
-	Z_POSITION,
+  TOGGLE_PUMPS,
+  TOGGLE_MOTORS,
+  ZERO_MOTORS,
+  // for outgoing mostly
+  A_POSITION,
+  B_POSITION,
+  X_POSITION,
+  Y_POSITION,
+  Z_POSITION,
 };
-
-// two way codex, pico reflects status with the same code used to set it 
 
 class FiveBar {
 public:
@@ -110,26 +114,35 @@ public:
   std::unique_ptr<AxisMotor> z_motor;
   std::vector<std::unique_ptr<Pump>> pumps;
 
-  int kinematic_solver(float x_target, float y_target);
+  int kinematic_solver(
+      float x_target,
+      float y_target); // solves 5 bar kinematic equation and calls move
+                       // functions from motors accordingly
   float current_x, current_y, current_z;
   void unlock_movement();
   void unlock_pumps();
-  void estop();
-  uint8_t machine_state = WAITING; //MOVE state should trigger motor daemon
+  void estop(); // sets estop pin high via software
   int homing_routine();
 };
 
 class ComsInstance : public DmaUart {
 public:
-  void send_string(std::string toWrite);
+  // data sending functions
   void send_data(const uint8_t code, const uint8_t *data, const uint8_t length);
-  uint64_t interbit_time_limit_us;
-  uint get_packet();// needs to be called in main loop
-	bool timeout_read(uint8_t *rx_byte);
-  std::vector<float> argumentVector;
-  uint8_t rx_data_stack[256];
+  void send_string(std::string toWrite); // convenience, auto attaches MESSAGE
+                                         // code and casts string to bytearray
+	
+  uint64_t read_time_limit_us; // time limit for waiting on rx buffer to fill to
+                               // predicted size (eg 3 for header)
+	
+  uint get_packet(); // main blocking rx read function, gets state/checksum and
+	
+  std::vector<float> argumentVector; // most rx data are floats, private enums determine how
+																		 // each reader treats the floats in this vector 
+																	   // (eg for poisitioning {x,y,z})
+	
+  uint8_t rx_data_stack[256]; // big ol temp rx stack for checksums
   uint8_t coms_rx_state; // determines how the comsInstance handles incoming data
-  FiveBar setup_machine();
-	void loopback();
+  void loopback();
   ComsInstance(uart_inst_t *uart, uint baudrate);
 };

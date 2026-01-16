@@ -18,23 +18,29 @@ int main() {
   blink(1);
 
   ComsInstance coms = ComsInstance(uart0, 115200);
+
   absolute_time_t start_time = get_absolute_time();
+  // handshake:
+  // send wake
+  // wait for CONFIRM
+  // send CONFIRM
+  // wait for final ack
+  // continue
   coms.send_data(WAKE);
-  for (;;) {
-    uint messageFound = coms.get_packet();
-    if (messageFound == 0) {
-      coms.send_data(WAITING, &coms.coms_rx_state, 1);
-    } else {
-      continue;
-    }
-    messageFound = coms.get_packet();
+  uint handshake_index = 0;
+  while (handshake_index < 2) { // break after second confirm
+    uint messageFound =
+        coms.get_packet(); // set coms state to waiting and listen
+    sleep_ms(20);
     if (coms.coms_rx_state == CONFIRM) {
-      break;
+      coms.send_data(CONFIRM, &coms.coms_rx_state, 1);
+      handshake_index++;
     }
   }
-  blink(3);
-  return 0; // BREAKPOINT
-  coms.loopback();
+  blink(3); // handshake confirmation blink
+	coms.loopback();
+
+  // setup machine
   FiveBar new_machine;
   while (true) {
     uint messageFound = coms.get_packet();

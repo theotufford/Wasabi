@@ -1,4 +1,3 @@
-
 #include <cstdint>
 #include <cstdlib>
 #include <hardware/dma.h>
@@ -9,17 +8,14 @@
 
 #include <dma_uart.hpp>
 
-DmaUart::DmaUart(uart_inst_t* uart, uint baudrate)
-    : uart_(uart),
-      rx_user_index_(0),
-      rx_dma_index_(0),
-      tx_user_index_(0),
+DmaUart::DmaUart(uart_inst_t *uart, uint baudrate)
+    : uart_(uart), rx_user_index_(0), rx_dma_index_(0), tx_user_index_(0),
       tx_dma_index_(0) {
   init_uart(uart_, baudrate);
   init_dma();
 }
 
-void DmaUart::init_uart(uart_inst_t* uart, uint baudrate) {
+void DmaUart::init_uart(uart_inst_t *uart, uint baudrate) {
   gpio_set_function(kUartTxPin, GPIO_FUNC_UART);
   gpio_set_function(kUartRxPin, GPIO_FUNC_UART);
   uart_init(uart, baudrate);
@@ -57,15 +53,15 @@ void DmaUart::init_dma() {
   dma_channel_set_write_addr(kUartTxChannel, &uart0_hw->dr, false);
 }
 
-uint16_t DmaUart::write(const uint8_t* data, uint16_t length) {
+uint16_t DmaUart::write(const uint8_t *data, uint16_t length) {
   if (length == 0) {
     return 0;
   }
-  uint16_t available =
+  uint16_t available_tx =
       (tx_dma_index_ <= tx_user_index_)
           ? (kTxBuffLength - 1 + tx_dma_index_ - tx_user_index_)
           : (tx_dma_index_ - tx_user_index_);
-  if (length <= available) {
+  if (length <= available_tx) {
     if (tx_dma_index_ < tx_user_index_) {
       if ((kTxBuffLength - 1) < tx_user_index_ + length) {
         memcpy(&tx_buffer_[tx_user_index_], data,
@@ -87,7 +83,7 @@ uint16_t DmaUart::write(const uint8_t* data, uint16_t length) {
       }
     }
     tx_user_index_ = (tx_user_index_ + length) & (kTxBuffLength - 1);
-  } else {  // no enougth space to write
+  } else { // no enougth space to write
     // TODO: write as much data as possible
     return 0;
   }
@@ -107,30 +103,25 @@ void DmaUart::flush() {
   while (dma_channel_is_busy(kUartTxChannel))
     ;
 
-  uint8_t* start = &tx_buffer_[tx_dma_index_];
+  uint8_t *start = &tx_buffer_[tx_dma_index_];
   dma_channel_transfer_from_buffer_now(kUartTxChannel, start, size);
   tx_dma_index_ = (tx_dma_index_ + size) & (kTxBuffLength - 1);
 }
 
-void DmaUart::write_and_flush(const uint8_t* data, uint16_t length) {
+void DmaUart::write_and_flush(const uint8_t *data, uint16_t length) {
   write(data, length);
   flush();
 }
 
-uint16_t DmaUart::get_available(){
-  rx_dma_index_ =
-      kRxBuffLength - dma_channel_hw_addr(kUartRxChannel)->transfer_count;
-  rx_user_index_ = (rx_user_index_ + 1) & (kRxBuffLength - 1);
-	return (rx_user_index_ <= rx_dma_index_)
-                  ? (rx_dma_index_ - rx_user_index_)
-                  : (kRxBuffLength + rx_dma_index_ - rx_user_index_);
+uint16_t DmaUart::get_available_rx() {
+  // Update dma index
+  rx_dma_index_ = kRxBuffLength - dma_channel_hw_addr(kUartRxChannel)->transfer_count;
+  return (rx_user_index_ <= rx_dma_index_)
+             ? (rx_dma_index_ - rx_user_index_)
+             : (kRxBuffLength + rx_dma_index_ - rx_user_index_);
 }
 
-bool DmaUart::read_byte(uint8_t* data) { // THIS IS CHANGED FROM THE EXTERNAL LIBRARY
-  // Update dma index
-  rx_dma_index_ =
-      kRxBuffLength - dma_channel_hw_addr(kUartRxChannel)->transfer_count;
-
+bool DmaUart::read_byte(uint8_t *data) {
   if (rx_dma_index_ == rx_user_index_) {
     return false;
   }
@@ -139,17 +130,16 @@ bool DmaUart::read_byte(uint8_t* data) { // THIS IS CHANGED FROM THE EXTERNAL LI
   return true;
 }
 
-uint16_t DmaUart::read(uint8_t* data, uint16_t length) {
-  // Update DMA index
-  rx_dma_index_ =
-      kRxBuffLength - dma_channel_hw_addr(kUartRxChannel)->transfer_count;
-
-  uint16_t available = get_available();
-  if (available < length) {
-    // read as much as we have
-    length = available;
+uint16_t DmaUart::read(uint8_t *data, uint16_t length) {
+  // update user index
+  //rx_user_index_ = (rx_user_index_ + 1) & (kRxBuffLength - 1);
+  // ^ this is using weird bitwise magic to make a circular counter
+  uint16_t available_rx = get_available_rx();
+  if (available_rx < length) {
+    // read as much as we have if requested length exceeds available
+    length = available_rx;
   }
-  
+
   if (length == 0) {
     return 0;
   }
@@ -163,7 +153,6 @@ uint16_t DmaUart::read(uint8_t* data, uint16_t length) {
       // limit to target buffer size!
       left = length;
     }
-
     memcpy(data, &rx_buffer_[rx_user_index_], left);
 
     if (left < length) {
@@ -174,27 +163,19 @@ uint16_t DmaUart::read(uint8_t* data, uint16_t length) {
 
   return length;
 }
-
-uint16_t DmaUart::read_all(uint8_t* data) {
-  // Update DMA index
-  rx_dma_index_ =
-      kRxBuffLength - dma_channel_hw_addr(kUartRxChannel)->transfer_count;
-
-  uint16_t available;
-  available = (rx_user_index_ <= rx_dma_index_)
-                  ? (rx_dma_index_ - rx_user_index_)
-                  : (kRxBuffLength + rx_dma_index_ - rx_user_index_);
-
-  if (0 < available) {
+uint16_t DmaUart::read_all(uint8_t *data) {
+  // Update dma index
+  uint16_t available_rx = get_available_rx();
+  if (0 < available_rx) {
     if (rx_user_index_ < rx_dma_index_) {
-      memcpy(data, &rx_buffer_[rx_user_index_], available);
+      memcpy(data, &rx_buffer_[rx_user_index_], available_rx);
     } else {
       uint16_t left = kRxBuffLength - rx_user_index_;
       memcpy(data, &rx_buffer_[rx_user_index_], left);
-      memcpy(&data[left], rx_buffer_, available - left);
+      memcpy(&data[left], rx_buffer_, available_rx - left);
     }
-    rx_user_index_ = (rx_user_index_ + available) & (kRxBuffLength - 1);
-    return available;
+    rx_user_index_ = (rx_user_index_ + available_rx) & (kRxBuffLength - 1);
+    return available_rx;
   }
   return 0;
 }

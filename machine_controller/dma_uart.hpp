@@ -25,7 +25,7 @@ private:
 public:
   DmaUart(uart_inst_t *uart, uint baudrate);
   uint16_t write(const uint8_t *data, uint16_t length);
-  uint16_t get_available();
+	uint16_t get_available_rx();
   void flush();
   void write_and_flush(const uint8_t *data, uint16_t length);
   bool read_byte(uint8_t *data);
