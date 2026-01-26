@@ -1,16 +1,20 @@
 #include <cstdint>
+#include <cstdlib>
 #include <dma_uart.hpp>
 #include <fiveBar.cpp>
 #include <fiveBar.hpp>
+#include <format>
 #include <hardware/gpio.h>
 #include <hardware/uart.h>
-#include <hardware/watchdog.h>
 #include <iostream>
+#include <memory>
 #include <pico/time.h>
 #include <pico/types.h>
+#include <sstream>
+#include <string>
 #include <sys/_intsup.h>
 #include <sys/unistd.h>
-#include <time.h>
+#include <vector>
 
 int main() {
   gpio_init(LED_PIN);
@@ -20,12 +24,13 @@ int main() {
   ComsInstance coms = ComsInstance(uart0, 115200);
 
   absolute_time_t start_time = get_absolute_time();
-  // handshake:
+  // handshake
   // send wake
   // wait for CONFIRM
   // send CONFIRM
   // wait for final ack
   // continue
+  sleep_ms(50);
   coms.send_data(WAKE);
   uint handshake_index = 0;
   while (handshake_index < 2) { // break after second confirm
@@ -38,52 +43,31 @@ int main() {
     }
   }
   blink(3); // handshake confirmation blink
-	coms.loopback();
-
   // setup machine
   FiveBar new_machine;
   while (true) {
     uint messageFound = coms.get_packet();
-
-    if (messageFound != 1) {
+    if (messageFound != 0) {
+      coms.send_string("no message found");
       continue;
     }
-
     if (coms.coms_rx_state == CONFIRM) {
+      coms.send_data(CONFIRM);
       break;
     }
-
     if (!(coms.coms_rx_state >= NEW_PUMP &&
           coms.coms_rx_state <= MACHINE_DIMENSIONS)) {
+      coms.send_string("got code outside of config range");
+      coms.send_data(MESSAGE, &coms.coms_rx_state, 1);
       continue;
     }
 
-    switch (coms.coms_rx_state) {
-    case NEW_PUMP: {
-      new_machine.pumps.push_back(std::make_unique<Pump>(coms.argumentVector));
-      break;
+    if (coms.argumentVector.size() == 0) {
+      coms.send_string("empty args");
+      continue;
     }
-    case A_MOTOR: {
-      new_machine.a_motor = std::make_unique<AxisMotor>(coms.argumentVector);
-      break;
-    }
-    case B_MOTOR: {
-      new_machine.b_motor = std::make_unique<AxisMotor>(coms.argumentVector);
-      break;
-    }
-    case Z_MOTOR: {
-      new_machine.z_motor = std::make_unique<AxisMotor>(coms.argumentVector);
-      break;
-    }
-    case MACHINE_PIN_DEFINITIONS: {
-      // blank for now
-      break;
-    }
-    case MACHINE_DIMENSIONS: {
-      // blank for now
-      break;
-    }
-    }
-    coms.send_data(coms.coms_rx_state);
+    coms.reflect_argvec();
+    // AxisMotor test_motor(coms.argumentVector);
+    // test_motor.dump_settings(coms);
   }
 }

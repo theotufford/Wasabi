@@ -15,14 +15,13 @@ constexpr uint8_t COMS_START_BYTE = 0xf8;
 constexpr uint8_t COMS_END_BYTE = 0xf6;
 
 class MotorDaemon;
+class ComsInstance;
 
 class Motor {
-private:
+public:
   const int _step_pin;
   const int _dir_pin;
   const int _stp_per_rev;
-
-public:
   enum { step_pin_arg, dir_pin_arg, stp_per_rev_arg };
   MotorDaemon *_daemon;
   bool enabled;
@@ -42,6 +41,7 @@ private:
 public:
   const float v_max;
   const float accel_max;
+  void dump_settings(ComsInstance &coms);
   bool homed;
   void queue_movement(float target);
   AxisMotor(std::vector<float> argumentVector);
@@ -129,6 +129,7 @@ class ComsInstance : public DmaUart {
 public:
   // data sending functions
   void send_data(const uint8_t code, const uint8_t *data, const uint8_t length);
+  void send_data(const uint8_t code, const float data);
   void send_string(std::string toWrite); // convenience, auto attaches MESSAGE
                                          // code and casts string to bytearray
 	
@@ -143,6 +144,6 @@ public:
 	
   uint8_t rx_data_stack[256]; // big ol temp rx stack for checksums
   uint8_t coms_rx_state; // determines how the comsInstance handles incoming data
-  void loopback();
+  void reflect_argvec();
   ComsInstance(uart_inst_t *uart, uint baudrate);
 };
