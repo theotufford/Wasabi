@@ -23,14 +23,12 @@ int main() {
 
   ComsInstance coms = ComsInstance(uart0, 115200);
 
-  absolute_time_t start_time = get_absolute_time();
-  // handshake
+  // handshake:
   // send wake
   // wait for CONFIRM
   // send CONFIRM
   // wait for final ack
   // continue
-  sleep_ms(50);
   coms.send_data(WAKE);
   uint handshake_index = 0;
   while (handshake_index < 2) { // break after second confirm
@@ -42,32 +40,22 @@ int main() {
       handshake_index++;
     }
   }
-  blink(3); // handshake confirmation blink
-  // setup machine
-  FiveBar new_machine;
+  // handshake confirmation blink
+  blink(3);
   while (true) {
     uint messageFound = coms.get_packet();
     if (messageFound != 0) {
-      coms.send_string("no message found");
       continue;
     }
-    if (coms.coms_rx_state == CONFIRM) {
-      coms.send_data(CONFIRM);
-      break;
-    }
-    if (!(coms.coms_rx_state >= NEW_PUMP &&
-          coms.coms_rx_state <= MACHINE_DIMENSIONS)) {
+    if (!(coms.coms_rx_state >= NEW_PUMP)) {
       coms.send_string("got code outside of config range");
       coms.send_data(MESSAGE, &coms.coms_rx_state, 1);
       continue;
     }
-
     if (coms.argumentVector.size() == 0) {
       coms.send_string("empty args");
       continue;
     }
     coms.reflect_argvec();
-    // AxisMotor test_motor(coms.argumentVector);
-    // test_motor.dump_settings(coms);
   }
 }
