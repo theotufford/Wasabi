@@ -28,10 +28,13 @@ void blink(int count) {
 }
 
 Motor::Motor(const std::vector<int> &argumentVector)
-    : _step_pin(argumentVector[step_pin_arg]),
-      _dir_pin(argumentVector[dir_pin_arg]),
-      _stp_per_rev(argumentVector[stp_per_rev_arg]) {
-  // claim pins and stuff
+    : step_pin(argumentVector[step_pin_arg]),
+      dir_pin(argumentVector[dir_pin_arg]),
+      stp_per_rev(argumentVector[stp_per_rev_arg]) {
+  if (argumentVector.size() > 3) {
+    this->w_max = argumentVector[w_max_arg];
+    this->accel_max = argumentVector[accel_max_arg];
+  }
 }
 
 void Motor::step() {
@@ -39,7 +42,6 @@ void Motor::step() {
   current_step_position++;
   // set calculate flag high
 }
-
 
 void ComsInstance::send_data(const uint8_t code, const uint8_t *data = nullptr,
                              const uint8_t data_length = 0) {
@@ -90,7 +92,8 @@ uint ComsInstance::get_packet() {
   uint8_t rx_header[3];
   absolute_time_t timerStart = get_absolute_time(); // start waiting timer
   bool got_start = false;
-  while (true) {
+
+  while (true) { // blocking wait for header
     uint16_t available = get_available_rx();
     if (!got_start && available > 0) {
       read_byte(&rx_header[0]);
@@ -159,29 +162,6 @@ void ComsInstance::reflect_argvec() {
   // Toy function to test int packing
   send_data(MESSAGE, static_cast<uint8_t>(argumentVector.size()));
   send_vector(ERROR, argumentVector);
-}
-
-AxisMotor::AxisMotor(std::vector<int> argumentVector)
-    : Motor(argumentVector), w_max(argumentVector[w_max_arg]),
-      accel_max(argumentVector[accel_max_arg]),
-      _lin_eSteps(argumentVector[lin_eSteps_arg]),
-      _rad_esteps(2 * M_PI / argumentVector[stp_per_rev_arg]) {}
-
-void AxisMotor::dump_settings(ComsInstance &coms) {
-  coms.send_string("sending test motor config");
-  sleep_ms(20);
-  coms.send_data(A_MOTOR, _step_pin);
-  sleep_ms(20);
-  coms.send_data(A_MOTOR, _dir_pin);
-  sleep_ms(20);
-  coms.send_data(A_MOTOR, _stp_per_rev);
-  sleep_ms(20);
-  coms.send_data(A_MOTOR, w_max);
-  sleep_ms(20);
-  coms.send_data(A_MOTOR, accel_max);
-  sleep_ms(20);
-  coms.send_data(A_MOTOR, _lin_eSteps);
-  sleep_ms(20);
 }
 
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)

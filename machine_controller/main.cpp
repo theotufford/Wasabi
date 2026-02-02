@@ -42,20 +42,60 @@ int main() {
   }
   // handshake confirmation blink
   blink(3);
+
+  machine fiveBar;
+  // settings configuration loop
   while (true) {
-    uint messageFound = coms.get_packet();
+    uint messageFound = coms.get_packet(); // blocking header read
     if (messageFound != 0) {
       continue;
     }
-    if (!(coms.coms_rx_state >= NEW_PUMP)) {
-      coms.send_string("got code outside of config range");
-      coms.send_data(MESSAGE, &coms.coms_rx_state, 1);
+
+    if (coms.coms_rx_state == CONFIRM) { // listen for break signal
+      break;
+    }
+
+    if (coms.argumentVector.size() == 0) { // ensure there is data to parse
       continue;
     }
-    if (coms.argumentVector.size() == 0) {
-      coms.send_string("empty args");
+
+    // ensure the com is a settings packet
+    if (coms.coms_rx_state < NEW_PUMP ||
+        coms.coms_rx_state > MACHINE_PIN_DEFINITIONS) {
       continue;
     }
-    coms.reflect_argvec();
+
+    if (coms.coms_rx_state == MACHINE_PIN_DEFINITIONS) {
+    }
+
+    Motor *new_motor = new Motor(coms.argumentVector);
+
+    switch (coms.coms_rx_state) {
+    case NEW_PUMP:
+      fiveBar.pumps.push_back(new_motor);
+      break;
+    case A_MOTOR:
+      fiveBar.a_motor = new_motor;
+      break;
+    case B_MOTOR:
+      fiveBar.b_motor = new_motor;
+      break;
+    case Z_MOTOR:
+      fiveBar.z_motor = new_motor;
+      break;
+    case MACHINE_PIN_DEFINITIONS:
+      break;
+    }
+    coms.send_data(CONFIRM);
+  }
+
+  coms.send_data(MOVE, 1234);
+  blink(3);
+  while (true) {
+  coms.send_data(MESSAGE, fiveBar.a_motor->step_pin);
+  }
+  for (Motor *pump : fiveBar.pumps) {
+    blink(3);
+    coms.send_data(MESSAGE, pump->accel_max);
   }
 }

@@ -19,10 +19,12 @@ class ComsInstance;
 
 class Motor {
 public:
-  const int _step_pin;
-  const int _dir_pin;
-  const int _stp_per_rev;
-  enum { step_pin_arg, dir_pin_arg, stp_per_rev_arg };
+  const int step_pin;
+  const int dir_pin;
+  const int stp_per_rev;
+  int w_max;
+  int accel_max;
+  enum { step_pin_arg, dir_pin_arg, stp_per_rev_arg, w_max_arg, accel_max_arg };
   bool enabled;
   int current_step_position;
   int abs_step_delta;
@@ -30,21 +32,6 @@ public:
   void step();
   Motor(const std::vector<int> &argumentVector);
 };
-
-class AxisMotor : public Motor {
-private:
-  const float _lin_eSteps, _rad_esteps;
-  enum { w_max_arg = 3, accel_max_arg, lin_eSteps_arg };
-
-public:
-  const int w_max;
-  const int accel_max;
-  void dump_settings(ComsInstance &coms);
-  bool homed;
-  void queue_movement(float target);
-  AxisMotor(std::vector<int> argumentVector);
-};
-
 
 enum comsCodex : uint8_t {
   // basic state codes
@@ -59,7 +46,6 @@ enum comsCodex : uint8_t {
   B_MOTOR,
   Z_MOTOR,
   MACHINE_PIN_DEFINITIONS,
-  MACHINE_DIMENSIONS,
   // action codes
   MOVE,
   DISPENSE,
@@ -75,17 +61,17 @@ enum comsCodex : uint8_t {
   Z_POSITION,
 };
 
-
 class machine {
 public:
-  std::unique_ptr<AxisMotor> a_motor;
-  std::unique_ptr<AxisMotor> b_motor;
-  std::unique_ptr<AxisMotor> z_motor;
+  Motor* a_motor;
+  Motor* b_motor;
+  Motor* z_motor;
 
-  std::vector<std::unique_ptr<Motor>> pumps;
+  std::vector<Motor *> pumps;
 
   void positional_move(int A_POSITION, int B_POSITION, int Z_POSITION);
-  void dispense_reagents(std::vector<std::tuple<int, int>> pmpInd_stpcnt_tuples);
+  void
+  dispense_reagents(std::vector<std::tuple<int, int>> pmpInd_stpcnt_tuples);
 
   std::vector<int> measuring_move();
 
@@ -93,6 +79,7 @@ public:
   void unlock_pumps();
   void estop();
   int homing_routine();
+
 };
 
 class ComsInstance : public DmaUart {
