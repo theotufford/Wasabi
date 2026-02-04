@@ -30,7 +30,11 @@ void blink(int count) {
 Motor::Motor(const std::vector<int> &argumentVector)
     : step_pin(argumentVector[step_pin_arg]),
       dir_pin(argumentVector[dir_pin_arg]),
-      stp_per_rev(argumentVector[stp_per_rev_arg]) {
+      stp_per_rev(argumentVector[stp_per_rev_arg]),
+      w_max(0),
+      accel_max(0)
+{
+
   if (argumentVector.size() > 3) {
     this->w_max = argumentVector[w_max_arg];
     this->accel_max = argumentVector[accel_max_arg];
@@ -166,7 +170,6 @@ void ComsInstance::reflect_argvec() {
 
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
     : DmaUart(uart, baudrate), read_time_limit_us(100 * 1000) {}
-
 void machine::unlock_movement() {}
 void machine::unlock_pumps() {}
 void machine::estop() {}

@@ -19,9 +19,9 @@ class ComsInstance;
 
 class Motor {
 public:
-  const int step_pin;
-  const int dir_pin;
-  const int stp_per_rev;
+  int step_pin;
+  int dir_pin;
+  int stp_per_rev;
   int w_max;
   int accel_max;
   enum { step_pin_arg, dir_pin_arg, stp_per_rev_arg, w_max_arg, accel_max_arg };
@@ -63,11 +63,11 @@ enum comsCodex : uint8_t {
 
 class machine {
 public:
-  Motor* a_motor;
-  Motor* b_motor;
-  Motor* z_motor;
+  std::unique_ptr<Motor> a_motor;
+  std::unique_ptr<Motor> b_motor;
+  std::unique_ptr<Motor> z_motor;
 
-  std::vector<Motor *> pumps;
+  std::vector<std::unique_ptr<Motor>> pumps;
 
   void positional_move(int A_POSITION, int B_POSITION, int Z_POSITION);
   void
@@ -79,7 +79,6 @@ public:
   void unlock_pumps();
   void estop();
   int homing_routine();
-
 };
 
 class ComsInstance : public DmaUart {
