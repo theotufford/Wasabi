@@ -14,6 +14,7 @@
 #include <string>
 #include <sys/_intsup.h>
 #include <sys/unistd.h>
+#include <utility>
 #include <vector>
 
 int main() {
@@ -42,20 +43,78 @@ int main() {
   }
   // handshake confirmation blink
   blink(3);
+
+  machine fiveBar;
+  // settings configuration loop
   while (true) {
-    uint messageFound = coms.get_packet();
+    uint messageFound = coms.get_packet(); // blocking header read
     if (messageFound != 0) {
       continue;
     }
-    if (!(coms.coms_rx_state >= NEW_PUMP)) {
-      coms.send_string("got code outside of config range");
-      coms.send_data(MESSAGE, &coms.coms_rx_state, 1);
+
+    if (coms.coms_rx_state == CONFIRM) { // listen for break signal
+      break;
+    }
+
+    if (coms.argumentVector.size() == 0) { // ensure there is data to parse
       continue;
     }
-    if (coms.argumentVector.size() == 0) {
-      coms.send_string("empty args");
+
+    // ensure the com is a settings packet
+    if (coms.coms_rx_state < NEW_PUMP ||
+        coms.coms_rx_state > MACHINE_PIN_DEFINITIONS) {
       continue;
     }
-    coms.reflect_argvec();
+
+    if (coms.coms_rx_state == MACHINE_PIN_DEFINITIONS) {
+      continue;
+    }
+
+    // i dont completely understand why this works
+    // and why using normal pointers fails
+    std::unique_ptr<Motor> new_motor =
+        std::make_unique<Motor>(coms.argumentVector);
+
+    switch (coms.coms_rx_state) {
+    case NEW_PUMP:
+      fiveBar.pumps.push_back(std::move(new_motor));
+      break;
+    case A_MOTOR:
+      fiveBar.a_motor = std::move(new_motor);
+      break;
+    case B_MOTOR:
+      fiveBar.b_motor = std::move(new_motor);
+      break;
+    case Z_MOTOR:
+      fiveBar.z_motor = std::move(new_motor);
+      break;
+    case MACHINE_PIN_DEFINITIONS:
+      break;
+    }
+    coms.send_data(CONFIRM);
   }
+
+  // reflect all the configured settings
+
+  Motor &amot = *fiveBar.a_motor;
+  std::vector<int> amot_data = {
+      amot.step_pin,
+      amot.dir_pin,
+      amot.stp_per_rev,
+      amot.w_max,
+  };
+  coms.send_vector(A_MOTOR, amot_data);
+  for (std::unique_ptr<Motor> &pump : fiveBar.pumps) {
+    std::vector<int> pump_data = {
+        pump->step_pin,
+        pump->dir_pin,
+        pump->stp_per_rev,
+        pump->w_max,
+    };
+    coms.send_vector(NEW_PUMP, pump_data);
+  }
+
+  // control
+
+
 }
