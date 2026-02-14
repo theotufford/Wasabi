@@ -19,10 +19,12 @@ class ComsInstance;
 
 class Motor {
 public:
-  const int _step_pin;
-  const int _dir_pin;
-  const int _stp_per_rev;
-  enum { step_pin_arg, dir_pin_arg, stp_per_rev_arg };
+  const int step_pin;
+  const int dir_pin;
+  const int stp_per_rev;
+  const int w_max;
+  bool homed;
+  enum { step_pin_arg, dir_pin_arg, stp_per_rev_arg, w_max_arg };
   bool enabled;
   int current_step_position;
   int abs_step_delta;
@@ -30,21 +32,6 @@ public:
   void step();
   Motor(const std::vector<int> &argumentVector);
 };
-
-class AxisMotor : public Motor {
-private:
-  const float _lin_eSteps, _rad_esteps;
-  enum { w_max_arg = 3, accel_max_arg, lin_eSteps_arg };
-
-public:
-  const int w_max;
-  const int accel_max;
-  void dump_settings(ComsInstance &coms);
-  bool homed;
-  void queue_movement(float target);
-  AxisMotor(std::vector<int> argumentVector);
-};
-
 
 enum comsCodex : uint8_t {
   // basic state codes
@@ -78,9 +65,9 @@ enum comsCodex : uint8_t {
 
 class machine {
 public:
-  std::unique_ptr<AxisMotor> a_motor;
-  std::unique_ptr<AxisMotor> b_motor;
-  std::unique_ptr<AxisMotor> z_motor;
+  std::unique_ptr<Motor> a_motor;
+  std::unique_ptr<Motor> b_motor;
+  std::unique_ptr<Motor> z_motor;
 
   std::vector<std::unique_ptr<Motor>> pumps;
 
