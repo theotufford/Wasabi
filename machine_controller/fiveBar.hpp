@@ -26,11 +26,11 @@ public:
   bool homed;
   enum { step_pin_arg, dir_pin_arg, stp_per_rev_arg, w_max_arg };
   bool enabled;
-  int current_step_position;
-  int abs_step_delta;
+  int current_position;
+  int step_delta;
   int direction;
   void step();
-  void toggle_dir();
+  void update_dir();
   void buzz();
   Motor(const std::vector<int> &argumentVector);
 };
@@ -48,7 +48,6 @@ enum comsCodex : uint8_t {
   B_MOTOR,
   Z_MOTOR,
   MACHINE_PIN_DEFINITIONS,
-  MACHINE_DIMENSIONS,
   // action codes
   MOVE,
   DISPENSE,
@@ -59,13 +58,11 @@ enum comsCodex : uint8_t {
   // for outgoing mostly
   A_POSITION,
   B_POSITION,
-  X_POSITION,
-  Y_POSITION,
   Z_POSITION,
 };
 
 
-class machine {
+class Machine {
 public:
   std::unique_ptr<Motor> a_motor;
   std::unique_ptr<Motor> b_motor;
@@ -73,8 +70,9 @@ public:
 
   std::vector<std::unique_ptr<Motor>> pumps;
 
-  void positional_move(int A_POSITION, int B_POSITION, int Z_POSITION);
-  void dispense_reagents(std::vector<std::tuple<int, int>> pmpInd_stpcnt_tuples);
+  int move(std::vector<int> positional_argvec);
+  int dispense(std::vector<int> pump_indexes, std::vector<int> volumes);
+  int aspirate(std::vector<int> pump_indexes, std::vector<int> volumes);
 
   std::vector<int> measuring_move();
 
@@ -98,8 +96,8 @@ public:
   // enums in a structure interpret this vector for
   // use by that structure (eg for motor indexing)
   std::vector<int> argumentVector;
-  uint8_t
-      coms_rx_state; // determines how the comsInstance handles incoming data
+  // determines how the comsInstance handles incoming argvec
+  uint8_t coms_rx_code; 
   void reflect_argvec();
   ComsInstance(uart_inst_t *uart, uint baudrate);
 };

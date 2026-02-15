@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <dma_uart.hpp>
@@ -28,32 +29,43 @@ void blink(int count) {
   }
 }
 
-void Motor::buzz(){
-    for (int cycle_count = 0; cycle_count < 100; cycle_count++) {
-      for (int stpcnt = 0; stpcnt < 10; stpcnt++) {
-        step();
-        sleep_us(800);
-      }
-      toggle_dir();
-    }
-}
+void Motor::buzz() {
 
+  double buzz_amplitude_deg = 1.8;
+
+  int amp_steps = buzz_amplitude_deg / (360 / stp_per_rev);
+
+  if (amp_steps < 0) {
+    amp_steps = 1;
+  }
+  step_delta = 1;
+  for (int cycle_count = 0; cycle_count < 100; cycle_count++) {
+    for (int stpcnt = 0; stpcnt < amp_steps; stpcnt++) {
+      step();
+      sleep_ms(1);
+    }
+    step_delta *= -1;
+    update_dir();
+  }
+}
 
 Motor::Motor(const std::vector<int> &argumentVector)
     : step_pin(argumentVector[step_pin_arg]),
       dir_pin(argumentVector[dir_pin_arg]), w_max(argumentVector[w_max_arg]),
-      stp_per_rev(argumentVector[stp_per_rev_arg]) {
+      stp_per_rev(argumentVector[stp_per_rev_arg]), current_position(0), direction(1) {
   gpio_init(dir_pin);
   gpio_init(step_pin);
   gpio_set_dir(step_pin, GPIO_OUT);
   gpio_set_dir(dir_pin, GPIO_OUT);
 
   buzz();
-
 }
 
-void Motor::toggle_dir(){
-  direction *= -1;
+void Motor::update_dir() {
+  if (step_delta == 0) {
+    return;
+  }
+  direction = step_delta / abs(step_delta);
   bool bin_dir = direction > 0;
   gpio_put(dir_pin, bin_dir);
 }
@@ -63,7 +75,7 @@ void Motor::step() {
   gpio_put(step_pin, 1);
   sleep_us(1);
   gpio_put(step_pin, 0);
-  current_step_position += direction;
+  current_position += direction;
   // set calculate flag high
 }
 
@@ -132,7 +144,7 @@ uint ComsInstance::get_packet() {
     }
   }
 
-  coms_rx_state = rx_header[0];
+  coms_rx_code = rx_header[0];
   uint8_t &len = rx_header[1];
   uint8_t &message_index = rx_header[2];
 
@@ -153,7 +165,7 @@ uint ComsInstance::get_packet() {
   }
 
   // all but the status codes have ints as their body
-  bool parse_ints = coms_rx_state > ERROR;
+  bool parse_ints = coms_rx_code > ERROR;
 
   if (parse_ints) {
     if (len % 4 != 0) {
@@ -182,6 +194,40 @@ uint ComsInstance::get_packet() {
   return 0;
 }
 
+int Machine::move(std::vector<int> positional_argvec) {
+  Motor &amot = *a_motor;
+  Motor &bmot = *b_motor;
+  Motor &zmot = *z_motor;
+
+  amot.step_delta = positional_argvec[0] - amot.current_position;
+  amot.update_dir();
+
+  bmot.step_delta = positional_argvec[1] - bmot.current_position;
+  bmot.update_dir();
+
+  zmot.step_delta = positional_argvec[2] - zmot.current_position;
+  zmot.update_dir();
+
+  //naive move function 
+  // int local_step_count = 0;
+  // int abs_delta = abs(amot.step_delta);
+  //
+  // blink(3);
+  //
+  // while (local_step_count < abs_delta) {
+  //   amot.step();
+  //   sleep_ms(1);
+  //   local_step_count++;
+  // }
+  return 0;
+}
+int Machine::dispense(std::vector<int> pump_indexes, std::vector<int> volumes) {
+  return 0;
+}
+int Machine::aspirate(std::vector<int> pump_indexes, std::vector<int> volumes) {
+  return 0;
+}
+
 void ComsInstance::reflect_argvec() {
   // Toy function to test int packing
   send_data(MESSAGE, static_cast<uint8_t>(argumentVector.size()));
@@ -191,6 +237,6 @@ void ComsInstance::reflect_argvec() {
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
     : DmaUart(uart, baudrate), read_time_limit_us(100 * 1000) {}
 
-void machine::unlock_movement() {}
-void machine::unlock_pumps() {}
-void machine::estop() {}
+void Machine::unlock_movement() {}
+void Machine::unlock_pumps() {}
+void Machine::estop() {}

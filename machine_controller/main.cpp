@@ -30,21 +30,23 @@ int main() {
   // send CONFIRM
   // wait for final ack
   // continue
+
   coms.send_data(WAKE);
+
   uint handshake_index = 0;
   while (handshake_index < 2) { // break after second confirm
     uint messageFound =
         coms.get_packet(); // set coms state to waiting and listen
     sleep_ms(20);
-    if (coms.coms_rx_state == CONFIRM) {
-      coms.send_data(CONFIRM, &coms.coms_rx_state, 1);
+    if (coms.coms_rx_code == CONFIRM) {
+      coms.send_data(CONFIRM, &coms.coms_rx_code, 1);
       handshake_index++;
     }
   }
   // handshake confirmation blink
   blink(3);
 
-  machine fiveBar;
+  Machine fiveBar;
   // settings configuration loop
   while (true) {
     uint messageFound = coms.get_packet(); // blocking header read
@@ -52,7 +54,7 @@ int main() {
       continue;
     }
 
-    if (coms.coms_rx_state == CONFIRM) { // listen for break signal
+    if (coms.coms_rx_code == CONFIRM) { // listen for break signal
       break;
     }
 
@@ -61,12 +63,12 @@ int main() {
     }
 
     // ensure the com is a settings packet
-    if (coms.coms_rx_state < NEW_PUMP ||
-        coms.coms_rx_state > MACHINE_PIN_DEFINITIONS) {
+    if (coms.coms_rx_code < NEW_PUMP ||
+        coms.coms_rx_code > MACHINE_PIN_DEFINITIONS) {
       continue;
     }
 
-    if (coms.coms_rx_state == MACHINE_PIN_DEFINITIONS) {
+    if (coms.coms_rx_code == MACHINE_PIN_DEFINITIONS) {
       continue;
     }
 
@@ -75,8 +77,7 @@ int main() {
     std::unique_ptr<Motor> new_motor =
         std::make_unique<Motor>(coms.argumentVector);
 
-
-    switch (coms.coms_rx_state) {
+    switch (coms.coms_rx_code) {
     case NEW_PUMP:
       fiveBar.pumps.push_back(std::move(new_motor));
       break;
@@ -95,4 +96,37 @@ int main() {
     coms.send_data(CONFIRM);
   }
 
+  // settings initialized blink
+  blink(5);
+
+  // main motion control loop
+  while (true) {
+    uint messageFound = coms.get_packet(); // blocking header read
+    if (messageFound != 0) {
+      continue;
+    }
+    // DANGER ALL NON ARGVEC SENDS WILL BE DROPPED
+    if (coms.argumentVector.size() == 0) { // ensure there is data to parse
+      continue;
+    }
+    switch (coms.coms_rx_code) {
+    case MOVE: {
+      blink(1);
+      int move_success = fiveBar.move(coms.argumentVector);
+      if (move_success != 0) {
+       coms.send_data(ERROR, move_success);
+      }
+      break;
+    }
+
+    case ASPIRATE: {
+      break;
+    }
+
+    case DISPENSE: {
+      break;
+    }
+    }
+    coms.send_data(CONFIRM);
+  }
 }
