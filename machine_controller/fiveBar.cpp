@@ -28,6 +28,17 @@ void blink(int count) {
   }
 }
 
+void Motor::buzz(){
+    for (int cycle_count = 0; cycle_count < 100; cycle_count++) {
+      for (int stpcnt = 0; stpcnt < 10; stpcnt++) {
+        step();
+        sleep_us(800);
+      }
+      toggle_dir();
+    }
+}
+
+
 Motor::Motor(const std::vector<int> &argumentVector)
     : step_pin(argumentVector[step_pin_arg]),
       dir_pin(argumentVector[dir_pin_arg]), w_max(argumentVector[w_max_arg]),
@@ -36,19 +47,23 @@ Motor::Motor(const std::vector<int> &argumentVector)
   gpio_init(step_pin);
   gpio_set_dir(step_pin, GPIO_OUT);
   gpio_set_dir(dir_pin, GPIO_OUT);
-  gpio_put(dir_pin, 1);
-  while (true) {
-    step();
-    sleep_ms(30);
-  }
+
+  buzz();
+
+}
+
+void Motor::toggle_dir(){
+  direction *= -1;
+  bool bin_dir = direction > 0;
+  gpio_put(dir_pin, bin_dir);
 }
 
 void Motor::step() {
   // step logic
   gpio_put(step_pin, 1);
-  sleep_ms(5);
+  sleep_us(1);
   gpio_put(step_pin, 0);
-  current_step_position++;
+  current_step_position += direction;
   // set calculate flag high
 }
 

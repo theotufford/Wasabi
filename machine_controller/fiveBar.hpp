@@ -30,6 +30,8 @@ public:
   int abs_step_delta;
   int direction;
   void step();
+  void toggle_dir();
+  void buzz();
   Motor(const std::vector<int> &argumentVector);
 };
 
