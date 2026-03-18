@@ -1,21 +1,21 @@
-#include <cstdint>
+#include <coms_protocol.cpp>
+#include <coms_protocol.hpp>
 #include <cstdlib>
 #include <dma_uart.hpp>
-#include <fiveBar.cpp>
-#include <fiveBar.hpp>
-#include <format>
 #include <hardware/gpio.h>
+#include <hardware/timer.h>
 #include <hardware/uart.h>
-#include <iostream>
-#include <memory>
+#include <motors.cpp>
+#include <motors.hpp>
+#include <pico/platform/common.h>
 #include <pico/time.h>
 #include <pico/types.h>
-#include <sstream>
-#include <string>
 #include <sys/_intsup.h>
 #include <sys/unistd.h>
 #include <utility>
 #include <vector>
+
+using namespace std;
 
 int main() {
   gpio_init(LED_PIN);
@@ -23,75 +23,36 @@ int main() {
   blink(1);
 
   ComsInstance coms = ComsInstance(uart0, 115200);
+  // Motor settings configuration loop
 
-  // handshake:
-  // send wake
-  // wait for CONFIRM
-  // send CONFIRM
-  // wait for final ack
-  // continue
+  vector<unique_ptr<Motor>> axis_motors;
+  vector<unique_ptr<Motor>> pumps;
 
-  coms.send_data(WAKE);
-
-  uint handshake_index = 0;
-  while (handshake_index < 2) { // break after second confirm
-    uint messageFound =
-        coms.get_packet(); // set coms state to waiting and listen
-    sleep_ms(20);
-    if (coms.coms_rx_code == CONFIRM) {
-      coms.send_data(CONFIRM, &coms.coms_rx_code, 1);
-      handshake_index++;
-    }
-  }
-  // handshake confirmation blink
-  blink(3);
-
-  Machine fiveBar;
-  // settings configuration loop
   while (true) {
     uint messageFound = coms.get_packet(); // blocking header read
     if (messageFound != 0) {
+      // if read error try again
       continue;
     }
-
     if (coms.coms_rx_code == CONFIRM) { // listen for break signal
       break;
     }
-
     if (coms.argumentVector.size() == 0) { // ensure there is data to parse
       continue;
     }
-
     // ensure the com is a settings packet
     if (coms.coms_rx_code < NEW_PUMP ||
         coms.coms_rx_code > MACHINE_PIN_DEFINITIONS) {
       continue;
     }
 
-    if (coms.coms_rx_code == MACHINE_PIN_DEFINITIONS) {
-      continue;
-    }
+    bool non_async = coms.coms_rx_code == NEW_PUMP;
+    auto new_motor = make_unique<Motor>(coms.argumentVector, non_async);
 
-    // i dont completely understand why this works
-    // and why using normal pointers fails
-    std::unique_ptr<Motor> new_motor =
-        std::make_unique<Motor>(coms.argumentVector);
-
-    switch (coms.coms_rx_code) {
-    case NEW_PUMP:
-      fiveBar.pumps.push_back(std::move(new_motor));
-      break;
-    case A_MOTOR:
-      fiveBar.a_motor = std::move(new_motor);
-      break;
-    case B_MOTOR:
-      fiveBar.b_motor = std::move(new_motor);
-      break;
-    case Z_MOTOR:
-      fiveBar.z_motor = std::move(new_motor);
-      break;
-    case MACHINE_PIN_DEFINITIONS:
-      break;
+    if (non_async) {
+      pumps.push_back(std::move(new_motor));
+    } else {
+      axis_motors.push_back(std::move(new_motor));
     }
     coms.send_data(CONFIRM);
   }
@@ -105,24 +66,72 @@ int main() {
     if (messageFound != 0) {
       continue;
     }
-    // DANGER ALL NON ARGVEC SENDS WILL BE DROPPED
     if (coms.argumentVector.size() == 0) { // ensure there is data to parse
       continue;
     }
+
+    // state machine operated by coms rx code
     switch (coms.coms_rx_code) {
+
     case MOVE: {
-      blink(1);
-      int move_success = fiveBar.move(coms.argumentVector);
-      if (move_success != 0) {
-       coms.send_data(ERROR, move_success);
+      // prepare moves
+      for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
+        Motor &axis = *axis_motors[axis_ind];
+        axis.target_distance =
+            coms.argumentVector[axis_ind] - axis.current_position;
+        axis.live_abs_pos = 0;
+
+        if (axis.target_distance == 0) {
+          continue;
+        }
+        // calculate stops
+        axis.accel_stop =
+            (long)(axis.ang_v_max * axis.ang_v_max * axis.stp_per_rev) /
+            (4 * axis.ang_accel * M_PI);
+
+        // if motor wont reach vmax on move
+        if (axis.accel_stop > abs(axis.target_distance) / 2) {
+          axis.accel_stop = abs(axis.target_distance) / 2;
+          // ignore const vel section of mvmnt profile
+          axis.constv_stop = 0;
+        } else {
+          axis.constv_stop = abs(axis.target_distance) - axis.accel_stop;
+        }
+        axis.update_dir();
+      }
+
+      // initiate moves
+      for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
+        Motor &axis = *axis_motors[axis_ind];
+        if (axis.target_distance == 0) {
+          continue;
+        }
+        hardware_alarm_force_irq(axis.alarm_num);
+      }
+      // wait around and dont ask for another message until the full move is
+      // complete
+      for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
+        Motor &axis = *axis_motors[axis_ind];
+        while (axis.live_abs_pos != abs(axis.target_distance)) {
+          tight_loop_contents();
+        }
       }
       break;
     }
-
+      // naive move function
+      //  int local_step_count = 0;
+      //  int abs_delta = abs(amot.step_delta);
+      //
+      //  blink(3);
+      //
+      //  while (local_step_count < abs_delta) {
+      //    amot.step();
+      //    sleep_ms(1);
+      //    local_step_count++;
+      //  }
     case ASPIRATE: {
       break;
     }
-
     case DISPENSE: {
       break;
     }

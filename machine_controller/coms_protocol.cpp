@@ -1,84 +1,20 @@
-#pragma once
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
+#include <coms_protocol.hpp>
 #include <dma_uart.hpp>
-#include <fiveBar.hpp>
-#include <format>
-#include <hardware/gpio.h>
-#include <iostream>
-#include <memory>
-#include <pico/time.h>
-#include <pico/types.h>
-#include <string>
-#include <sys/unistd.h>
 #include <vector>
-// this is stupid and is only here for convenience blink should go in a proper
-// folder / section
-#define LED_PIN 25
-#define BLINK_DELAY 100
+#include <pico/time.h>
+#include <hardware/gpio.h>
+
+using namespace std; // TODO dont do this
+
 void blink(int count) {
   // debug blink convenience function
-  for (int blinked; blinked < count; blinked++) {
+  for (int blinked = 0; blinked < count; blinked++) {
     gpio_put(LED_PIN, 1);
     sleep_ms(BLINK_DELAY);
     gpio_put(LED_PIN, 0);
     sleep_ms(BLINK_DELAY);
   }
 }
-
-void Motor::buzz() {
-
-  double buzz_amplitude_deg = 1.8;
-
-  int amp_steps = buzz_amplitude_deg / (360 / stp_per_rev);
-
-  if (amp_steps < 0) {
-    amp_steps = 1;
-  }
-  step_delta = 1;
-  for (int cycle_count = 0; cycle_count < 100; cycle_count++) {
-    for (int stpcnt = 0; stpcnt < amp_steps; stpcnt++) {
-      step();
-      sleep_ms(1);
-    }
-    step_delta *= -1;
-    update_dir();
-  }
-}
-
-Motor::Motor(const std::vector<int> &argumentVector)
-    : step_pin(argumentVector[step_pin_arg]),
-      dir_pin(argumentVector[dir_pin_arg]), w_max(argumentVector[w_max_arg]),
-      stp_per_rev(argumentVector[stp_per_rev_arg]), current_position(0), direction(1) {
-  gpio_init(dir_pin);
-  gpio_init(step_pin);
-  gpio_set_dir(step_pin, GPIO_OUT);
-  gpio_set_dir(dir_pin, GPIO_OUT);
-
-  buzz();
-}
-
-void Motor::update_dir() {
-  if (step_delta == 0) {
-    return;
-  }
-  direction = step_delta / abs(step_delta);
-  bool bin_dir = direction > 0;
-  gpio_put(dir_pin, bin_dir);
-}
-
-void Motor::step() {
-  // step logic
-  gpio_put(step_pin, 1);
-  sleep_us(1);
-  gpio_put(step_pin, 0);
-  current_position += direction;
-  // set calculate flag high
-}
-
 void ComsInstance::send_data(const uint8_t code, const uint8_t *data = nullptr,
                              const uint8_t data_length = 0) {
   uint8_t tx_header[] = {COMS_START_BYTE, code, data_length};
@@ -96,8 +32,7 @@ void ComsInstance::send_data(const uint8_t code, const int data) {
   write(int_buff, 4);
   flush();
 }
-void ComsInstance::send_vector(const uint8_t code,
-                               const std::vector<int> data) {
+void ComsInstance::send_vector(const uint8_t code, const vector<int> data) {
   uint8_t vec_data_len = static_cast<uint8_t>(data.size() * 4);
   uint8_t tx_header[] = {COMS_START_BYTE, code, vec_data_len};
   write(tx_header, 3);
@@ -109,7 +44,7 @@ void ComsInstance::send_vector(const uint8_t code,
   flush();
 }
 
-void ComsInstance::send_string(std::string toWrite) {
+void ComsInstance::send_string(string toWrite) {
   return; // DISABLED FUNCTION FOR DEBUG
   uint8_t stringlen = static_cast<uint8_t>(toWrite.length());
   const uint8_t *text_data = reinterpret_cast<const uint8_t *>(toWrite.c_str());
@@ -126,6 +61,7 @@ void ComsInstance::send_string(std::string toWrite) {
 
 uint ComsInstance::get_packet() {
   argumentVector.clear();
+  coms_rx_code = WAITING;
   uint8_t rx_header[3];
   absolute_time_t timerStart = get_absolute_time(); // start waiting timer
   bool got_start = false;
@@ -194,40 +130,6 @@ uint ComsInstance::get_packet() {
   return 0;
 }
 
-int Machine::move(std::vector<int> positional_argvec) {
-  Motor &amot = *a_motor;
-  Motor &bmot = *b_motor;
-  Motor &zmot = *z_motor;
-
-  amot.step_delta = positional_argvec[0] - amot.current_position;
-  amot.update_dir();
-
-  bmot.step_delta = positional_argvec[1] - bmot.current_position;
-  bmot.update_dir();
-
-  zmot.step_delta = positional_argvec[2] - zmot.current_position;
-  zmot.update_dir();
-
-  //naive move function 
-  // int local_step_count = 0;
-  // int abs_delta = abs(amot.step_delta);
-  //
-  // blink(3);
-  //
-  // while (local_step_count < abs_delta) {
-  //   amot.step();
-  //   sleep_ms(1);
-  //   local_step_count++;
-  // }
-  return 0;
-}
-int Machine::dispense(std::vector<int> pump_indexes, std::vector<int> volumes) {
-  return 0;
-}
-int Machine::aspirate(std::vector<int> pump_indexes, std::vector<int> volumes) {
-  return 0;
-}
-
 void ComsInstance::reflect_argvec() {
   // Toy function to test int packing
   send_data(MESSAGE, static_cast<uint8_t>(argumentVector.size()));
@@ -235,8 +137,25 @@ void ComsInstance::reflect_argvec() {
 }
 
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
-    : DmaUart(uart, baudrate), read_time_limit_us(100 * 1000) {}
+    : DmaUart(uart, baudrate), read_time_limit_us(100 * 1000) {
 
-void Machine::unlock_movement() {}
-void Machine::unlock_pumps() {}
-void Machine::estop() {}
+  // handshake:
+  // send wake
+  send_data(WAKE);
+  // wait for CONFIRM
+  // send CONFIRM
+  // wait for final ack
+  // continue
+
+  uint handshake_index = 0;
+  while (handshake_index < 2) {       // break after second confirm
+    uint messageFound = get_packet(); // set coms state to waiting and listen
+    sleep_ms(20);
+    if (coms_rx_code == CONFIRM) {
+      send_data(CONFIRM, &coms_rx_code, 1);
+      handshake_index++;
+    }
+  }
+  // handshake confirmation blink
+  blink(3);
+}
