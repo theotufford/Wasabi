@@ -1,1 +1,0 @@
-/home/theo/notes/wasabiPico_outline.md
