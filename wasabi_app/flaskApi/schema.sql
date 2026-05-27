@@ -1,15 +1,23 @@
 DROP TABLE IF EXISTS experiments;
 DROP TABLE IF EXISTS pumpMap;
 DROP TABLE IF EXISTS reagentLib;
+DROP TABLE IF EXISTS users;
 
 CREATE TABLE reagentLib (
-  reagent TEXT
+  name TEXT,
+  json_data TEXT
+);
+
+CREATE TABLE users (
+  name TEXT,
+  id INT,
+  ip_history TEXT,
+  experiments TEXT
 );
 
 CREATE TABLE pumpMap (
   pumpID TEXT,
-  reagent TEXT DEFAULT "empty",
-  previousReagents TEXT
+  reagent TEXT DEFAULT "empty"
 );
 
 CREATE TABLE experiments (

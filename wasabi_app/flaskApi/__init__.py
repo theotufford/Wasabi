@@ -4,6 +4,7 @@ from flask_cors import CORS
 import threading
 import os
 
+
 def create_app(test_config=None):
     app = Flask(__name__)
     app.debug = True
@@ -26,9 +27,10 @@ def create_app(test_config=None):
     # from . import serialComs
     # app.register_blueprint(serialComs.bp)
 
-    from . import dataApi 
+    from . import dataApi
     app.register_blueprint(dataApi.bp)
-    CORS(app, origins="http://localhost:5173", methods=["GET", "POST"]) # in final version the node server should start this one and pass its url
+    # in final version the node server should start this one and pass its url
+    CORS(app, origins="http://localhost:5173", methods=["GET", "POST"])
     Session(app)
 
     return app
