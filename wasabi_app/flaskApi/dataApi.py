@@ -5,13 +5,20 @@ import time
 import json
 
 
+def verify_has(data, *args):
+    for key in args:
+        if data.get(key) is None:
+            return False
+    return True
+
+
 def getExperiment(data):
     db = get_db()
     if data.get('version') is not None:
         resp = db.execute(
             """
                           SELECT * FROM experiments
-                          WHERE title = ? 
+                          WHERE title = ?
                           AND version = ?
                           """, (data['title'], data['version'],)).fetchone()
     else:  # if no version is given the highest versioned instance is returned
@@ -30,19 +37,20 @@ bp = Blueprint('dataApi', __name__, url_prefix='/dataApi')
 
 
 @bp.route('/deleteExperiment', methods=["POST"])
-def deleteExperiment(experiment):
+def deleteExperiment():
+    data = request.get_json()
     db = get_db()
+    if not verify_has(data, "title", "version"):
+        return None
     db.execute("""
                DELETE FROM experiments
                WHERE title = ?
                AND version = ?
                """, (
-        experiment['title'],
-        experiment['version']
-    )
-    )
-    print(f"deleted: {experiment['title']}")
+        data['title'],
+        data['version']))
     db.commit()
+    return jsonify({"data": f"deleted {data['title']} v{data['version']} "})
 
 
 @bp.route('/fetchExperiment', methods=["POST"])
@@ -50,40 +58,15 @@ def fetchExperiment():
     data = request.get_json()
     print(data)
     dbRepsonse = getExperiment(data)
-    try:
-        experiment = jsonify(dict(dbRepsonse))
-        print(f"{dict(dbRepsonse)=}")
-        return experiment
-    except:
-        return 'oops'
-
-
-def reagentLibUpdate(experiment):
-    db = get_db()
-    returnVal = "no update"  # if not altered there was no update
-    for form in experiment.get('forms').values() or []:
-        reagent = form.get("reagent")
-        if reagent is None:
-            continue
-        reagentRecord = db.execute(
-            '''
-                SELECT reagent
-                FROM reagentLib
-                WHERE reagent IS ?
-            ''', (reagent,)).fetchone()
-        if reagentRecord:
-            continue
-        db.execute('INSERT INTO reagentLib (reagent) VALUES (?)', (reagent,))
-        returnVal = "updatedReagents"
-    db.commit()
-    return returnVal
+    if dbRepsonse is None:
+        return jsonify({"data": "experiment fetch failed!"})
+    return jsonify(dict(dbRepsonse))
 
 
 @bp.route('/saveExperiment', methods=["POST"])
 def saveExperiment():
     data = request.get_json()
-    print(f"data :{data}")
-    if not data.get('forms'):
+    if not verify_has(data, 'forms'):
         print('no data!')
         return jsonify({"empty": ""})
 
@@ -98,7 +81,6 @@ def saveExperiment():
         selected = dict(dbFetch)
     version = selected.get("version") or 0
 
-    reagentLibUpdate(data)
     if selected.get('data') == experimentJson:  # duplicate protection
         print('trying to save duplicate, aborting')
         return jsonify('trying to save a perfect duplicate')
@@ -106,7 +88,9 @@ def saveExperiment():
         if selected is not {}:
             version = version+1
         db.execute("""
-                   INSERT INTO experiments (data, title, version) VALUES (?, ?, ?)
+                   INSERT INTO experiments
+                   (data, title, version)
+                   VALUES (?, ?, ?)
                    """,
                    (experimentJson, title, version))
         db.commit()
@@ -133,10 +117,6 @@ def experiment_dump():
         title_version_array.append(dict(row))
     return jsonify({"data": title_version_array})
 
-# @bp.route('/run_experiment', methods=["POST"])
-# def run_experiment(experimentTitle):
-#     db = get_db()
-
 
 # this is sort of cursed that this is using post instead of get but im lazy
 @bp.route('/get_pump_map', methods=["POST"])
@@ -153,12 +133,46 @@ def get_current_reagents():
     return jsonify({"data": reagents_by_id})
 
 
-@bp.route('/current_reagents', methods=["POST"])
-def update_pump_map(data):
-    id = data.get('id')
-    reagent = data.get('new_reagent')
-    if id is None or reagent is None:
-        return jsonify({"data": "data error!"})
+@bp.route('/get_authors', methods=["POST"])
+def get_authors():
+    db = get_db()
+    authors = []
+    dump = db.execute("""
+                      SELECT name
+                      FROM authors
+                      """).fetchall()
+    for row in dump:
+        rowdict = dict(row)
+        print(f"appending author to return: {rowdict}")
+        authors.append(rowdict["name"])
+    print(f"returning authors: {authors}")
+    return jsonify({"data": authors})
+
+
+@bp.route('/new_author', methods=["POST"])
+def new_author():
+    db = get_db()
+    data = request.get_json()
+    print(f"making new author: {data}")
+    if not verify_has(data, "name"):
+        return jsonify("data error!")
+    db.execute("""
+               INSERT INTO authors (name)
+               VALUES (?)
+               """,
+               (data["name"],))
+    db.commit()
+    return jsonify('success')
+
+
+@bp.route('/update_reagent', methods=["POST"])
+def update_pump_map():
+    data = request.get_json()
+    if not verify_has(data, "id", "reagent"):
+        return jsonify("data error!")
+
+    id = data["id"]
+    reagent = data["reagent"]
 
     db = get_db()
     db.execute("""

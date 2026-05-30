@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import Programmer from './Programmer.jsx'
 import BrowserElement from './browserFrame.jsx'
 import Controller from './controller.jsx'
+import Auth from './auth.jsx'
 
 function App() {
   const empty_experiment_initial = {
@@ -13,6 +14,7 @@ function App() {
 
   const experiment = useRef(empty_experiment_initial)
   const window_state = useRef("controller")
+  const [author, set_author] = useState("anon")
 
   const goToController = () => {
     window_state.current = "controller"
@@ -36,6 +38,7 @@ function App() {
     window_state.current = "browser"
     set_selected_window(
       <BrowserElement
+        author = {author}
         experiment={experiment}
         goToEditor={goToEditor}
         goToController={goToController}
@@ -55,16 +58,14 @@ function App() {
     goToEditor()
   }
 
-
-
   const in_controller = window_state.current === "controller"
   const in_browser = window_state.current === "browser"
-
   const enable_edit_button = in_controller && experiment.current.title != ""
 
   return (
     <>
-      <div>
+    <div className='info bar'> <Auth author={author} set_author = {set_author}/> current author: {author} </div>
+      <div className='nav_bar'>
         <button
           style={{ visibility: !in_browser ? 'visible' : 'hidden' }}
           onClick={open_browser}>browse experiments</button>

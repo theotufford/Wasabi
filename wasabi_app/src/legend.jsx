@@ -85,7 +85,7 @@ function LegendElement(props) {
         let singlet_info = '';
         for (const formIndex of [...keySet]) {
           const form = forms[formIndex]
-          singlet_info += `${form.method} volume of ${form.reagent}\n`
+          singlet_info += `${form.method} volume of ${form.reagent}`
         }
         const renderData = { info: singlet_info, selfColor: color, children: branch?.children }
         const render = defaultRender(renderData)
@@ -115,7 +115,7 @@ function LegendElement(props) {
 
           for (let formIndex of [...diffKeys]) {
             const form = forms[formIndex]
-            info += `${form.method} volume of ${form.reagent}\n`
+            info += `${form.method} volume of ${form.reagent} \n`
           }
 
           const keySetHtml = defaultRender({

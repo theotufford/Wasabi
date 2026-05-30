@@ -14,7 +14,6 @@ function Controller(props) {
   const [serialMessage, setSerialMessage] = useState(".....")
   const [pump_array, set_pump_array] = useState(Object.entries({}))
   useEffect(() => {
-    console.log(dataStream)
     dataStream.onmessage = (e) => {
       setSerialMessage(e.data)
     }
@@ -23,7 +22,6 @@ function Controller(props) {
       .then(apiResponse => apiResponse.data)
       .then(data => {
         set_pump_array(Object.entries(data))
-        console.log(Object.entries(data))
       })
   }, [])
 

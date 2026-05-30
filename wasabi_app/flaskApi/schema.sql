@@ -8,10 +8,9 @@ CREATE TABLE reagentLib (
   json_data TEXT
 );
 
-CREATE TABLE users (
+CREATE TABLE authors (
   name TEXT,
   id INT,
-  ip_history TEXT,
   experiments TEXT
 );
 
