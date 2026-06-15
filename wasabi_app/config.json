@@ -1,57 +1,90 @@
 {
-  "machine":{
-    "plates":[
-      {"rows":8,"columns":12},
-
-      {"rows":2,"columns":3},
-
-      {"rows":16,"columns":24}
+  "machine": {
+    "plates": [
+      {
+        "name": "standard 96",
+        "rows": 8,
+        "columns": 12,
+        "spacing": 9
+      },
+      {
+        "name": "standard 6",
+        "rows": 2,
+        "columns": 3,
+        "spacing": 39
+      }
     ],
     "pumpCount": 3,
-    "machineDimensions":{
-      "hand":115.832,"arm": 69.5
+    "machineDimensions": {
+      "hand": 110,
+      "spacing": 90,
+      "arm": 70,
+      "tool_offset": 20
     },
-
-    "motorParameters" : {
-
+    "motorParameters": {
       "a": {
         "stepsPerRev": 0,
-        "wMax":0,
-        "vMax":0
+        "wMax": 0,
+        "vMax": 0
       },
-      "b":{
+      "b": {
         "stepsPerRev": 0,
-        "wMax":0,
-        "vMax":0
+        "wMax": 0,
+        "vMax": 0
       },
-      "z":{
+      "z": {
         "stepsPerRev": 0,
-        "wMax":0,
-        "vMax":0
+        "wMax": 0,
+        "vMax": 0
       }
-
     },
     "pinDefinitions": {
       "motorEnablePin": 0,
-      "endStops":{
-        "a":0,
-        "b":0,
-        "z":0
+      "endStops": {
+        "a": 0,
+        "b": 0,
+        "z": 0
       },
       "motors": {
-        "a": {"step": 0, "direction": 0},
-        "b": {"step": 0, "direction": 0},
-        "z": {"step": 0, "direction": 0},
-        "pumps":[
-          {"step":0, "direction":0},
-          {"step":0, "direction":0},
-          {"step":0, "direction":0},
-          {"step":0, "direction":0},
-          {"step":0, "direction":0},
-          {"step":0, "direction":0}
+        "a": {
+          "step": 0,
+          "direction": 0
+        },
+        "b": {
+          "step": 0,
+          "direction": 0
+        },
+        "z": {
+          "step": 0,
+          "direction": 0
+        },
+        "pumps": [
+          {
+            "step": 0,
+            "direction": 0
+          },
+          {
+            "step": 0,
+            "direction": 0
+          },
+          {
+            "step": 0,
+            "direction": 0
+          },
+          {
+            "step": 0,
+            "direction": 0
+          },
+          {
+            "step": 0,
+            "direction": 0
+          },
+          {
+            "step": 0,
+            "direction": 0
+          }
         ]
-      } 
-
+      }
     }
   }
 }

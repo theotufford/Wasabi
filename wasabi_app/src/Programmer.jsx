@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import PlateElement from './plateElement.jsx'
 import InstructionForm from './InstructionForm.jsx'
-import './programmer.css'
+import './Programmer.css'
 import LegendElement from './legend.jsx'
 import SaveButton from './flaskApi'
 import { version } from 'react'
@@ -30,7 +30,6 @@ function Programmer(props) {
     setExperiment(prev => ({ ...prev, forms: value }))
   }
 
-
   const [color_lib, set_color_lib] = useState(new Map())
 
   const titleChange = (event) => {
@@ -53,8 +52,7 @@ function Programmer(props) {
       methodObject: {},
       from: "", to: "",
       colors: []
-    }
-    )
+    })
   }
 
   const deleteForm = (event) => {
@@ -66,12 +64,10 @@ function Programmer(props) {
   }
 
   const keydownHandler = (event) => {
-    if (
-      ["Enter", "Escape"].includes(event.key)) {
+    if (["Enter", "Escape"].includes(event.key)) {
       event.target.blur()
     }
   }
-
 
   const loading = useRef(true)
 
@@ -83,48 +79,58 @@ function Programmer(props) {
     loading.current = "done"
   }
 
-  // add a new empty form on load
   useEffect(() => {
     console.log("forms: ", Object.keys(experiment.forms))
     if (Object.keys(experiment.forms).length === 0)
       addEmptyForm()
   }, [loading])
 
-
   return (
     <div id="experiment">
       <div id="forms">
-        <input
-          type="text"
-          name="experimentTitle"
-          defaultValue={props.experiment.current.title}
-          onBlur={titleChange}
-          onKeyDown={keydownHandler}
-          placeholder="insert title"
-        />
-        version: {experiment.version}
-        <SaveButton experiment={experiment} setExperiment={setExperiment} />
-        <table>
-          <thead>
-            <tr>
-              <th> reagent </th>
-              <th> method </th>
-              <th> coordinates </th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.keys(experiment.forms).map((form_id) => (
-              <InstructionForm key={form_id} className="instructionForm"
-                constructor={experiment.forms[form_id]}
-                id={form_id}
-                modifyForms={modifyForms}
-                deleteForm={deleteForm}
-                keydownHandler={keydownHandler}
-              />
-            ))}
-          </tbody>
-        </table>
-        <button onClick={addEmptyForm}> add form </button>
+        <div className="title-row">
+          <input
+            type="text"
+            name="experimentTitle"
+            defaultValue={props.experiment.current.title}
+            onBlur={titleChange}
+            onKeyDown={keydownHandler}
+            placeholder="experiment title"
+          />
+          <span className="version-label">v{experiment.version}</span>
+        </div>
+        <div className="form-actions">
+          <SaveButton experiment={experiment} setExperiment={setExperiment} />
+        </div>
+        <div className="sheet-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th className="row-num-header"></th>
+                <th>reagent</th>
+                <th>method</th>
+                <th>params</th>
+                <th>range</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(experiment.forms).map((form_id, index) => (
+                <InstructionForm
+                  key={form_id}
+                  className="instructionForm"
+                  constructor={experiment.forms[form_id]}
+                  id={form_id}
+                  rowIndex={index + 1}
+                  modifyForms={modifyForms}
+                  deleteForm={deleteForm}
+                  keydownHandler={keydownHandler}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button className="add-form-btn" onClick={addEmptyForm}>+ add reagent</button>
       </div>
       <div id="visualElements">
         <PlateElement experiment={experiment} set_color_lib={set_color_lib} />

@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import { useEffect } from 'react';
 import './instructionForm.css'
+const initial_form_state = { 
+  id: crypto.randomUUID(),
+  reagent: "empty",
+  method: "constant",
+  methodObject: {},
+  from: "", to: "",
+  colors: []
+}
 
 function getMethodForm(formObject) {
   const handleMethodInput = (event) => {
@@ -16,7 +24,7 @@ function getMethodForm(formObject) {
       <input
         type="text"
         name="constantVolume"
-        placeholder="volume"
+        placeholder="volume µL"
         defaultValue={initial?.constantVolume}
         onChange={handleMethodInput}
       />
@@ -36,7 +44,7 @@ function getMethodForm(formObject) {
       <input
         type="text"
         name="initialVolume"
-        placeholder="initial volume"
+        placeholder="initial volume µL"
         defaultValue={initial?.initialVolume}
         onChange={handleMethodInput}
       />
@@ -55,6 +63,7 @@ function getMethodForm(formObject) {
   }
   return (methods[formObject.method])
 }
+
 function InstructionForm(props) {
   const [formObject, setFormValues] = useState(() => (props.constructor))
 
@@ -68,25 +77,25 @@ function InstructionForm(props) {
 
   const handleFormUpdate = (event) => {
     const update = {}
-    // console.log('changed ', { ...update })
     update[event.target.name] = event.target.value
     setFormValues(prev => ({ ...prev, ...update }))
   }
   const keydownHandler = props.keydownHandler
+
   return (
     <tr>
+      <td className="row-num">{props.rowIndex}</td>
       <td>
         <input
           type="text"
           name="reagent"
-          placeholder="input reagent"
+          placeholder="reagent"
           defaultValue={formObject.reagent}
           onKeyDown={keydownHandler}
           onBlur={handleFormUpdate}
         />
-        <button type="submit" style={{ display: "none" }} >log reagent</button>
+        <button type="submit" style={{ display: "none" }}>log reagent</button>
       </td>
-
       <td>
         <select
           type="text"
@@ -98,17 +107,18 @@ function InstructionForm(props) {
           <option value="constant">constant</option>
           <option value="gradient">gradient</option>
         </select>
-        <div className="method">
+      </td>
+      <td>
+        <div className="method-inputs">
           {getMethodForm(formObject)}
         </div>
       </td>
-
       <td>
-        <div className="fromTo">
+        <div className="from-to">
           <input
             type="text"
             name="from"
-            placeholder="from"
+            placeholder="a1"
             defaultValue={formObject.from}
             onBlur={handleFormUpdate}
             onKeyDown={keydownHandler}
@@ -117,14 +127,14 @@ function InstructionForm(props) {
             type="text"
             name="to"
             defaultValue={formObject.to}
-            placeholder="to"
+            placeholder="h12"
             onBlur={handleFormUpdate}
             onKeyDown={keydownHandler}
           />
         </div>
       </td>
       <td>
-        <button id={props.id} onClick={props.deleteForm}>delete</button>
+        <button id={props.id} onClick={props.deleteForm} className="btn-danger">✕</button>
       </td>
     </tr>
   )
