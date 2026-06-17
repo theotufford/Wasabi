@@ -26,7 +26,7 @@ public:
   const int step_pin;
   const int dir_pin;
   const int stp_per_rev;
-  const int ang_v_max;
+  const int vMax;
   const int ang_accel;
 
   bool homed;
@@ -41,14 +41,19 @@ public:
   bool enabled;
   int current_position;
   // distance to be traveled this move
-  int target_distance;
+  int move_delta;
+  double ang_targ_dist;
   int direction;
   volatile int live_abs_pos;
   int accel_stop;
   int constv_stop;
   uint64_t accel_factor;
-  uint64_t min_step_delay;
+  uint64_t move_init_time;
+  double total_move_time;
+  double TORADS = (2 * M_PI / stp_per_rev);
+  double TOSTEPS = (stp_per_rev / (2 * M_PI));
 
+  void move_precalc();
   int move_callback();
 
   // the hardware alarm system really does
@@ -61,4 +66,3 @@ public:
 
   Motor(const vector<int> &argumentVector, bool non_async);
 };
-
