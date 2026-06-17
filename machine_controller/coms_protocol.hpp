@@ -1,6 +1,6 @@
 #pragma once
-#include <dma_uart.hpp>
 #include <cstring>
+#include <dma_uart.hpp>
 #include <string>
 #include <vector>
 
