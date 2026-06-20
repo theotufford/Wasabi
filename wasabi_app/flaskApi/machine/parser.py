@@ -43,15 +43,13 @@ class ExperimentMachineCode:
         self.pumpmap = pump_map
 
     def move_to_well(self, coord):
-        over =
-        self.instructions.append(over)
+        pass
 
     def dispense(self, reagent, volume):
         id = self.pumpmap.get(reagent)
         if id is None:
-            raise ValueError(f"reagent '{reagent}' not found in pumpmap!")
-
-        pass
+            print(f"reagent '{reagent}' not found in pumpmap!")
+            return False
 
     def aspirate(self, reagent, volume):
         pass

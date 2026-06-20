@@ -1,0 +1,74 @@
+{
+  "machine": {
+    "machineDimensions": {
+      "hand": 110,
+      "spacing": 90,
+      "arm": 70,
+      "tool_offset": 20
+    },
+    "pins": {
+      "motorEnablePin": 0,
+      "a_endstop": 0,
+      "b_endstop": 0,
+      "z_endstop": 0
+    }
+  },
+  "motors": {
+    "a": {
+      "stp_pin": 0,
+      "dir_pin": 0,
+      "steps_per_rev": 1600
+    },
+    "b": {
+      "stp_pin": 0,
+      "dir_pin": 0,
+      "steps_per_rev": 1600
+    },
+    "z": {
+      "stp_pin": 0,
+      "dir_pin": 0,
+      "steps_per_rev": 400,
+      "screw_pitch": 4
+    },
+    "pumps": [
+      {
+        "stp_pin": 0,
+        "dir_pin": 0,
+        "steps_per_rev": 400,
+        "dispense_factor": 1.0
+      },
+      {
+        "stp_pin": 0,
+        "dir_pin": 0,
+        "steps_per_rev": 400,
+        "dispense_factor": 1.0
+      },
+      {
+        "stp_pin": 0,
+        "dir_pin": 0,
+        "steps_per_rev": 400,
+        "dispense_factor": 1.0
+      },
+      {
+        "stp_pin": 0,
+        "dir_pin": 0,
+        "steps_per_rev": 400,
+        "dispense_factor": 1.0
+      }
+    ]
+  },
+  "plates": [
+    {
+      "name": "standard 96",
+      "rows": 8,
+      "columns": 12,
+      "spacing": 9
+    },
+    {
+      "name": "standard 6",
+      "rows": 2,
+      "columns": 3,
+      "spacing": 39
+    }
+  ]
+}
