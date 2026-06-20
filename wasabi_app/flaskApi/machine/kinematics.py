@@ -28,6 +28,9 @@ class Vec2d:
     def __rmul__(self, scalar):
         return self.__mul__(scalar)
 
+    def __truediv__(self, scalar):
+        return self.__mul__(1/scalar)
+
     def __add__(self, other):
         if isinstance(other, Vec2d):
             return Vec2d(self.x + other.x, self.y + other.y)
@@ -42,12 +45,20 @@ class Vec2d:
     def get_length(self):
         return math.sqrt(self.x ** 2 + self.y ** 2)
 
+    def normalize(self):
+        return self / self.get_length()
+
 
 class MachinePosition:
     def __init__(self, endpt: Vec2d, alpha, beta):
-        self.end = endpt
+        self.toolhead = endpt
         self.alpha = alpha
         self.beta = beta
+
+    def __repr__(self):
+        alpha = math.degrees(self.alpha)
+        beta = math.degrees(self.beta)
+        return f"{alpha=}, {beta=}"
 
 
 def vec_from_angle_length(angle, length) -> Vec2d:
@@ -73,9 +84,9 @@ def solve_5bar_IK(target: Vec2d) -> MachinePosition:
     alpha_2 = inv_law_of_cosines(
         end_pt_hypot_long, hand_length + tool_offset, arm_length)
 
-    shoulder_vec = vec_from_angle_length(alpha_1 + alpha_2, arm_length)
+    elbow_vec = vec_from_angle_length(alpha_1 + alpha_2, arm_length)
 
-    hand_unit_vec = (target - shoulder_vec) * \
+    hand_unit_vec = (target - elbow_vec) * \
         (1. / (hand_length + tool_offset))
 
     joint = target - (tool_offset * hand_unit_vec)
@@ -111,28 +122,57 @@ def solve_5bar_IK(target: Vec2d) -> MachinePosition:
 
 
 def solve_5bar_FK(alpha: float, beta: float):
-    pass
+    alpha = 3 * math.pi / 2 - alpha
+    beta = beta - math.pi / 2
+    elbow_A = vec_from_angle_length(alpha, arm_length)
+    elbow_B = vec_from_angle_length(beta, arm_length) + Vec2d(spacing, 0)
+    midpoint = (elbow_A + elbow_B)/2
+    elbow_to_elbow = elbow_B - elbow_A
+    midpoint_to_joint_length = math.sqrt(
+        hand_length ** 2 - (((elbow_to_elbow.get_length())/2) ** 2))
+    elbow_to_elbow_unit_vec = elbow_to_elbow.normalize()
+    midpoint_to_hand_joint = midpoint_to_joint_length * \
+        Vec2d(-elbow_to_elbow_unit_vec.y, abs(elbow_to_elbow_unit_vec.x))
+
+    joint_position = midpoint + midpoint_to_hand_joint
+
+    hand_vector = joint_position - elbow_A
+    tool_offset_vector = hand_vector.normalize() * tool_offset
+
+    end_point = joint_position + tool_offset_vector
+
+    print(f"""
+    {elbow_A=}
+    {elbow_B=}
+    {midpoint_to_joint_length=}
+    {midpoint=}
+    {joint_position=}
+          """)
+
+    return end_point
 
 
-def main():
+def test():
     print(f"""
     arm length: {arm_length}
     hand length: {hand_length}
     spacing: {spacing}
     tool offset: {tool_offset}
     """)
+
     while True:
-        inpx = float(input("input x:"))
-        inpy = float(input("input y:"))
+        print("Forward kinematic test")
+        inpa = math.radians(float(input("input a:")))
+        inpb = math.radians(float(input("input b:")))
 
-        solution = solve_5bar_IK(Vec2d(inpx, inpy))
+        solution = solve_5bar_FK(inpa, inpb)
 
-        print(f"""
-              alpha: {math.degrees(solution.alpha)}
-              beta: {math.degrees(solution.beta)}
-              end: {solution.end}
-              """)
+        print(f"position: {solution}")
+
+        print("inverse kinematic test:")
+        inverse = solve_5bar_IK(solution)
+        print(f"inverse solver returned: {inverse}")
 
 
 if __name__ == "__main__":
-    main()
+    test()
