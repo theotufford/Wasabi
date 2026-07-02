@@ -52,8 +52,8 @@ public:
   uint64_t accel_factor;
   uint64_t move_init_time;
   double total_move_time;
-  double TORADS = (2 * M_PI / stp_per_rev);
-  double TOSTEPS = (stp_per_rev / (2 * M_PI));
+  double rads_per_step = (2 * M_PI / stp_per_rev);
+  double steps_per_rad = (stp_per_rev / (2 * M_PI));
 
   void move_precalc();
   int move_callback();

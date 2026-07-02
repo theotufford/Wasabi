@@ -60,12 +60,12 @@ int main() {
       continue;
     }
 
-    coms.send_vector(A_MOTOR, coms.argumentVector);
+    coms.send_vector(coms.coms_rx_code, coms.argumentVector);
 
     bool non_async = coms.coms_rx_code == NEW_PUMP;
     auto new_motor = make_unique<Motor>(coms.argumentVector, non_async);
-
     if (non_async) {
+      new_motor->buzz();
       pumps.push_back(std::move(new_motor));
     } else {
       axis_motors.push_back(std::move(new_motor));
@@ -104,19 +104,31 @@ int main() {
     }
     // state machine operated by coms rx code
     switch (coms.coms_rx_code) {
-    case RE_REQUEST: {
+    case BUZZ: {
+      int pump_id = coms.argumentVector[0];
+      pumps.at(pump_id)->buzz();
+      break;
     }
+    case RE_REQUEST: {
+      // TODO
+      break;
+    }
+
     case ENABLE_MOTORS: {
       gpio_put(pins[MOT_ENA], 1);
+      break;
     }
     case DISABLE_MOTORS: {
       gpio_put(pins[MOT_ENA], 0);
+      break;
     }
     case ENABLE_PUMPS: {
       gpio_put(pins[PUMP_ENA], 1);
+      break;
     }
     case DISABLE_PUMPS: {
       gpio_put(pins[PUMP_ENA], 0);
+      break;
     }
     case MOVE: {
       // prepare moves
@@ -176,14 +188,22 @@ int main() {
       Motor &bmot = *axis_motors[1];
       Motor &zmot = *axis_motors[2];
 
-
-
       vector<int> initial_position = {0, 0, 0};
 
-      // b and z motor is moving in reverse because their limit switches are at 0
+      // b and z motor is moving in reverse because their limit switches are at
+      // 0
       bmot.reverse_dir();
       zmot.reverse_dir();
       // home z first to avoid physical collisions
+      int z_min_delay = ceil(5e3f /(zmot.steps_per_rad * zmot.vMax));
+      int a_min_delay = ceil(1e4f /(amot.steps_per_rad * amot.vMax));
+      int b_min_delay = ceil(1e4f /(bmot.steps_per_rad * bmot.vMax));
+
+      coms.send_vector(MESSAGE, {z_min_delay, a_min_delay, b_min_delay});
+
+      coms.send_code(CONFIRM);
+
+      int ab_del = a_min_delay > b_min_delay ? a_min_delay : b_min_delay;
       while (true) {
         bool z_triggered = !gpio_get(pins[Z_lim]);
         if (z_triggered) {
@@ -192,9 +212,8 @@ int main() {
         }
         zmot.step();
         initial_position[2]++;
-        sleep_us(500);
+        sleep_ms(z_min_delay);
       }
-
 
       while (true) {
         bool a_triggered = !gpio_get(pins[A_lim]);
@@ -219,8 +238,7 @@ int main() {
         if (a_triggered && b_triggered) {
           break;
         }
-
-        sleep_ms(3);
+        sleep_ms(ab_del);
       }
 
       coms.send_vector(INITIAL_POSITION, initial_position);

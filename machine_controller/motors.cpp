@@ -42,13 +42,10 @@ Motor::Motor(const vector<int> &argumentVector, bool non_async = false)
 
 void Motor::buzz() {
 
-  float buzz_amplitude_deg = 1.8;
+  float buzz_amplitude_deg = 1;
 
-  int amp_steps = (int)(buzz_amplitude_deg / (360.f / (float)stp_per_rev));
+  int amp_steps = ceil(buzz_amplitude_deg / (360.f / (float)stp_per_rev));
 
-  if (amp_steps < 0) {
-    amp_steps = 1;
-  }
   move_delta = 1;
   for (int cycle_count = 0; cycle_count < 100; cycle_count++) {
     for (int stpcnt = 0; stpcnt < amp_steps; stpcnt++) {
@@ -91,7 +88,7 @@ void Motor::step() {
 }
 
 void Motor::move_precalc() {
-  ang_targ_dist = TORADS * abs(move_delta); // gets the total distance of
+  ang_targ_dist = rads_per_step * abs(move_delta); // gets the total distance of
                                             // the move in rads
   float v_reached = vMax;
 
@@ -120,7 +117,7 @@ int Motor::move_callback() {
     return 0;
   }
 
-  double theta = TORADS * (live_abs_pos + 1);
+  double theta = rads_per_step * (live_abs_pos + 1);
   double stepTiming;
   if (theta < accel_stop) {
     stepTiming = sqrt((2 * theta) / ang_accel);
