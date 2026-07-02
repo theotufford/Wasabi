@@ -2,18 +2,13 @@
 # the robot to do certain methods  without the granularity of programming
 # each and every action
 
-from .db import get_db
-from .coms import Packet
-
-
-def verify_has(data, *args):
-    for key in args:
-        if data.get(key) is None:
-            raise ValueError(f"data:{data}\n is missing key:{key}")
-    return True
-
+from db import get_db
+from serialcoms import Packet, abs_move_packet, rel_move_packet
+from machine_state import Machine
 
 # this function maps a1 -> [0,0]
+
+
 def corners_to_range(from_input: str, to_input: str):
     fromchar = from_input[0]
     tochar = to_input[0]
@@ -34,88 +29,40 @@ def corners_to_range(from_input: str, to_input: str):
         for y in range(from_y, to_y):
             all_wells.append([x, y])
 
-
-class ExperimentMachineCode:
-    # all coordinates in output machine code are given in relative well index
-    # rather than an absolute coordinate system
-    def __init__(self, pump_map: dict):
-        self.instructions = []
-        self.pumpmap = pump_map
-
-    def move_to_well(self, coord):
-        pass
-
-    def dispense(self, reagent, volume):
-        id = self.pumpmap.get(reagent)
-        if id is None:
-            print(f"reagent '{reagent}' not found in pumpmap!")
-            return False
-
-    def aspirate(self, reagent, volume):
-        pass
-
-    def to_csv(self):
-        pass
+    return all_wells
 
 
-def parse_experiment(data):
-
-    verify_has(data, "forms")
-
-    # get pump map
-    db = get_db()
-    reagent_to_pump = {}
-    dump = db.execute("""
-                      SELECT pumpID, reagent
-                      FROM pumpMap
-                      """).fetchall()
-    for row in dump:
-        rowdict = dict(row)
-        reagent_to_pump[rowdict["reagent"]] = rowdict["pumpID"]
-
-    # TODO get well map
-    homing_output = {}
-
-    machine_code = ExperimentMachineCode(
-        pump_map=reagent_to_pump, well_map=homing_output
-
-    )
-
+def run_experiment(machine: Machine, data):
     forms = data["forms"]
 
     for instruction_form in forms:
         method = instruction_form["method"]
         if method == "constant":
-            constant_volume(instruction_form, machine_code)
+            constant_volume(instruction_form)
         if method == "gradient":
-            gradient_volume(instruction_form, machine_code)
+            gradient_volume(instruction_form)
         if method == "serial_dilution":
-            serial_dilution(instruction_form, machine_code)
+            serial_dilution(instruction_form)
 
 
-# METHODS
-
-def constant_volume(input_data: dict, machine_code: ExperimentMachineCode):
-    verify_has(input_data, "from", "to", "volume", "reagent")
+def constant_volume(input_data: dict, machine: Machine):
     well_array = corners_to_range(input_data["from"], input_data["to"])
 
-    for well_index in well_array:
-        machine_code.move_to_well(well_index)
-        machine_code.dispense(input_data["reagent"], input_data["volume"])
+    for well in well_array:
+        machine.move_to_well(well)
+        machine.dispense(input_data["reagent"], input_data["volume"])
 
 
-def gradient_volume(input_data: dict, machine_code: ExperimentMachineCode):
-    verify_has(input_data, "from", "to", "volume",
-               "direction", "initial_volume", "increment", "reagent")
-
+def gradient_volume(input_data: dict, machine: Machine):
     well_array = corners_to_range(input_data["from"], input_data["to"])
-
+    direction = input_data["direction"]
     current_volume = input_data["initial_volume"]
-    for well_index in well_array:
-        machine_code.move_to_well(well_index)
-        machine_code.dispense(input_data["reagent"], input_data["volume"])
-        current_volume += input_data["increment"]
+    if direction == "up":
+    # initialize this variable
+    for well in well_array:
+        machine.move_to_well(well)
+        machine.dispense(input_data["reagent"], input_data["volume"])
 
 
-def serial_dilution(input_data: dict, machine_code: ExperimentMachineCode):
+def serial_dilution(input_data: dict, machine: Machine):
     pass

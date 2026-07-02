@@ -1,3 +1,5 @@
+from . import db
+from . import dataApi
 from flask import Flask, session
 from flask_session import Session
 from flask_cors import CORS
@@ -5,32 +7,22 @@ import threading
 import os
 
 
-def create_app(test_config=None):
-    app = Flask(__name__)
-    app.debug = True
-    if test_config is None:
-        # load the instance config, if it exists, when not testing
-        app.config.from_pyfile('flask_config.py', silent=True)
-    else:
-        # load the test config if passed in
-        app.config.from_mapping(test_config)
-    # ensure the instance folder exists
-    try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
-    # import the database into the app
+app = Flask(__name__)
+app.config["DEBUG"] = True
+app.config["SESSION_TYPE"] = "filesystem"
 
-    from . import db
-    db.init_app(app)
+# ensure the instance folder exists
+try:
+    os.makedirs(app.instance_path)
+except OSError:
+    pass
 
-    # from . import serialComs
-    # app.register_blueprint(serialComs.bp)
+# import the database into the app
+app.register_blueprint(dataApi.bp)
 
-    from . import dataApi
-    app.register_blueprint(dataApi.bp)
-    # in final version the node server should start this one and pass its url
-    CORS(app, origins="http://localhost:5173", methods=["GET", "POST"])
-    Session(app)
+db.init_app(app)
+CORS(app)
 
-    return app
+
+if __name__ == '__main__':
+    app.run(host='127.0.0.1', port=5000)

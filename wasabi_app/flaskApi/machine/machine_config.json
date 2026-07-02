@@ -7,68 +7,78 @@
       "tool_offset": 20
     },
     "pins": {
-      "motorEnablePin": 0,
-      "a_endstop": 0,
-      "b_endstop": 0,
-      "z_endstop": 0
+      "motor_enable_pin": 2,
+      "pump_enable_pin": 0,
+      "a_endstop": 3,
+      "b_endstop": 4,
+      "z_endstop": 5
     }
   },
   "motors": {
     "a": {
-      "stp_pin": 0,
-      "dir_pin": 0,
+      "stp_pin": 28,
+      "dir_pin": 27,
+      "invert_dir": 1,
+      "ang_v_max": 20,
+      "ang_accel_rad": 10,
       "steps_per_rev": 1600
     },
     "b": {
-      "stp_pin": 0,
-      "dir_pin": 0,
+      "stp_pin": 20,
+      "dir_pin": 19,
+      "invert_dir": 1,
+      "ang_v_max": 20,
+      "ang_accel_rad": 10,
       "steps_per_rev": 1600
     },
     "z": {
-      "stp_pin": 0,
-      "dir_pin": 0,
-      "steps_per_rev": 400,
-      "screw_pitch": 4
+      "stp_pin": 6,
+      "dir_pin": 7,
+      "invert_dir": 0,
+      "ang_v_max": 15,
+      "ang_accel_rad": 10,
+      "steps_per_rev": 1600
     },
     "pumps": [
       {
-        "stp_pin": 0,
-        "dir_pin": 0,
-        "steps_per_rev": 400,
-        "dispense_factor": 1.0
+        "stp_pin": 10,
+        "dir_pin": 11,
+        "invert_dir": 0,
+        "ang_v_max": 300,
+        "ang_accel_rad": 1,
+        "steps_per_rev": 200,
+        "compensation_factor": 1.15
       },
       {
-        "stp_pin": 0,
-        "dir_pin": 0,
-        "steps_per_rev": 400,
-        "dispense_factor": 1.0
+        "stp_pin": 11,
+        "dir_pin": 12,
+        "invert_dir": 0,
+        "ang_v_max": 300,
+        "ang_accel_rad": 1,
+        "steps_per_rev": 200,
+        "compensation_factor": 1.15
       },
       {
-        "stp_pin": 0,
-        "dir_pin": 0,
-        "steps_per_rev": 400,
-        "dispense_factor": 1.0
-      },
-      {
-        "stp_pin": 0,
-        "dir_pin": 0,
-        "steps_per_rev": 400,
-        "dispense_factor": 1.0
+        "stp_pin": 13,
+        "dir_pin": 14,
+        "invert_dir": 0,
+        "ang_v_max": 300,
+        "ang_accel_rad": 1,
+        "steps_per_rev": 200,
+        "compensation_factor": 1.15
       }
     ]
   },
-  "plates": [
-    {
-      "name": "standard 96",
+  "plates": {
+    "standard 96": {
       "rows": 8,
       "columns": 12,
       "spacing": 9
     },
-    {
-      "name": "standard 6",
+    "standard 6": {
       "rows": 2,
       "columns": 3,
       "spacing": 39
     }
-  ]
+  }
 }

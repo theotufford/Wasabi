@@ -7,7 +7,7 @@ from flask import current_app, g
 DATABASE = "wbiDB.db"
 
 
-def get_db():
+def get_db() -> sqlite3.Connection:
     db = getattr(g, '_database', None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
@@ -26,11 +26,8 @@ def pumpUpdate(addition):
     db = get_db()
     pump = None
     reagent = None
-    try:
-        pump = addition.get("pump")
-        reagent = addition.get("reagent")
-    except Error as e:
-        return (e)
+    pump = addition.get("pump")
+    reagent = addition.get("reagent")
     if pump and reagent:
         if reagent == "not-configured":
             db.execute(

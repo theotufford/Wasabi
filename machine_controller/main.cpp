@@ -23,35 +23,44 @@ int main() {
   gpio_init(LED_PIN);
   gpio_set_dir(LED_PIN, GPIO_OUT);
 
-  gpio_init(2);
-  gpio_set_dir(2, GPIO_OUT);
-  gpio_put(2, 1);
-
   blink(3);
 
   ComsInstance coms = ComsInstance(uart0, 115200);
-  // Motor settings configuration loop
-
   vector<unique_ptr<Motor>> axis_motors;
   vector<unique_ptr<Motor>> pumps;
+  vector<int> pins;
 
+  enum pin_indexes {
+    MOT_ENA,
+    PUMP_ENA,
+    A_lim,
+    B_lim,
+    Z_lim,
+  };
+
+  // configuration loop that exits once everything is configured
   while (true) {
-    uint messageFound = coms.get_packet(); // blocking header read
+    uint messageFound = coms.get_packet(); // blocking read
     if (messageFound != 0) {
-      // if read error try again
+      // if read fail try again
       continue;
     }
-    if (coms.coms_rx_code == CONFIRM) { // listen for break signal
+    // listen for break signal
+    if (coms.coms_rx_code == CONFIRM) {
       break;
     }
-    if (coms.argumentVector.size() == 0) { // ensure there is data to parse
+
+    if (coms.coms_rx_code > MACHINE_PIN_DEFINITIONS ||
+        coms.coms_rx_code < NEW_PUMP) {
       continue;
     }
-    // Ensure the com is a settings packet
-    if (coms.coms_rx_code < NEW_PUMP ||
-        coms.coms_rx_code > MACHINE_PIN_DEFINITIONS) {
+
+    if (coms.coms_rx_code == MACHINE_PIN_DEFINITIONS) {
+      pins = coms.argumentVector;
       continue;
     }
+
+    coms.send_vector(A_MOTOR, coms.argumentVector);
 
     bool non_async = coms.coms_rx_code == NEW_PUMP;
     auto new_motor = make_unique<Motor>(coms.argumentVector, non_async);
@@ -61,42 +70,64 @@ int main() {
     } else {
       axis_motors.push_back(std::move(new_motor));
     }
-    coms.send_data(CONFIRM);
+
+    coms.send_code(CONFIRM);
   }
 
-  // settings initialized blink
-  blink(5);
+  // setup the machine pins
+  for (int pin_id : pins) {
+    gpio_init(pin_id);
+  }
 
-  // main motion control loop
+  gpio_set_dir(pins[A_lim], GPIO_IN);
+  gpio_set_dir(pins[B_lim], GPIO_IN);
+  gpio_set_dir(pins[Z_lim], GPIO_IN);
+  gpio_set_dir(pins[MOT_ENA], GPIO_OUT);
+  gpio_set_dir(pins[PUMP_ENA], GPIO_OUT);
+
+  gpio_put(pins[MOT_ENA], 1);
+  gpio_put(pins[PUMP_ENA], 1);
+
+  gpio_pull_up(pins[A_lim]);
+  gpio_pull_up(pins[B_lim]);
+  gpio_pull_up(pins[Z_lim]);
+
+  blink(3); // settings initialized blink
+
+  coms.send_code(CONFIRM);
+
+  // main control loop
   while (true) {
     uint messageFound = coms.get_packet(); // blocking header read
     if (messageFound != 0) {
       continue;
     }
-    if (coms.argumentVector.size() == 0) { // ensure there is data to parse
-      continue;
-    }
-
     // state machine operated by coms rx code
     switch (coms.coms_rx_code) {
-
+    case RE_REQUEST: {
+    }
+    case ENABLE_MOTORS: {
+      gpio_put(pins[MOT_ENA], 1);
+    }
+    case DISABLE_MOTORS: {
+      gpio_put(pins[MOT_ENA], 0);
+    }
+    case ENABLE_PUMPS: {
+      gpio_put(pins[PUMP_ENA], 1);
+    }
+    case DISABLE_PUMPS: {
+      gpio_put(pins[PUMP_ENA], 0);
+    }
     case MOVE: {
       // prepare moves
       for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
         Motor &axis = *axis_motors[axis_ind];
-
         axis.live_abs_pos = 0;
-
-        axis.move_delta =
-            coms.argumentVector[axis_ind] - axis.current_position;
-
-
+        axis.move_delta = coms.argumentVector[axis_ind] - axis.current_position;
         if (axis.move_delta == 0) {
           continue;
         }
-
         axis.move_precalc();
-
         axis.update_dir();
       }
 
@@ -119,13 +150,82 @@ int main() {
       }
       break;
     }
-    case ASPIRATE: {
+    case PUMP_ACTION: {
+      int pump_id = coms.argumentVector[0];
+      int step_count = coms.argumentVector[1];
+      Motor &pump = *pumps[pump_id];
+      pump.live_abs_pos = 0;
+      pump.move_delta = step_count;
+      pump.move_precalc();
+      pump.update_dir();
+      pump.move_init_time = get_absolute_time();
+      hardware_alarm_force_irq(pump.alarm_num);
+      while (pump.live_abs_pos != abs(pump.move_delta)) {
+        tight_loop_contents();
+      }
       break;
     }
-    case DISPENSE: {
-      break;
+    case HOME: {
+
+      for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
+        Motor &axis = *axis_motors[axis_ind];
+        axis.live_abs_pos = 0;
+      }
+
+      Motor &amot = *axis_motors[0];
+      Motor &bmot = *axis_motors[1];
+      Motor &zmot = *axis_motors[2];
+
+
+
+      vector<int> initial_position = {0, 0, 0};
+
+      // b and z motor is moving in reverse because their limit switches are at 0
+      bmot.reverse_dir();
+      zmot.reverse_dir();
+      // home z first to avoid physical collisions
+      while (true) {
+        bool z_triggered = !gpio_get(pins[Z_lim]);
+        if (z_triggered) {
+          zmot.current_position = 0;
+          break;
+        }
+        zmot.step();
+        initial_position[2]++;
+        sleep_us(500);
+      }
+
+
+      while (true) {
+        bool a_triggered = !gpio_get(pins[A_lim]);
+        bool b_triggered = !gpio_get(pins[B_lim]);
+
+        if (a_triggered) {
+          int homing_switch_step_pos = ceil(amot.stp_per_rev * 250. / 360.);
+          initial_position[0] = homing_switch_step_pos - amot.live_abs_pos;
+          amot.current_position = homing_switch_step_pos;
+          // TODO
+        } else {
+          amot.step();
+        }
+        if (b_triggered) {
+          initial_position[1] = bmot.live_abs_pos;
+          bmot.reverse_dir();
+          bmot.current_position = 0;
+        } else {
+          bmot.step();
+        }
+
+        if (a_triggered && b_triggered) {
+          break;
+        }
+
+        sleep_ms(3);
+      }
+
+      coms.send_vector(INITIAL_POSITION, initial_position);
     }
     }
-    coms.send_data(CONFIRM);
+    coms.send_code(CONFIRM);
   }
 }

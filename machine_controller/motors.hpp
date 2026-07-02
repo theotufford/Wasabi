@@ -25,6 +25,7 @@ public:
 
   const int step_pin;
   const int dir_pin;
+  const int invert_dir;
   const int stp_per_rev;
   const int vMax;
   const int ang_accel;
@@ -33,6 +34,7 @@ public:
   enum {
     step_pin_arg,
     dir_pin_arg,
+    invert_dir_arg,
     stp_per_rev_arg,
     ang_v_max_arg,
     ang_accel_arg
@@ -62,6 +64,7 @@ public:
   // function that calls the correct function.
   void step();
   void update_dir();
+  void reverse_dir();
   void buzz();
 
   Motor(const vector<int> &argumentVector, bool non_async);
