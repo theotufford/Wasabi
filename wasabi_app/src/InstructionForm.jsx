@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useEffect } from 'react';
 import './instructionForm.css'
+import { v4 as uuidv4 } from 'uuid';
 const initial_form_state = { 
-  id: crypto.randomUUID(),
+  id: uuidv4(),
   reagent: "empty",
   method: "constant",
   methodObject: {},

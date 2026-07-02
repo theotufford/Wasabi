@@ -1,20 +1,6 @@
 import json
 import math
 
-arm_length = 0
-hand_length = 0
-spacing = 0
-tool_offset = 0
-
-with open('./machine_config.json', "r") as j:
-    config = json.loads(j.read())
-    machine_conf = config["machine"]
-    dimensions = machine_conf["machineDimensions"]
-    arm_length = dimensions["arm"]
-    hand_length = dimensions["hand"]
-    spacing = dimensions["spacing"]
-    tool_offset = dimensions["tool_offset"]
-
 
 class Vec2d:
     def __init__(self, x, y):
@@ -60,7 +46,10 @@ class MachinePosition:
     def __repr__(self):
         alpha = math.degrees(self.alpha)
         beta = math.degrees(self.beta)
-        return f"{alpha=}, {beta=}"
+        return f"dg: {alpha}, {beta}; pos: {self.x}, {self.y}, {self.z}"
+
+    def toolhead(self) -> Vec2d:
+        return Vec2d(self.x, self.y)
 
 
 def vec_from_angle_length(angle, length) -> Vec2d:
@@ -79,10 +68,17 @@ def inv_law_of_cosines(hypot, opposite, adjacent):
     return theta
 
 
-def solve_5bar_IK(target: Vec2d) -> MachinePosition:
+def solve_5bar_IK(machine_settings: dict, target: Vec2d) -> MachinePosition:
+
+    machine_conf = machine_settings["machine"]
+    dimensions = machine_conf["machineDimensions"]
+    arm_length = dimensions["arm"]
+    hand_length = dimensions["hand"]
+    spacing = dimensions["spacing"]
+    tool_offset = dimensions["tool_offset"]
+
     end_pt_hypot_long = target.get_length()
     alpha_1 = math.atan2(target.y, target.x)
-
     alpha_2 = inv_law_of_cosines(
         end_pt_hypot_long, hand_length + tool_offset, arm_length)
 
@@ -121,7 +117,14 @@ def solve_5bar_IK(target: Vec2d) -> MachinePosition:
     return output
 
 
-def solve_5bar_FK(alpha: float, beta: float) -> Vec2d:
+def solve_5bar_FK(machine_settings: dict, alpha: float, beta: float) -> Vec2d:
+    machine_conf = machine_settings["machine"]
+    dimensions = machine_conf["machineDimensions"]
+    arm_length = dimensions["arm"]
+    hand_length = dimensions["hand"]
+    spacing = dimensions["spacing"]
+    tool_offset = dimensions["tool_offset"]
+
     alpha = 3 * math.pi / 2 - alpha
     beta = beta - math.pi / 2
     wrist_A = vec_from_angle_length(alpha, arm_length)
@@ -150,65 +153,3 @@ def solve_5bar_FK(alpha: float, beta: float) -> Vec2d:
     #       """)
 
     return end_point
-
-
-def show_work_space(steps_per_rev):
-    upper_limit_max = math.floor((250/360) * steps_per_rev)
-    rads_per_step = 2 * math.pi / steps_per_rev
-
-    boundary = set()
-
-    for alpha_steps in range(0, upper_limit_max):
-        alpha = rads_per_step * alpha_steps
-        for beta_steps in range(0, upper_limit_max):
-            beta = rads_per_step * beta_steps
-            try:
-                calculated = solve_5bar_FK(alpha, beta)
-                boundary.add(calculated)
-
-            except:
-                pass
-
-    x_coords = []
-    y_coords = []
-
-    for point in boundary:
-        x_coords.append(point.x)
-        y_coords.append(point.y)
-
-    plt.scatter(x_coords, y_coords, color='blue', marker='o')
-    plt.title("Scatter Plot of Points")
-    plt.xlabel("X Axis")
-    plt.ylabel("Y Axis")
-    plt.show()
-
-    return (1)
-
-
-def test():
-
-    print(show_work_space(200))
-
-    print(f"""
-    arm length: {arm_length}
-    hand length: {hand_length}
-    spacing: {spacing}
-    tool offset: {tool_offset}
-    """)
-
-    while True:
-        print("Forward kinematic test")
-        inpa = math.radians(float(input("input a:")))
-        inpb = math.radians(float(input("input b:")))
-
-        solution = solve_5bar_FK(inpa, inpb)
-
-        print(f"position: {solution}")
-
-        print("inverse kinematic test:")
-        inverse = solve_5bar_IK(solution)
-        print(f"inverse solver returned: {inverse}")
-
-
-if __name__ == "__main__":
-    test()

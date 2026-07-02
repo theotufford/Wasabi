@@ -35,17 +35,18 @@
       "stp_pin": 6,
       "dir_pin": 7,
       "invert_dir": 0,
-      "ang_v_max": 15,
+      "ang_v_max": 10,
       "ang_accel_rad": 10,
-      "steps_per_rev": 1600
+      "steps_per_rev": 400,
+      "screw_pitch": 4
     },
     "pumps": [
       {
         "stp_pin": 10,
         "dir_pin": 11,
         "invert_dir": 0,
-        "ang_v_max": 300,
-        "ang_accel_rad": 1,
+        "ang_v_max": 15,
+        "ang_accel_rad": 10,
         "steps_per_rev": 200,
         "compensation_factor": 1.15
       },

@@ -6,7 +6,7 @@ import zlib
 import time
 import json
 import struct
-import kinematics as kine
+from .kinematics import Vec2d, solve_5bar_FK, solve_5bar_IK
 
 pio.setmode(pio.BCM)
 
@@ -321,7 +321,7 @@ class ComsChannel:
         self.await_confirm()
 
     def send_buzz(self, motor_id: int):
-        self.send_data(BUZZ, bytearray(motor_id.to_bytes(1)))
+        self.send_data(BUZZ, motor_id.to_bytes(4, 'little', signed=False))
 
     def send_home(self):
         self.send_code(HOME)
@@ -347,51 +347,61 @@ if __name__ == '__main__':
         settings = json.load(conf)
         coms.send_settings(settings)
 
-    a_rads_per_step = settings["motors"]["a"]["steps_per_rev"] / (2 * math.pi)
-    b_rads_per_step = settings["motors"]["b"]["steps_per_rev"] / (2 * math.pi)
+    a_steps_per_rad = settings["motors"]["a"]["steps_per_rev"] / (2 * math.pi)
+    b_steps_per_rad = settings["motors"]["b"]["steps_per_rev"] / (2 * math.pi)
     z_mm_per_step = settings["motors"]["z"]["steps_per_rev"] / 4
 
     print("SETTINGS INITIALIZED")
 
     positions = []
 
+    cleaning_well = settings["machine"]["cleaner_position"]
+
     for i in range(0, 8):
         for j in range(0, 12):
             positions.append([-j * 9, i * 9])
 
     coms.send_code(HOME)
-
-    initial_pos: kine.Vec2d
+    initial_pos: Vec2d
+    initial_a: int
+    initial_b: int
     initial_z: int
     while True:
         coms.get_packet()
         if coms.most_recent_rx.code == INITIAL_POSITION:
             returned_pos_steps = coms.most_recent_rx.get_int_argvec()
-            a_mot_angle = returned_pos_steps[0] / a_rads_per_step
-            b_mot_angle = returned_pos_steps[1] / b_rads_per_step
+            initial_a = returned_pos_steps[0]
+            initial_b = returned_pos_steps[1]
             initial_z = returned_pos_steps[2]
-            initial_pos = kine.solve_5bar_FK(a_mot_angle, b_mot_angle)
+            a_mot_angle = initial_a / a_steps_per_rad
+            b_mot_angle = initial_b / b_steps_per_rad
+            initial_pos = solve_5bar_FK(settings, a_mot_angle, b_mot_angle)
             print(f"starting position: {initial_pos}")
             break
 
     def conv(xy_list_coord):
-        relative_pos = kine.Vec2d(xy_list_coord[0], xy_list_coord[1])
+        relative_pos = Vec2d(xy_list_coord[0], xy_list_coord[1])
         abs_pos = relative_pos + initial_pos
-        angles = kine.solve_5bar_IK(abs_pos)
-        alpha = math.ceil(angles.alpha * a_rads_per_step)
-        beta = math.ceil(angles.beta * b_rads_per_step)
+        angles = solve_5bar_IK(settings, abs_pos)
+        alpha = math.ceil(angles.alpha * a_steps_per_rad)
+        beta = math.ceil(angles.beta * b_steps_per_rad)
         return [alpha, beta]
 
-    step_positions = [conv(coord) for coord in positions]
-
     z_cleared = math.floor(initial_z - z_mm_per_step * 10)
-
-    coms.send_move_steps(step_positions[0][0], step_positions[0][1], z_cleared)
+    coms.send_move_steps(initial_a, initial_b, z_cleared)
     coms.await_confirm()
-    coms.send_move_steps(step_positions[0][0], step_positions[0][1], initial_z)
+    coms.send_move_steps(initial_a, initial_b, initial_z)
+    coms.await_confirm()
+
+    step_positions = [conv(coord) for coord in positions]
+    cleaning_well = conv(cleaning_well)
 
     input("enter to continue")
 
     for position in step_positions:
         coms.send_move_steps(position[0], position[1], initial_z)
         coms.await_confirm()
+        coms.send_move_steps(cleaning_well[0], cleaning_well[1], initial_z)
+        coms.await_confirm()
+
+    coms.send_move_steps(initial_a, initial_b, initial_z)

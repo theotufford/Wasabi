@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { apiCall, dataStream } from './backendConfig.jsx'
+import { apiCall, control_call, dataStream } from './backendConfig.jsx'
 import TestButton from './browserFrame.jsx'
 
 function Controller(props) {
@@ -28,18 +28,33 @@ function Controller(props) {
   let title_text = "no experiment loaded"
   if (experiment.title != "") title_text = experiment.title;
 
+  const send_buzz = (id) => {
+    control_call({
+      route: "fetchExperiment",
+      body: {
+        id: id,
+      }
+    })
+  }
+
+  const send_home = () => {
+    control_call({ route: "home" })
+  }
+
+
   return (
     <div>
       <div>
         current experiment: {title_text}
       </div>
+      <button onClick={send_home}>home and set work offset</button>
       <div>Serial says:
         <div className='serial_display'>{serialMessage}</div>
       </div>
-    pumps:
+      pumps:
       {pump_array.map(([pump_id, reagent]) => (
         <div>
-          {pump_id} has: {reagent} <button> buzz motor </button>
+          {pump_id} has: {reagent} <button onClick={() => send_buzz(pump_id)} > buzz motor </button>
         </div>
       ))}
     </div>

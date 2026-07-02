@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS experiments;
 DROP TABLE IF EXISTS pumpMap;
 DROP TABLE IF EXISTS reagentLib;
-DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS authors;
 
 CREATE TABLE reagentLib (
   name TEXT,

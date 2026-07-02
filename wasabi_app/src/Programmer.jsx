@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import PlateElement from './plateElement.jsx'
 import InstructionForm from './InstructionForm.jsx'
+import { v4 as uuidv4 } from 'uuid';
 import './Programmer.css'
 import LegendElement from './legend.jsx'
 import SaveButton from './flaskApi'
@@ -46,7 +47,7 @@ function Programmer(props) {
 
   const addEmptyForm = () => {
     modifyForms({
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       reagent: "",
       method: "constant",
       methodObject: {},

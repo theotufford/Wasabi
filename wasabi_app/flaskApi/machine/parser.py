@@ -2,9 +2,9 @@
 # the robot to do certain methods  without the granularity of programming
 # each and every action
 
-from db import get_db
-from serialcoms import Packet, abs_move_packet, rel_move_packet
-from machine_state import Machine
+from ..db import get_db
+from .serialcoms import Packet, abs_move_packet, rel_move_packet
+from .machine_state import Machine
 
 # this function maps a1 -> [0,0]
 
