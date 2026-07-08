@@ -1,38 +1,57 @@
+import { useState } from "react"
 import { useRef } from "react"
+import { apiCall, control_call } from './backendConfig.jsx'
+
 
 function Pump_block(props) {
   const id = props.id
   const reagents_needed = props.reagents_needed
-  const reagents = props.reagents
-  const pump_array = props.pump_array
+  const experiment_reagents = props.reagents
+  const [reagent, setReagent] = useState(props.reagent)
 
-  const selected_reagent = useRef("")
-  const current = pump_array[id]
-  const commit = () => {
-    console.log("committed")
+  const commit = (data) => {
+    const new_reagent = data.get('reagent-select')
+    setReagent(new_reagent)
+    props.set_pump_array(prev => (
+      { ...prev, [id]: new_reagent }
+    ))
+    apiCall({
+      route: "update_reagent",
+      body: {
+        id: id,
+        reagent: new_reagent
+      }
+    })
+
   }
+
   const change_modal = (
     <dialog id={id}>
-      <p>reagent associated with this motor: {current}</p>
-      options:
-      <select onChange={(e) => { selected_reagent.current = e.target.value }}>
-        {
-          reagents_needed.map((reagent) => {
-            return (<option key={reagent} value={reagent}>{reagent}</option>)
-          })
-        }
-      </select>
-      <div>
-        <button onClick={props.send_buzz}>buzz motor</button>
-        <button onClick={commit} commandfor={id} command="close" >confirm and commit physical change</button>
-      </div>
+      <form action={commit}>
+        <select name="reagent-select">
+          <option value={props.reagent} >{props.reagent}</option>
+          {
+            reagents_needed.map((needed_reagent) => {
+              return (
+                <option key={needed_reagent} value={needed_reagent}>
+                  {needed_reagent}
+                </option>
+              )
+            })
+          }
+        </select>
+        <div>
+          <button onClick={props.send_buzz}>buzz motor</button>
+          <button commandfor={id} type="submit" command="close" >confirm and commit physical change</button>
+        </div>
+      </form>
     </dialog>
   )
-  console.log("pump array on rgd call: ", pump_array)
-  if (reagents.current.includes(current)) {
+
+  if (experiment_reagents.includes(reagent)) {
     return (
       <>
-        {id} has '{current}', no change needed,
+        {id} has {reagent}, no change needed
         {change_modal}
       </>
     )
@@ -40,7 +59,7 @@ function Pump_block(props) {
 
   return (
     <>
-      {id} has '{current}', not used in loaded experiment <button command="show-modal" commandfor={id}>change</button>
+      {id} has '{reagent}', not used in loaded experiment <button command="show-modal" commandfor={id}>change</button>
       {change_modal}
     </>
   )

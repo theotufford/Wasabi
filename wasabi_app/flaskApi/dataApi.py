@@ -5,13 +5,6 @@ import time
 import json
 
 
-def verify_has(data, *args):
-    for key in args:
-        if data.get(key) is None:
-            return False
-    return True
-
-
 def getExperiment(data):
     db = get_db()
     if data.get('version') is not None:
@@ -30,6 +23,7 @@ def getExperiment(data):
                 LIMIT 1
                 """, (data['title'],)).fetchone()
 
+    db.close()
     return resp
 
 
@@ -40,8 +34,6 @@ bp = Blueprint('dataApi', __name__, url_prefix='/dataApi')
 def deleteExperiment():
     data = request.get_json()
     db = get_db()
-    if not verify_has(data, "title", "version"):
-        return None
     db.execute("""
                DELETE FROM experiments
                WHERE title = ?
@@ -50,6 +42,7 @@ def deleteExperiment():
         data['title'],
         data['version']))
     db.commit()
+    db.close()
     return jsonify({"data": f"deleted {data['title']} v{data['version']} "})
 
 
@@ -66,10 +59,6 @@ def fetchExperiment():
 @bp.route('/saveExperiment', methods=["POST"])
 def saveExperiment():
     data = request.get_json()
-    if not verify_has(data, 'forms'):
-        print('no data!')
-        return jsonify({"empty": ""})
-
     db = get_db()
     autoSave = data["autosave"]
     title = data["title"]
@@ -101,6 +90,7 @@ def saveExperiment():
                WHERE (title = ?)
                """, (experimentJson, "autosave"))
     db.commit()
+    db.close()
     return jsonify({"status": 1})
 
 
@@ -115,6 +105,7 @@ def experiment_dump():
                """).fetchall()
     for row in dump:
         title_version_array.append(dict(row))
+    db.close()
     return jsonify({"data": title_version_array})
 
 
@@ -130,6 +121,7 @@ def get_current_reagents():
     for row in dump:
         rowdict = dict(row)
         reagents_by_id[rowdict["pumpID"]] = rowdict["reagent"]
+    db.close()
     return jsonify({"data": reagents_by_id})
 
 
@@ -141,11 +133,13 @@ def get_authors():
                       SELECT name
                       FROM authors
                       """).fetchall()
+    db.close()
     for row in dump:
         rowdict = dict(row)
         print(f"appending author to return: {rowdict}")
         authors.append(rowdict["name"])
     print(f"returning authors: {authors}")
+    db.close()
     return jsonify({"data": authors})
 
 
@@ -154,22 +148,20 @@ def new_author():
     db = get_db()
     data = request.get_json()
     print(f"making new author: {data}")
-    if not verify_has(data, "name"):
-        return jsonify("data error!")
     db.execute("""
                INSERT INTO authors (name)
                VALUES (?)
                """,
                (data["name"],))
     db.commit()
+    db.close()
     return jsonify('success')
 
 
 @bp.route('/update_reagent', methods=["POST"])
 def update_pump_map():
     data = request.get_json()
-    if not verify_has(data, "id", "reagent"):
-        return jsonify("data error!")
+    print(f"attempting to update reagents with: {data}")
 
     id = data["id"]
     reagent = data["reagent"]
@@ -181,4 +173,6 @@ def update_pump_map():
                 WHERE pumpID = ?
                 """,
                (reagent, id))
+    db.commit()
+    db.close()
     return jsonify({"data": f"updated pump {id} to contain {reagent}"})

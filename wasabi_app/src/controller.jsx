@@ -14,14 +14,15 @@ function Controller(props) {
 
   const [serialMessage, setSerialMessage] = useState(".....")
   const [pump_array, set_pump_array] = useState({})
-  const [reagents_needed, set_reagents_needed] = useState([])
 
   const reagents = useRef([])
 
-  const update_reagents_needed = () => {
+  const get_reagents_needed = () => {
     const needed = reagents.current.filter(reagent => (!Object.values(pump_array).includes(reagent)))
-    set_reagents_needed(needed)
+    console.log("needed: ", needed)
+    return needed
   }
+
   // on page load
   useEffect(() => {
     dataStream.onmessage = (e) => {
@@ -40,7 +41,7 @@ function Controller(props) {
       }
       reagents.current.push(form.reagent)
     })
-    update_reagents_needed()
+    get_reagents_needed()
   }, [])
 
   let title_text = "no experiment loaded"
@@ -68,26 +69,6 @@ function Controller(props) {
         delta: [delta_x, delta_y, delta_z]
       }
     })
-  }
-
-  const pump_info_and_control_block = () => {
-    return (<>
-      reagents needed for experiment that arent loaded: <ul>
-        {reagents_needed.map(name => (<li> - {name}</li>))}
-      </ul>
-      {
-        Object.keys(pump_array).map((id) => (
-          <div>
-            <Pump_block
-              key={id} id={id}
-              send_buzz={() => send_buzz(id)}
-              pump_array={pump_array}
-              reagents={reagents}
-              reagents_needed={reagents_needed} />
-          </div>
-        ))
-      }
-    </>)
   }
 
   return (
@@ -123,7 +104,24 @@ function Controller(props) {
       <button onClick={send_home}>home and set work offset</button>
       <div>
       </div>
-      {pump_info_and_control_block()}
+      <>
+        reagents needed for experiment that arent loaded: <ul>
+          {get_reagents_needed().map(name => (<li> - {name}</li>))}
+        </ul>
+        {
+          Object.keys(pump_array).map((id) => (
+            <div>
+              <Pump_block
+                key={id} id={id}
+                send_buzz={() => send_buzz(id)}
+                reagent={pump_array[id]}
+                reagents={reagents.current}
+                set_pump_array={set_pump_array}
+                reagents_needed={get_reagents_needed()} />
+            </div>
+          ))
+        }
+      </>
     </div>
   )
 }
