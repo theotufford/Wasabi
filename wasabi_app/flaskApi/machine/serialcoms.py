@@ -198,8 +198,10 @@ class ComsChannel:
         pack = make_new_packet(code, data)
         self.send_packet(pack)
 
-    def send_move_steps(self, a_target_abs: int, b_target_abs: int, z_target_rel: int):
-        self.send_int_vec(MOVE, [a_target_abs, b_target_abs, z_target_rel])
+    # meant to recieve absolute position in step units
+    def send_move_steps(self, alpha: int, beta: int, z: int):
+        self.send_int_vec(MOVE, [alpha, beta, z])
+        self.await_confirm()
 
     def send_pump_action_steps(self, motor_id, vol_step_count):
         self.send_int_vec(PUMP_ACTION, [motor_id, vol_step_count])

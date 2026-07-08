@@ -18,7 +18,7 @@
     "a": {
       "stp_pin": 28,
       "dir_pin": 27,
-      "invert_dir": 1,
+      "invert_dir": 0,
       "ang_v_max": 20,
       "ang_accel_rad": 10,
       "steps_per_rev": 1600
@@ -26,7 +26,7 @@
     "b": {
       "stp_pin": 20,
       "dir_pin": 19,
-      "invert_dir": 1,
+      "invert_dir": 0,
       "ang_v_max": 20,
       "ang_accel_rad": 10,
       "steps_per_rev": 1600
@@ -35,7 +35,7 @@
       "stp_pin": 6,
       "dir_pin": 7,
       "invert_dir": 0,
-      "ang_v_max": 10,
+      "ang_v_max": 8,
       "ang_accel_rad": 10,
       "steps_per_rev": 400,
       "screw_pitch": 4

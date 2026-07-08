@@ -29,7 +29,7 @@ class Vec2d:
             return self + (-1 * other)
 
     def __repr__(self):
-        return f"vec3d: x:{self.x}, y:{self.y}"
+        return f"vec2d: x:{self.x}, y:{self.y}"
 
     def normalize(self):
         return self / self.get_length()
@@ -37,6 +37,8 @@ class Vec2d:
 
 class MachinePosition:
     def __init__(self):
+        self.iksolved = False
+        self.fksolved = False
         self.x = 0
         self.y = 0
         self.z = 0
@@ -44,12 +46,46 @@ class MachinePosition:
         self.beta = 0
 
     def __repr__(self):
-        alpha = math.degrees(self.alpha)
-        beta = math.degrees(self.beta)
-        return f"dg: {alpha}, {beta}; pos: {self.x}, {self.y}, {self.z}"
+        return f"{self.x: .5f}, {self.y: .5f}, {self.z: .5f}"
 
-    def toolhead(self) -> Vec2d:
+    def get_vec(self) -> Vec2d:
         return Vec2d(self.x, self.y)
+
+    def set_vec(self, target: Vec2d) -> None:
+        self.x = target.x
+        self.y = target.y
+
+    def __add__(self, other):
+        if isinstance(other, Vec2d):
+            new = MachinePosition()
+            new.set_vec(self.get_vec() + other)
+            new.z = self.z
+            new.fksolved = True
+            return new
+        elif isinstance(other, list):
+            new = MachinePosition()
+            new.x = other[0] + self.x
+            new.y = other[1] + self.y
+            new.z = other[2] + self.z
+            new.fksolved = True
+            print(f"add result: {new}")
+            return new
+        elif isinstance(other, dict):
+            new = MachinePosition()
+            new.x = other["x"] + self.x
+            new.y = other["y"] + self.y
+            new.z = other["z"] + self.z
+            new.fksolved = True
+            return new
+        else:
+            return NotImplemented
+
+
+def make_pos(end_pt: Vec2d, z) -> MachinePosition:
+    out = MachinePosition()
+    out.set_vec(end_pt)
+    out.z = z
+    return out
 
 
 def vec_from_angle_length(angle, length) -> Vec2d:
@@ -68,9 +104,11 @@ def inv_law_of_cosines(hypot, opposite, adjacent):
     return theta
 
 
-def solve_5bar_IK(machine_settings: dict, target: Vec2d) -> MachinePosition:
+def solve_5bar_IK(settings: dict, target_x: float, target_y: float) -> dict:
 
-    machine_conf = machine_settings["machine"]
+    target = Vec2d(target_x, target_y)
+
+    machine_conf = settings["machine"]
     dimensions = machine_conf["machineDimensions"]
     arm_length = dimensions["arm"]
     hand_length = dimensions["hand"]
@@ -107,18 +145,11 @@ def solve_5bar_IK(machine_settings: dict, target: Vec2d) -> MachinePosition:
 
     beta_final = 3 * math.pi / 2 - beta_1 - beta_2
 
-    output = MachinePosition()
-    output.x = target.x
-    output.y = target.y
-    output.z = 0
-    output.alpha = alpha_final
-    output.beta = beta_final
-
-    return output
+    return {"alpha": alpha_final, "beta": beta_final}
 
 
-def solve_5bar_FK(machine_settings: dict, alpha: float, beta: float) -> Vec2d:
-    machine_conf = machine_settings["machine"]
+def solve_5bar_FK(settings: dict, alpha: float, beta: float) -> dict:
+    machine_conf = settings["machine"]
     dimensions = machine_conf["machineDimensions"]
     arm_length = dimensions["arm"]
     hand_length = dimensions["hand"]
@@ -152,4 +183,4 @@ def solve_5bar_FK(machine_settings: dict, alpha: float, beta: float) -> Vec2d:
     # {joint_position=}
     #       """)
 
-    return end_point
+    return {"x": end_point.x, "y": end_point.y}

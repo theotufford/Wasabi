@@ -1,4 +1,4 @@
-const devUrl = "http://10.136.252.115:5000" //  TODO CHANGE
+const devUrl = "http://10.136.220.142:5000/" //  TODO CHANGE
 // "undefined" means the URL will be computed from the `window.location` object
 export const apiCall = async (args) => {
 	const method  = args?.method || "POST"
