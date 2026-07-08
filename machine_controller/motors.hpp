@@ -25,7 +25,7 @@ public:
 
   const int step_pin;
   const int dir_pin;
-  const int invert_dir;
+  const int dir_pin_inverted;
   const int stp_per_rev;
   const int vMax;
   const int ang_accel;
@@ -65,6 +65,7 @@ public:
   void step();
   void update_dir();
   void reverse_dir();
+  void set_dir(int dir);
   void buzz();
 
   Motor(const vector<int> &argumentVector, bool non_async);

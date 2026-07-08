@@ -176,25 +176,28 @@ int main() {
       Motor &bmot = *axis_motors[1];
       Motor &zmot = *axis_motors[2];
 
-
+      amot.live_abs_pos = 0;
+      bmot.live_abs_pos = 0;
+      zmot.live_abs_pos = 0;
+      amot.set_dir(1);
+      bmot.set_dir(-1);
+      zmot.set_dir(-1);
 
       vector<int> initial_position = {0, 0, 0};
 
-      // b and z motor is moving in reverse because their limit switches are at 0
-      bmot.reverse_dir();
-      zmot.reverse_dir();
+      // b and z motor are moving in reverse to home
+      // because their limit switches are at 0
       // home z first to avoid physical collisions
       while (true) {
         bool z_triggered = !gpio_get(pins[Z_lim]);
         if (z_triggered) {
+          initial_position[2] = zmot.live_abs_pos;
           zmot.current_position = 0;
           break;
         }
         zmot.step();
-        initial_position[2]++;
-        sleep_us(500);
+        sleep_ms(1);
       }
-
 
       while (true) {
         bool a_triggered = !gpio_get(pins[A_lim]);
@@ -210,7 +213,6 @@ int main() {
         }
         if (b_triggered) {
           initial_position[1] = bmot.live_abs_pos;
-          bmot.reverse_dir();
           bmot.current_position = 0;
         } else {
           bmot.step();

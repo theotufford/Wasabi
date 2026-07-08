@@ -1,7 +1,9 @@
 #include <cmath>
+#include <csignal>
 #include <cstdint>
 #include <cstdlib>
 #include <dma_uart.hpp>
+#include <exception>
 #include <hardware/gpio.h>
 #include <hardware/timer.h>
 #include <motors.hpp>
@@ -17,7 +19,7 @@ void Motor::move_isr(uint alarm_num) {
 
 Motor::Motor(const vector<int> &argumentVector, bool non_async = false)
     : step_pin(argumentVector[step_pin_arg]),
-      invert_dir(argumentVector[invert_dir_arg]),
+      dir_pin_inverted(argumentVector[invert_dir_arg]),
       dir_pin(argumentVector[dir_pin_arg]),
       stp_per_rev(argumentVector[stp_per_rev_arg]),
       vMax(argumentVector[ang_v_max_arg]),
@@ -29,7 +31,7 @@ Motor::Motor(const vector<int> &argumentVector, bool non_async = false)
   gpio_set_dir(step_pin, GPIO_OUT);
   gpio_set_dir(dir_pin, GPIO_OUT);
 
-  gpio_put(dir_pin, invert_dir);
+  gpio_put(dir_pin, dir_pin_inverted);
 
   buzz();
   // calculate acceleration constant factor
@@ -64,20 +66,20 @@ void Motor::buzz() {
 void Motor::update_dir() {
   direction = move_delta / abs(move_delta);
   bool bin_dir = direction > 0;
-  if (invert_dir) {
+  if (dir_pin_inverted) {
     bin_dir = !bin_dir;
   }
   gpio_put(dir_pin, bin_dir);
 }
 
-void Motor::reverse_dir() {
-  direction = -direction;
+
+void Motor::set_dir(int dir) {
+  direction = dir;
   bool bin_dir = direction > 0;
-  if (invert_dir) {
+  if (dir_pin_inverted) {
     bin_dir = !bin_dir;
   }
   gpio_put(dir_pin, bin_dir);
-
 }
 
 void Motor::step() {
