@@ -5,6 +5,7 @@ import json
 import RPi.GPIO as pio
 from .kinematics import solve_5bar_FK, solve_5bar_IK, MachinePosition, Vec2d, make_pos
 from .serialcoms import ComsChannel
+from .utils import alph_to_vec
 
 
 class Plate:
@@ -48,11 +49,6 @@ class Machine:
         return target
 
     def get_pos_IK(self, pos_target: MachinePosition) -> MachinePosition:
-        print(f""" solving IK for:
-                  {pos_target.x}
-                  {pos_target.y}
-                  {pos_target.z}
-              """)
         angles = solve_5bar_IK(self.settings, pos_target.x, pos_target.y)
         pos_target.alpha = angles["alpha"]
         pos_target.beta = angles["beta"]
@@ -79,8 +75,7 @@ class Machine:
         if not self.position_known:
             print("trying to move absolutely without being homed!")
             return
-        if not pos.iksolved:
-            pos = self.get_pos_IK(pos)
+        pos = self.get_pos_IK(pos)
         steps = self.to_steps(pos)
         self.coms.send_move_steps(**steps)
         self.current_position = pos
@@ -101,13 +96,14 @@ class Machine:
             self.abs_plate_map[wellID] = self.get_pos_IK(endpt)
 
     def goto_well(self, coord: str):
-        coord = coord.capitalize()
-        pos = self.abs_plate_map.get(coord)
-        if pos is None:
-            raise ValueError(f"""probably the wrong plate is selected!
-                             looking for well {coord}
-                             on plate: {self.plate}
-                             """)
+        well_position_vector = alph_to_vec(coord) * self.plate.spacing
+        pos = self.home_offset + well_position_vector
+        print(f"""got goto_well: {coord})
+        set to go to: {pos.x} {pos.y}
+        home offset is: {self.home_offset}
+        well_position_vector is: {well_position_vector.x, well_position_vector.y}
+        """)
+
         self.goto_pos(pos)
 
     def get_pump_id(self, reagent):
@@ -117,7 +113,7 @@ class Machine:
                           SELECT pumpID FROM pumpMap
                           WHERE reagent = ?
                           LIMIT 1
-                          """, (reagent)).fetchone()
+                          """, (reagent,)).fetchone()[0]
         return ID
 
     def dispense(self, reagent, volume):
@@ -125,9 +121,9 @@ class Machine:
         if id is None:
             print(f"reagent '{reagent}' not found in pumpmap!")
             return False
-        pump_settings = self.settings["pumps"][id]
-        # guess at a constant:
-        rads_per_ul = 0.174532925
+        pump_settings = self.settings["motors"]["pumps"][id]
+        rads_per_ul = 0.174532925  # guess at a constant, dependent on pump design
+        # TODO ^ calibrate
         ul_per_rev = 1 / (rads_per_ul * 2 * math.pi)
         steps_per_ul = pump_settings["steps_per_rev"] / ul_per_rev
         total_steps = math.floor(

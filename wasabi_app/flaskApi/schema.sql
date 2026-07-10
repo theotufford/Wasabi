@@ -15,7 +15,7 @@ CREATE TABLE authors (
 );
 
 CREATE TABLE pumpMap (
-  pumpID TEXT,
+  pumpID INT,
   reagent TEXT DEFAULT "empty"
 );
 

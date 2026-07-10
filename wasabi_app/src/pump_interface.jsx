@@ -24,6 +24,14 @@ function Pump_block(props) {
     })
 
   }
+  const send_buzz = () => {
+    control_call({
+      route: "buzz",
+      body: {
+        id: id,
+      }
+    })
+  }
 
   const change_modal = (
     <dialog id={id}>
@@ -41,7 +49,7 @@ function Pump_block(props) {
           }
         </select>
         <div>
-          <button onClick={props.send_buzz}>buzz motor</button>
+          <button onClick={send_buzz}>buzz motor</button>
           <button commandfor={id} type="submit" command="close" >confirm and commit physical change</button>
         </div>
       </form>
@@ -51,7 +59,7 @@ function Pump_block(props) {
   if (experiment_reagents.includes(reagent)) {
     return (
       <>
-        {id} has {reagent}, no change needed
+        {id} has {reagent}, no change needed <button onClick={send_buzz}>buzz motor</button>
         {change_modal}
       </>
     )
@@ -60,6 +68,7 @@ function Pump_block(props) {
   return (
     <>
       {id} has '{reagent}', not used in loaded experiment <button command="show-modal" commandfor={id}>change</button>
+      <button onClick={send_buzz}>buzz motor</button>
       {change_modal}
     </>
   )

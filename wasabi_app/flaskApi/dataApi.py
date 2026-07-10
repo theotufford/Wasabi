@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, Blueprint, request, session
-from .db import get_db
+from .db import get_db, close_db
 import threading
 import time
 import json
@@ -23,7 +23,7 @@ def getExperiment(data):
                 LIMIT 1
                 """, (data['title'],)).fetchone()
 
-    db.close()
+    close_db()
     return resp
 
 
@@ -42,7 +42,7 @@ def deleteExperiment():
         data['title'],
         data['version']))
     db.commit()
-    db.close()
+    close_db()
     return jsonify({"data": f"deleted {data['title']} v{data['version']} "})
 
 
@@ -83,6 +83,7 @@ def saveExperiment():
                    """,
                    (experimentJson, title, version))
         db.commit()
+        close_db()
         return jsonify({"version": version})
     db.execute("""
                UPDATE experiments 
@@ -90,7 +91,7 @@ def saveExperiment():
                WHERE (title = ?)
                """, (experimentJson, "autosave"))
     db.commit()
-    db.close()
+    close_db()
     return jsonify({"status": 1})
 
 
@@ -105,7 +106,7 @@ def experiment_dump():
                """).fetchall()
     for row in dump:
         title_version_array.append(dict(row))
-    db.close()
+    close_db()
     return jsonify({"data": title_version_array})
 
 
@@ -121,7 +122,7 @@ def get_current_reagents():
     for row in dump:
         rowdict = dict(row)
         reagents_by_id[rowdict["pumpID"]] = rowdict["reagent"]
-    db.close()
+    close_db()
     return jsonify({"data": reagents_by_id})
 
 
@@ -133,13 +134,13 @@ def get_authors():
                       SELECT name
                       FROM authors
                       """).fetchall()
-    db.close()
+    close_db()
     for row in dump:
         rowdict = dict(row)
         print(f"appending author to return: {rowdict}")
         authors.append(rowdict["name"])
     print(f"returning authors: {authors}")
-    db.close()
+    close_db()
     return jsonify({"data": authors})
 
 
@@ -154,7 +155,7 @@ def new_author():
                """,
                (data["name"],))
     db.commit()
-    db.close()
+    close_db()
     return jsonify('success')
 
 
@@ -174,5 +175,5 @@ def update_pump_map():
                 """,
                (reagent, id))
     db.commit()
-    db.close()
+    close_db()
     return jsonify({"data": f"updated pump {id} to contain {reagent}"})

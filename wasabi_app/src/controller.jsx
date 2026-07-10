@@ -47,17 +47,19 @@ function Controller(props) {
   let title_text = "no experiment loaded"
   if (experiment.title != "") title_text = experiment.title;
 
-  const send_buzz = (id) => {
-    control_call({
-      route: "fetchExperiment",
-      body: {
-        id: id,
-      }
-    })
-  }
+
 
   const send_home = () => {
     control_call({ route: "home" })
+  }
+
+  const send_run_experiment = () => {
+    control_call({
+      route: "run_experiment",
+      body: {
+        experiment: experiment
+      }
+    })
   }
 
   const jogIncrement = useRef([0, 0])
@@ -84,7 +86,7 @@ function Controller(props) {
           <input type="number" onChange={(e) => {
             const val = e.target.valueAsNumber
             if (isNaN(val)) { return }
-            jogIncrement.current = ([val, jogIncrement[1]])
+            jogIncrement.current = ([val, jogIncrement.current[1]])
           }} />
           <button onClick={() => jog(jogIncrement.current[0], 0, 0)} >+x</button>
           <button onClick={() => jog(-jogIncrement.current[0], 0, 0)} >-x</button>
@@ -95,7 +97,8 @@ function Controller(props) {
           <input type="number" onChange={(e) => {
             const val = e.target.valueAsNumber
             if (isNaN(val)) { return }
-            jogIncrement.current = ([jogIncrement[0], val])
+            console.log("set val for z jog", val)
+            jogIncrement.current = ([jogIncrement.current[0], val])
           }} />
           <button onClick={() => jog(0, 0, jogIncrement.current[1])} >+z</button>
           <button onClick={() => jog(0, 0, -jogIncrement.current[1])} >-z</button>
@@ -113,7 +116,6 @@ function Controller(props) {
             <div>
               <Pump_block
                 key={id} id={id}
-                send_buzz={() => send_buzz(id)}
                 reagent={pump_array[id]}
                 reagents={reagents.current}
                 set_pump_array={set_pump_array}
@@ -122,6 +124,7 @@ function Controller(props) {
           ))
         }
       </>
+      <button onClick={send_run_experiment}>run experiment!!</button>
     </div>
   )
 }

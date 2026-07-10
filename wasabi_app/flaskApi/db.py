@@ -6,7 +6,6 @@ from flask import current_app, g
 
 DATABASE = "wbiDB.db"
 
-
 def get_db() -> sqlite3.Connection:
     db = getattr(g, '_database', None)
     if db is None:
@@ -17,27 +16,22 @@ def get_db() -> sqlite3.Connection:
 
 def close_db(e=None):
     db = g.pop('db', None)
-
     if db is not None:
         db.close()
 
 
-def pumpUpdate(addition):
+def pumpUpdate(id=None, reagent=None):
     db = get_db()
-    pump = None
-    reagent = None
-    pump = addition.get("pump")
-    reagent = addition.get("reagent")
-    if pump and reagent:
+    if id and reagent:
         if reagent == "not-configured":
             db.execute(
                 """
                 INSERT INTO pumpMap (pumpID, reagent) VALUES(?,?)
                 """,
-                (pump, reagent)
+                (id, reagent)
             )
             db.commit()
-            return f"{pump} created"
+            return f"pump {id} created"
         else:
             db.execute(
                 """
@@ -45,29 +39,35 @@ def pumpUpdate(addition):
                 SET reagent = ?
                 WHERE pumpID = ?
                 """,
-                (reagent, pump)
+                (reagent, id)
             )
             db.commit()
-            return f"pumps updated: {pump}:{reagent}"
+            print(f"pump updated: {id}:{reagent}")
+            return
     else:
-        return f"value fail, {pump=} {reagent=}"
+        print(f"value fail, {id=} {reagent=}")
+        return
 
 
 def init_db():
     db = get_db()
     with current_app.open_resource('schema.sql') as f:
         db.executescript(f.read().decode('utf8'))
-    with current_app.open_resource('../config.json') as j:
+    with current_app.open_resource('./machine/machine_config.json') as j:
         config = j.read()
-        count = json.loads(config)["machine"]["pumpCount"]
+        pumps = json.loads(config)["motors"]["pumps"]
+        print(pumps)
+        count = len(pumps)
+        print(count)
         for id in range(1, count+1):
-            name = "pump" + str(id)
-            print(pumpUpdate({"pump": name, "reagent": "not-configured"}))
+            print(f"pump to create: {id}  ")
+            pumpUpdate(id=id, reagent="not-configured")
         db.execute("""
-                   INSERT INTO experiments (title, version) 
+                   INSERT INTO experiments (title, version)
                    VALUES (?,?)
                    """, ("autoSave", 0))
         db.commit()
+    close_db()
 
 
 @click.command('init-db')

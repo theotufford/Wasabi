@@ -31,8 +31,21 @@ class Vec2d:
     def __repr__(self):
         return f"vec2d: x:{self.x}, y:{self.y}"
 
+    def dot_prod(self, other) -> float:
+        if not isinstance(other, Vec2d):
+            return NotImplemented
+        return self.x * other.x + self.y * other.y
+
     def normalize(self):
         return self / self.get_length()
+
+
+def dot_product(vec1, vec2) -> float:
+    if not isinstance(vec1, Vec2d):
+        return ValueError
+    if not isinstance(vec2, Vec2d):
+        return ValueError
+    return vec1.x * vec2.x + vec1.y * vec2.y
 
 
 class MachinePosition:
@@ -46,7 +59,9 @@ class MachinePosition:
         self.beta = 0
 
     def __repr__(self):
-        return f"{self.x: .5f}, {self.y: .5f}, {self.z: .5f}"
+        return f"""{self.x}, {self.y}, {self.z}
+                   {math.degrees(self.alpha)},{math.degrees(self.beta)}
+                   """
 
     def get_vec(self) -> Vec2d:
         return Vec2d(self.x, self.y)
@@ -106,7 +121,7 @@ def inv_law_of_cosines(hypot, opposite, adjacent):
 
 def solve_5bar_IK(settings: dict, target_x: float, target_y: float) -> dict:
 
-    target = Vec2d(target_x, target_y)
+    target = Vec2d(-target_x, target_y)
 
     machine_conf = settings["machine"]
     dimensions = machine_conf["machineDimensions"]
@@ -149,6 +164,7 @@ def solve_5bar_IK(settings: dict, target_x: float, target_y: float) -> dict:
 
 
 def solve_5bar_FK(settings: dict, alpha: float, beta: float) -> dict:
+
     machine_conf = settings["machine"]
     dimensions = machine_conf["machineDimensions"]
     arm_length = dimensions["arm"]
@@ -175,12 +191,4 @@ def solve_5bar_FK(settings: dict, alpha: float, beta: float) -> dict:
 
     end_point = joint_position + tool_offset_vector
 
-    # print(f"""
-    # {wrist_A=}
-    # {wrist_B=}
-    # {midpoint_to_joint_length=}
-    # {midpoint=}
-    # {joint_position=}
-    #       """)
-
-    return {"x": end_point.x, "y": end_point.y}
+    return {"x": -end_point.x, "y": end_point.y}

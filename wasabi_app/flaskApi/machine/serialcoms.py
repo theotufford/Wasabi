@@ -205,6 +205,7 @@ class ComsChannel:
 
     def send_pump_action_steps(self, motor_id, vol_step_count):
         self.send_int_vec(PUMP_ACTION, [motor_id, vol_step_count])
+        self.await_confirm()
 
     def check_and_handle_CRC32(self, callback: callable):
         start = time.perf_counter()
@@ -323,6 +324,7 @@ class ComsChannel:
         self.await_confirm()
 
     def send_buzz(self, motor_id: int):
+        motor_id = int(motor_id)
         self.send_data(BUZZ, motor_id.to_bytes(4, 'little', signed=False))
 
     def send_home(self):
