@@ -53,6 +53,10 @@ function Controller(props) {
     control_call({ route: "home" })
   }
 
+  const send_set_home_offset = () => {
+    control_call({ route: "set_home_offset" })
+  }
+
   const send_run_experiment = () => {
     control_call({
       route: "run_experiment",
@@ -62,13 +66,26 @@ function Controller(props) {
     })
   }
 
+  // x/y and z respectively
   const jogIncrement = useRef([0, 0])
+  const move_target = useRef([0, 0, 0])
 
   const jog = (delta_x, delta_y, delta_z) => {
     control_call({
-      route: "jog",
+      route: "move",
       body: {
+        move_context: "jog",
         delta: [delta_x, delta_y, delta_z]
+      }
+    })
+  }
+
+  const go_to_pos = (move_type) => {
+    control_call({
+      route: "move",
+      body: {
+        move_context: move_type,
+        target: move_target
       }
     })
   }
@@ -97,13 +114,27 @@ function Controller(props) {
           <input type="number" onChange={(e) => {
             const val = e.target.valueAsNumber
             if (isNaN(val)) { return }
-            console.log("set val for z jog", val)
             jogIncrement.current = ([jogIncrement.current[0], val])
           }} />
           <button onClick={() => jog(0, 0, jogIncrement.current[1])} >+z</button>
           <button onClick={() => jog(0, 0, -jogIncrement.current[1])} >-z</button>
         </div>
       </div>
+      {/* <form> */}
+      {/*   <button type="submit">go to position</button> */}
+      {/*   <div> */}
+      {/*     <label for="x_val">x target</label> <input type="number" name="x_val" defaultValue={0} /> */}
+      {/*   </div> */}
+      {/*   <div> */}
+      {/*     <label for="y_val">y target</label> <input type="number" name="y_val" defaultValue={0} /> */}
+      {/*   </div> */}
+      {/*   <div> */}
+      {/*     <label for="z_val">z target</label> <input type="number" name="z_val" defaultValue={0} /> */}
+      {/*   </div> */}
+      {/**/}
+      {/*   <input type="radio" name="is_relative_move" value="checked" /> */}
+      {/*   <label for="is_relative_move">relative to home?</label> */}
+      {/* </form> */}
       <button onClick={send_home}>home and set work offset</button>
       <div>
       </div>

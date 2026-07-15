@@ -14,7 +14,7 @@ pio.setmode(pio.BCM)
 def int_vec_to_bytes(intgr_arr: list[int]) -> bytearray:
     outData = bytearray()
     for intgr in intgr_arr:
-        outData += intgr.to_bytes(4, 'little', signed=False)
+        outData += intgr.to_bytes(4, 'little', signed=True)
     return outData
 
 
@@ -325,7 +325,7 @@ class ComsChannel:
 
     def send_buzz(self, motor_id: int):
         motor_id = int(motor_id)
-        self.send_data(BUZZ, motor_id.to_bytes(4, 'little', signed=False))
+        self.send_data(BUZZ, motor_id.to_bytes(4, 'little', signed=True))
 
     def send_home(self):
         self.send_code(HOME)

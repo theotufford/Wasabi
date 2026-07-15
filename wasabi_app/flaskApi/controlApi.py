@@ -20,16 +20,15 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
             coms.get_packet()
         initial_position_steps = coms.most_recent_rx.get_int_argvec()
         machine.coms.send_move_steps(*initial_position_steps)
-        machine.home_offset = machine.from_steps(*initial_position_steps)
-        machine.current_position = machine.home_offset
+        machine.current_position = machine.from_steps(*initial_position_steps)
+        machine.home_offset = machine.current_position
         machine.position_known = True
-        print(f"set home offset: {machine.home_offset}")
         return jsonify({"data": "successful home"})
 
     @bp.route('/set_home_offset', methods=['POST'])
     def set_home_offset():
         if not machine.position_known:
-            return jsonify({"data": "machine position not currently known!!"})
+            return home()
         machine.home_offset = machine.current_position
 
     @bp.route('/mot_enable', methods=['POST'])
@@ -49,13 +48,37 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
 
         return jsonify({"data": {"target": target, "status": value}})
 
-    @bp.route('/jog', methods=['POST'])
-    def jog():
+    @bp.route('/pump_action', methods=['POST'])
+    def pump_action():
         data = request.get_json()
-        print("got jog with data: ", data)
-        delta = list(data["delta"])
-        target = machine.current_position + delta
-        machine.goto_pos(target)
+        volume_ul = float(data["volume"])
+        id = int(data["id"])
+        machine.send_pump_action(volume=volume_ul, id=id)
+        return jsonify({"data": "successful pump action"})
+
+    @bp.route('/move', methods=['POST'])
+    def move():
+        data = request.get_json()
+
+        if data["move_context"] == "well":
+            wellid = data["well_target"]
+            machine.goto_well(wellid)
+            return jsonify({"data": "went to well"})
+
+        absolute_target: kine.MachinePosition
+
+        if data["move_context"] == "jog":
+            delta = list(data["delta"])
+            absolute_target = machine.current_position + delta
+
+        if data["move_context"] == "relative":
+            relative_target = list(data["target"])
+            absolute_target = machine.home_offset + relative_target
+        if data["move_context"] == "absolute":
+            relative_target = list(data["target"])
+            absolute_target = relative_target
+
+        machine.goto_pos(absolute_target)
         return jsonify({"data": "successful jog"})
 
     @bp.route('/buzz', methods=['POST'])

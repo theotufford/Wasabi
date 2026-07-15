@@ -116,13 +116,16 @@ class Machine:
                           """, (reagent,)).fetchone()[0]
         return ID
 
-    def dispense(self, reagent, volume):
-        id = self.get_pump_id(reagent)
-        if id is None:
-            print(f"reagent '{reagent}' not found in pumpmap!")
-            return False
+    def send_pump_action(self, volume, reagent=None, id=None):
+        if reagent is not None:
+            id = self.get_pump_id(reagent)
+            if id is None:
+                print(f"reagent '{reagent}' not found in pumpmap!")
+                return False
+        if reagent is None and id is None:
+            raise ValueError()
         pump_settings = self.settings["motors"]["pumps"][id]
-        rads_per_ul = 0.174532925  # guess at a constant, dependent on pump design
+        rads_per_ul = pump_settings["rads_per_ul"]
         # TODO ^ calibrate
         ul_per_rev = 1 / (rads_per_ul * 2 * math.pi)
         steps_per_ul = pump_settings["steps_per_rev"] / ul_per_rev
@@ -130,8 +133,8 @@ class Machine:
             pump_settings["compensation_factor"] * volume * steps_per_ul)
         self.coms.send_pump_action_steps(id, total_steps)
 
-    def aspirate(self, reagent, volume):
-        pass
+    def dispense(self, volume, reagent=None, id=None):
+        self.send_pump_action(volume, reagent, id)
 
-    def to_csv(self):
-        pass
+    def aspirate(self, reagent, volume):
+        self.send_pump_action(-volume, reagent, id)

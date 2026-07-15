@@ -19,8 +19,7 @@ def run_experiment(machine: Machine, data):
         for well in well_array:
             machine.goto_well(well)
             vol_ul = float(instruction_form["methodObject"]["constantVolume"])
-            machine.dispense(
-                instruction_form["reagent"], vol_ul)
+            machine.dispense(vol_ul, reagent=instruction_form["reagent"])
 
     def gradient_volume(instruction_form: dict):
         from_input, to_input = order_from_to_alphs(
@@ -49,7 +48,7 @@ def run_experiment(machine: Machine, data):
             volume = initial_volume + dot_product(relative_postion, delta_vec)
 
             machine.goto_well(well)
-            machine.dispense(instruction_form["reagent"],  volume)
+            machine.dispense(volume, reagent=instruction_form["reagent"])
 
     def serial_dilution(instruction_form: dict):
         pass

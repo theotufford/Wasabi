@@ -33,6 +33,19 @@ function Pump_block(props) {
     })
   }
 
+  const pump_action = (data) => {
+    const volume_ul = data.get("volume")
+    control_call(
+      {
+        route: "pump_action",
+        body: {
+          volume: volume_ul,
+          id: id
+        }
+      }
+    )
+  }
+
   const change_modal = (
     <dialog id={id}>
       <form action={commit}>
@@ -49,7 +62,7 @@ function Pump_block(props) {
           }
         </select>
         <div>
-          <button onClick={send_buzz}>buzz motor</button>
+          <button type="button" onClick={send_buzz}>buzz motor</button>
           <button commandfor={id} type="submit" command="close" >confirm and commit physical change</button>
         </div>
       </form>
@@ -66,11 +79,14 @@ function Pump_block(props) {
   }
 
   return (
-    <>
-      {id} has '{reagent}', not used in loaded experiment <button command="show-modal" commandfor={id}>change</button>
+    <div>
+      pump {id} has '{reagent}', not used in loaded experiment <button command="show-modal" commandfor={id}>change</button>
       <button onClick={send_buzz}>buzz motor</button>
+      <form action={pump_action}>
+        <input name="volume" type="number" placeholder="pump volume ul" /> <button type="submit">o</button>
+      </form>
       {change_modal}
-    </>
+    </div>
   )
 }
 
