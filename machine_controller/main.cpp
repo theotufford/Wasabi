@@ -26,8 +26,8 @@ int main() {
   blink(3);
 
   ComsInstance coms = ComsInstance(uart0, 115200);
-  vector<unique_ptr<Motor>> axis_motors;
-  vector<unique_ptr<Motor>> pumps;
+  vector<Motor *> axis_motors;
+  vector<Motor *> pumps;
   vector<int> pins;
 
   enum pin_indexes {
@@ -60,15 +60,13 @@ int main() {
       continue;
     }
 
-    coms.send_vector(A_MOTOR, coms.argumentVector);
+    coms.send_vector(coms.coms_rx_code, coms.argumentVector);
 
-    bool non_async = coms.coms_rx_code == NEW_PUMP;
-    auto new_motor = make_unique<Motor>(coms.argumentVector, non_async);
-
-    if (non_async) {
-      pumps.push_back(std::move(new_motor));
+    auto new_motor = new Motor(coms.argumentVector);
+    if (coms.coms_rx_code == NEW_PUMP) {
+      pumps.push_back(new_motor);
     } else {
-      axis_motors.push_back(std::move(new_motor));
+      axis_motors.push_back(new_motor);
     }
 
     coms.send_code(CONFIRM);
@@ -105,21 +103,34 @@ int main() {
     // state machine operated by coms rx code
     switch (coms.coms_rx_code) {
     case RE_REQUEST: {
+      break;
+    }
+    case BUZZ: {
+      int pump_id = coms.argumentVector[0] - 1;
+      Motor &pump = *pumps[pump_id];
+      pump.buzz();
+      break;
     }
     case ENABLE_MOTORS: {
       gpio_put(pins[MOT_ENA], 1);
+      break;
     }
     case DISABLE_MOTORS: {
       gpio_put(pins[MOT_ENA], 0);
+      break;
     }
     case ENABLE_PUMPS: {
       gpio_put(pins[PUMP_ENA], 1);
+      break;
     }
     case DISABLE_PUMPS: {
       gpio_put(pins[PUMP_ENA], 0);
+      break;
     }
     case MOVE: {
       // prepare moves
+      bool moved[3] = {false, false, false};
+
       for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
         Motor &axis = *axis_motors[axis_ind];
         axis.live_abs_pos = 0;
@@ -129,20 +140,20 @@ int main() {
         }
         axis.move_precalc();
         axis.update_dir();
+        moved[axis_ind] = true;
       }
 
-      // initiate moves
       for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
-        Motor &axis = *axis_motors[axis_ind];
-        if (axis.move_delta == 0) {
+        if (!moved[axis_ind])
           continue;
-        }
+        Motor &axis = *axis_motors[axis_ind];
         axis.move_init_time = get_absolute_time();
         hardware_alarm_force_irq(axis.alarm_num);
       }
-      // wait around and dont ask for another message until the full move is
-      // complete
+
       for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
+        if (!moved[axis_ind])
+          continue;
         Motor &axis = *axis_motors[axis_ind];
         while (axis.live_abs_pos != abs(axis.move_delta)) {
           tight_loop_contents();
@@ -151,7 +162,7 @@ int main() {
       break;
     }
     case PUMP_ACTION: {
-      int pump_id = coms.argumentVector[0];
+      int pump_id = coms.argumentVector[0] - 1;
       int step_count = coms.argumentVector[1];
       Motor &pump = *pumps[pump_id];
       pump.live_abs_pos = 0;
@@ -196,7 +207,7 @@ int main() {
           break;
         }
         zmot.step();
-        sleep_ms(1);
+        sleep_us(500);
       }
 
       while (true) {
@@ -224,8 +235,8 @@ int main() {
 
         sleep_ms(3);
       }
-
       coms.send_vector(INITIAL_POSITION, initial_position);
+      break;
     }
     }
     coms.send_code(CONFIRM);

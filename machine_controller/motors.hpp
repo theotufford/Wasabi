@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <dma_uart.hpp>
 #include <hardware/gpio.h>
+#include <hardware/timer.h>
 #include <hardware/uart.h>
 #include <iostream>
 #include <memory>
@@ -17,8 +18,7 @@ using namespace std;
 
 class Motor {
 public:
-  inline static vector<Motor *> async_bay;
-  inline static vector<Motor *> pump_table;
+  inline static auto async_bay = vector<Motor *>(4,0);
   static void move_isr(uint alarm);
 
   int alarm_num;
@@ -55,7 +55,9 @@ public:
   double TORADS = (2 * M_PI / stp_per_rev);
   double TOSTEPS = (stp_per_rev / (2 * M_PI));
 
+  void claim_isr();
   void move_precalc();
+
   int move_callback();
 
   // the hardware alarm system really does
@@ -68,5 +70,5 @@ public:
   void set_dir(int dir);
   void buzz();
 
-  Motor(const vector<int> &argumentVector, bool non_async);
+  Motor(const vector<int> &argumentVector);
 };
