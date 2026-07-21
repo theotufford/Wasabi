@@ -1,4 +1,5 @@
 #!./.venv/bin/python
+import asyncio
 import serial
 import math
 import RPi.GPIO as pio
@@ -131,21 +132,14 @@ class ComsChannel:
         self.errcount = 0
         self.most_recent_rx: Packet
         self.most_recent_tx: Packet
-        # reboot the pico
-        run_pin = 18
-        pio.setup(run_pin, pio.OUT)
-        pio.output(run_pin, pio.LOW)
-        time.sleep(0.1)
-        pio.output(run_pin, pio.HIGH)
-        time.sleep(0.1)
-
         # initialize serial contact
         self.ser = serial.Serial("/dev/ttyS0", 115200, timeout=TIMEOUT_S)
 
-        # do startup handshake
-        print("initiating coms startup handshake")
+        self.startup_handshake()
+
+    def startup_handshake(self):
         while True:
-            self.get_packet()
+            asyncio.run(self.get_packet())
             code = self.most_recent_rx.code
             if code == WAKE:
                 print("wake rxd")
@@ -157,7 +151,7 @@ class ComsChannel:
                 break
             raise ValueError(
                 f"was expecting wake or confirm during boot, got: {code}")
-        self.await_confirm()
+        self.get_confirm()
 
     def __del__(self):
         self.ser.close()
@@ -168,10 +162,10 @@ class ComsChannel:
         self.ser.reset_input_buffer()
         self.send_code(RE_REQUEST)
 
-    def await_confirm(self):
+    def get_confirm(self):
         start = time.perf_counter()
         while True:
-            self.get_packet()
+            asyncio.run(self.get_packet())
             code = self.most_recent_rx.code
             if code == CONFIRM:
                 break
@@ -201,13 +195,13 @@ class ComsChannel:
     # meant to recieve absolute position in step units
     def send_move_steps(self, alpha: int, beta: int, z: int):
         self.send_int_vec(MOVE, [alpha, beta, z])
-        self.await_confirm()
+        self.get_confirm()
 
     def send_pump_action_steps(self, motor_id, vol_step_count):
         self.send_int_vec(PUMP_ACTION, [motor_id, vol_step_count])
-        self.await_confirm()
+        self.get_confirm()
 
-    def check_and_handle_CRC32(self, callback: callable):
+    async def check_and_handle_CRC32(self, callback: callable):
         start = time.perf_counter()
         current = start
         while self.ser.in_waiting < 4:
@@ -215,7 +209,7 @@ class ComsChannel:
                 self.ser.reset_input_buffer()
                 print("\n\nNon fatal error: missing checksum. Re-requesting\n\n")
                 self.re_request()
-                self.get_packet()
+                await self.get_packet()
             current = time.perf_counter()
 
         given = self.ser.read(4)
@@ -228,7 +222,7 @@ class ComsChannel:
             self.re_request()
             callback()
 
-    def await_header(self, timeout):
+    async def get_header(self, timeout):
         self.most_recent_rx = Packet(EMPTY, 0, b"")
         start = time.perf_counter()
         while True:
@@ -246,21 +240,21 @@ class ComsChannel:
         self.most_recent_rx = parse_header(header_data)
         return self.most_recent_rx
 
-    def check_and_handle_re_req(self):
-        found_message = self.await_header(0)
+    async def check_and_handle_re_req(self):
+        found_message = await self.get_header(0)
         if found_message is None:
             return False
         if found_message.code == RE_REQUEST:
             self.most_recent_rx.checksum = self.ser.read(4)
-            self.check_and_handle_CRC32(self.check_and_handle_re_req)
+            await self.check_and_handle_CRC32(self.check_and_handle_re_req)
             self.send_packet(self.most_recent_tx)
             return True
         self.get_packet()
 
-    def get_packet(self, header_already_found=False):
+    async def get_packet(self, header_already_found=False):
         recieved = None
         if not header_already_found:
-            recieved = self.await_header(TIMEOUT_S)
+            recieved = await self.get_header(TIMEOUT_S)
         else:
             recieved = self.most_recent_rx
         if recieved is None:
@@ -287,41 +281,6 @@ class ComsChannel:
               self.most_recent_rx.get_int_argvec()}")
 
         return
-
-    def send_settings(self, settings):
-        # send kinematic motor settings ------------
-        motors = settings["motors"]
-        a_mot_settings = get_mot_argvec(motors["a"])
-        self.send_int_vec(A_MOTOR, a_mot_settings)
-        self.await_confirm()
-
-        b_mot_settings = get_mot_argvec(motors["b"])
-        self.send_int_vec(B_MOTOR, b_mot_settings)
-        self.await_confirm()
-
-        z_mot_settings = get_mot_argvec(motors["z"])
-        self.send_int_vec(Z_MOTOR, z_mot_settings)
-        self.await_confirm()
-
-        # send pump motor settings -----------------
-        for pump_conf in settings["motors"]["pumps"]:
-            pump_settings = get_mot_argvec(pump_conf)
-            self.send_int_vec(NEW_PUMP, pump_settings)
-            self.await_confirm()
-
-        # send other pin settings ------------------
-        pinsettings = settings["machine"]["pins"]
-        pins = [
-            pinsettings["motor_enable_pin"],
-            pinsettings["pump_enable_pin"],
-            pinsettings["a_endstop"],
-            pinsettings["b_endstop"],
-            pinsettings["z_endstop"]
-        ]
-
-        self.send_int_vec(MACHINE_PIN_DEFINITIONS, pins)
-        self.send_code(CONFIRM)
-        self.await_confirm()
 
     def send_buzz(self, motor_id: int):
         motor_id = int(motor_id)
@@ -359,8 +318,6 @@ if __name__ == '__main__':
 
     positions = []
 
-    cleaning_well = settings["machine"]["cleaner_position"]
-
     for i in range(0, 8):
         for j in range(0, 12):
             positions.append([-j * 9, i * 9])
@@ -393,19 +350,17 @@ if __name__ == '__main__':
 
     z_cleared = math.floor(initial_z - z_mm_per_step * 10)
     coms.send_move_steps(initial_a, initial_b, z_cleared)
-    coms.await_confirm()
+    coms.get_confirm()
     coms.send_move_steps(initial_a, initial_b, initial_z)
-    coms.await_confirm()
+    coms.get_confirm()
 
     step_positions = [conv(coord) for coord in positions]
-    cleaning_well = conv(cleaning_well)
 
     input("enter to continue")
 
     for position in step_positions:
         coms.send_move_steps(position[0], position[1], initial_z)
-        coms.await_confirm()
-        coms.send_move_steps(cleaning_well[0], cleaning_well[1], initial_z)
-        coms.await_confirm()
+        coms.get_confirm()
+        coms.get_confirm()
 
     coms.send_move_steps(initial_a, initial_b, initial_z)

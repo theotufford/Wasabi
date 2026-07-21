@@ -7,6 +7,7 @@
       "tool_offset": 20
     },
     "pins": {
+      "3b_pico_reset_pin":18,
       "motor_enable_pin": 2,
       "pump_enable_pin": 0,
       "a_endstop": 3,
@@ -44,9 +45,9 @@
       {
         "stp_pin": 10,
         "dir_pin": 11,
-        "invert_dir": 0,
-        "ang_v_max": 20,
-        "ang_accel_rad": 40,
+        "invert_dir": 1,
+        "ang_v_max": 50,
+        "ang_accel_rad": 250,
         "steps_per_rev": 1600,
         "rads_per_ul": 0.075,
         "compensation_factor": 1.00

@@ -1,6 +1,5 @@
 from . import db
-from .machine import machine_state as mach
-from .machine import serialcoms as ser
+from .machine import machine_state
 from . import dataApi
 from . import controlApi
 from flask import Flask, session
@@ -25,14 +24,13 @@ app.register_blueprint(dataApi.bp)
 
 # import the database into the app
 
-coms = ser.ComsChannel()
-machine_state = mach.Machine(coms, "./flaskApi/machine/machine_config.json")
+machine = machine_state.Machine("./flaskApi/machine/machine_config.json")
 
-ctlAPI = controlApi.machine_aware_bp_factory(machine_state)
-
+ctlAPI = controlApi.machine_aware_bp_factory(machine)
 
 app.register_blueprint(ctlAPI, url_prefix="/control")
 
 db.init_app(app)
+
 if "__name__" == "__main__":
     app.run(host='0.0.0.0', port=5000)
