@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useRef } from "react"
-import { apiCall, control_call } from './backendConfig.jsx'
+import { apiCall, control_call, dataStream } from './backendConfig.jsx'
 
 
 function Pump_block(props) {
@@ -22,7 +22,6 @@ function Pump_block(props) {
         reagent: new_reagent
       }
     })
-
   }
   const send_buzz = () => {
     control_call({
@@ -33,8 +32,9 @@ function Pump_block(props) {
     })
   }
 
-  const pump_action = (data) => {
-    const volume_ul = data.get("volume")
+  const pump_action = (event) => {
+    event.preventDefault()
+    const volume_ul = (new FormData(event.target)).get("volume")
     control_call(
       {
         route: "pump_action",
@@ -69,20 +69,20 @@ function Pump_block(props) {
     </dialog>
   )
 
+  let content
+
   if (experiment_reagents.includes(reagent)) {
-    return (
-      <>
-        {id} has {reagent}, no change needed <button onClick={send_buzz}>buzz motor</button>
-        {change_modal}
-      </>
-    )
+    content = (<> {id} has {reagent}, no change needed </>)
+  } else {
+    content = (<> pump {id} has '{reagent}', not used in loaded experiment </>)
   }
 
   return (
     <div>
-      pump {id} has '{reagent}', not used in loaded experiment <button command="show-modal" commandfor={id}>change</button>
+      {content}
+      <button command="show-modal" commandfor={id}>change</button>
       <button onClick={send_buzz}>buzz motor</button>
-      <form action={pump_action}>
+      <form onSubmit={pump_action}>
         <input name="volume" type="number" placeholder="pump volume ul" /> <button type="submit">o</button>
       </form>
       {change_modal}

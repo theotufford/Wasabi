@@ -1,131 +1,66 @@
 import { useState, useRef, useEffect } from 'react'
 import apiCall from './backendConfig.jsx'
+import { set_url_param, get_url_param } from './backendConfig.jsx'
 
-const getTitles = (set_titleList) => {
-  let tempList = []
-  apiCall({ route: "experiment_dump" })
-    .then(apiResponse => apiResponse.data)
-    .then()
-    .then(data => data.forEach((form) => {
-      const title = form.title
-      if (tempList.includes(title)) return
-      tempList = [...tempList, title]
-    }))
-    .then(() => set_titleList([...tempList]))
-}
-const deletePrompt = (title) => {
-  const conf = confirm(("are you sure you want to delete ", title))
-  if (conf) {
-    //emit("delete_experiment", title)
-  }
-}
-//----------------------------------------- individual list item element
-const Exp_li = (props) => {
-  const title = props.title
-  const search = props.searchValue
-  const [visible, setVis] = useState(true)
-
-  const run = () => {
-    props.setEndpoint("controller")
-    props.enableRedirect.current = true
-    props.selectTitle(title)
-  }
-  const edit = () => {
-    props.setEndpoint("editor")
-    props.enableRedirect.current = true
-    props.selectTitle(title)
-  }
-
-  useEffect(() => {
-    if (search == "*") return
-    const simplifiedTitle = title.toUpperCase()
-    const simplifiedSearch = search.toUpperCase()
-
-    if (!simplifiedTitle.includes(simplifiedSearch)) {
-      setVis(false)
-    } else {
-      setVis(true)
-    }
-  }, [title, search])
-
-  return (
-    <li style={{ visibility: visible ? 'visible' : 'hidden', }}>
-      <button className="selectButton" onClick={edit}>edit</button>
-      <button className="selectButton" onClick={run}>run</button>
-      {title}
-    </li>
-  )
-}
-//----------------------------------------- list element
-const ListElement = (props) => {
-  const [titleList, set_titleList] = useState(["loading"])
-  useEffect(() => {
-    getTitles(set_titleList)
-  }, [])
-  return (
-    <ul style={{ listStyleType: 'none' }}>
-      {titleList.map(title => (
-        <Exp_li
-          key={title}
-          title={title}
-          {...props}
-        />
-      ))}
-    </ul>
-  )
-}
-//----------------------------------------- search bar
-
-const SearchElement = (props) => {
-  const search = (event) => {
-    const searchValue = event.target.value
-    props.set_search(searchValue)
-  }
-  return (<input onInput={search} />)
-}
-//----------------------------------------- aggregate browser element 
 const BrowserElement = (props) => {
-  const [searchValue, set_searchValue] = useState("*")
-  const [selectedTitle, set_selectedTitle] = useState("*")
-  const initialLoad = useRef(false)
-  const [redirectTarget, setredirectTarget] = useState()
+
+  const [all_experiments, set_all_experiments] = useState([])
+  const [visible_experiments, set_visible_experiments] = useState([])
+
+  const filter_older_versions = (experimentlist) => {
+    let titles = experimentlist.map(exp => exp.title)
+    const unique_titles = [... new Set(titles)]
+    const highest_versioned_of_name = []
+    unique_titles.forEach(title => {
+      const instances = experimentlist.filter(exp => exp.title == title)
+      let highest_inst = instances[0]
+      instances.forEach(inst => {
+        if (inst.version > highest_inst.version) {
+          highest_inst = inst
+        }
+      })
+      highest_versioned_of_name.push(highest_inst)
+    })
+    console.log(highest_versioned_of_name)
+    return highest_versioned_of_name
+
+  }
+
+  const get_experiments = () => {
+    const tempList = []
+    apiCall({ route: "experiment_dump" })
+      .then(apiResponse => apiResponse.data)
+      .then(data => data.forEach((experiment) => {
+        tempList.push(experiment)
+      }))
+      .then(() => {
+        set_all_experiments(tempList)
+        set_visible_experiments(filter_older_versions(tempList))
+      })
+  }
 
   useEffect(() => {
-    if (!initialLoad.current) {
-      return
-    }
-    apiCall({
-      route: "fetchExperiment",
-      body: {
-        title: selectedTitle,
-      }
-    })
-      .then(response => JSON.parse(response.data))
-      .then(data => {
-        props.experiment.current = data
-        console.log("set current experiment to be: ", data)
-      })
-      .then(() => {
-        console.log("set current experiment to be: ", props.experiment.current)
-        if (redirectTarget === "editor") {
-          props.goToEditor()
-        }
-        if (redirectTarget === "controller") {
-          props.goToController()
-        }
-      })
-  }, [selectedTitle])
+    get_experiments()
+  }, [])
+
+  const select_experiment = (experiment) => {
+    set_url_param("title", experiment.title)
+    set_url_param("version", experiment.version)
+  }
+
+  const handle_search = (event) => {
+    const search_value = event.target.value
+    console.log("search_value: ", search_value)
+  }
 
   return (
     <div>
-      <ListElement
-        enableRedirect={initialLoad}
-        searchValue={searchValue}
-        selected={selectedTitle}
-        selectTitle={set_selectedTitle}
-        setEndpoint={setredirectTarget}
-      />
-      <SearchElement set_search={set_searchValue} />
+      <ul style={{ listStyleType: 'none' }}>
+        {visible_experiments.map(exp => (
+          <li key={exp.title} className='searchListItem' onClick={() => select_experiment(exp)}> {exp.title} {exp.version} </li>
+        ))}
+      </ul>
+      <input onInput={handle_search}/>
     </div>
   )
 }
