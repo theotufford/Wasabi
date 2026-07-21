@@ -17,11 +17,16 @@ function Controller(props) {
 
   const reagents = useRef([])
 
+  const reagents_needed = useRef([])
+
   const get_reagents_needed = () => {
-    const needed = reagents.current.filter(reagent => (!Object.values(pump_array).includes(reagent)))
-    console.log("needed: ", needed)
-    return needed
+    reagents_needed.current = reagents.current.filter(reagent => (!Object.values(pump_array).includes(reagent)))
   }
+
+  useEffect(() => {
+    get_reagents_needed()
+  }, [props.experiment.current])
+
 
   // on page load
   useEffect(() => {
@@ -120,27 +125,12 @@ function Controller(props) {
           <button onClick={() => jog(0, 0, -jogIncrement.current[1])} >-z</button>
         </div>
       </div>
-      {/* <form> */}
-      {/*   <button type="submit">go to position</button> */}
-      {/*   <div> */}
-      {/*     <label for="x_val">x target</label> <input type="number" name="x_val" defaultValue={0} /> */}
-      {/*   </div> */}
-      {/*   <div> */}
-      {/*     <label for="y_val">y target</label> <input type="number" name="y_val" defaultValue={0} /> */}
-      {/*   </div> */}
-      {/*   <div> */}
-      {/*     <label for="z_val">z target</label> <input type="number" name="z_val" defaultValue={0} /> */}
-      {/*   </div> */}
-      {/**/}
-      {/*   <input type="radio" name="is_relative_move" value="checked" /> */}
-      {/*   <label for="is_relative_move">relative to home?</label> */}
-      {/* </form> */}
       <button onClick={send_home}>home and set work offset</button>
       <div>
       </div>
       <>
         reagents needed for experiment that arent loaded: <ul>
-          {get_reagents_needed().map(name => (<li> - {name}</li>))}
+          {reagents_needed.current.map(name => (<li> - {name}</li>))}
         </ul>
         {
           Object.keys(pump_array).map((id) => (
@@ -150,7 +140,7 @@ function Controller(props) {
                 reagent={pump_array[id]}
                 reagents={reagents.current}
                 set_pump_array={set_pump_array}
-                reagents_needed={get_reagents_needed()} />
+                reagents_needed={reagents_needed.current} />
             </div>
           ))
         }

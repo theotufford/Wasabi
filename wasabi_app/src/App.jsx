@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
+import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import Programmer from './Programmer.jsx'
+import { apiCall, set_url_param, get_url_param } from './backendConfig.jsx'
 import BrowserElement from './browserFrame.jsx'
 import Controller from './controller.jsx'
 import Auth from './auth.jsx'
@@ -12,9 +14,35 @@ function App() {
     forms: {}
   }
 
+
   const experiment = useRef(empty_experiment_initial)
+  const title = get_url_param("title")
+  console.log("title: ", title)
+
+
+  const load_url_experiment = () => {
+    apiCall({
+      route: "fetchExperiment",
+      body: {
+        title: title,
+      }
+    })
+      .then(response => JSON.parse(response.data))
+      .then(data => { experiment.current = data })
+  }
+
+
+  if (title != experiment.current.title) {
+    load_url_experiment()
+  }
+
   const window_state = useRef("controller")
   const [author, set_author] = useState("anon")
+
+  useEffect(() => {
+    load_url_experiment()
+  }, [window_state])
+
 
   const goToController = () => {
     window_state.current = "controller"
@@ -38,7 +66,7 @@ function App() {
     window_state.current = "browser"
     set_selected_window(
       <BrowserElement
-        author = {author}
+        author={author}
         experiment={experiment}
         goToEditor={goToEditor}
         goToController={goToController}
@@ -58,26 +86,22 @@ function App() {
     goToEditor()
   }
 
-  const in_controller = window_state.current === "controller"
-  const in_browser = window_state.current === "browser"
-  const enable_edit_button = in_controller && experiment.current.title != ""
+  let button_to_show
+
+  if (window_state.current === "controller") {
+    button_to_show = <button onClick={goToEditor}>edit {experiment.current.title}</button>
+  } else {
+    button_to_show = <button onClick={goToController} > control interface</button>
+  }
+
 
   return (
     <>
-    <div className='info bar'> <Auth author={author} set_author = {set_author}/> current author: {author} </div>
+      <div className='info bar'> <Auth author={author} set_author={set_author} /> current author: {author} </div>
       <div className='nav_bar'>
-        <button
-          style={{ visibility: !in_browser ? 'visible' : 'hidden' }}
-          onClick={open_browser}>browse experiments</button>
-        <button
-          style={{ visibility: enable_edit_button ? 'visible' : 'hidden' }}
-          onClick={goToEditor}>edit {experiment.current.title}</button>
-        <button
-          onClick={new_experiment}>create new experiment</button>
-        <button
-          style={{ visibility: !in_controller ? 'visible' : 'hidden' }}
-          onClick={goToController}>control interface</button>
-      </div>
+        {button_to_show}
+        <button onClick={new_experiment}>create new experiment</button>
+      </div >
       {selected_window}
     </>
   )
