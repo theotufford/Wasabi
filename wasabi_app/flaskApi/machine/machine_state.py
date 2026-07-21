@@ -1,10 +1,11 @@
 import time
+import asyncio
 from ..db import get_db
 import math
 import json
 import RPi.GPIO as pio
 from .kinematics import solve_5bar_FK, solve_5bar_IK, MachinePosition, Vec2d, make_pos
-from .serialcoms import ComsChannel
+from . import serialcoms as serlib
 from .utils import alph_to_vec
 
 
@@ -19,14 +20,15 @@ class Plate:
 
 
 class Machine:
-    def __init__(self, coms: ComsChannel, settings_path):
+    def __init__(self, settings_path):
         self.current_position = MachinePosition()
         self.home_offset = MachinePosition()
         self.motors_enabled = True
-        self.coms = coms
         self.abs_plate_map = {}
         self.error = None
         self.position_known = False
+
+        self.coms: serlib.ComsChannel
 
         with open(settings_path, "r") as conf:
             self.settings = json.load(conf)
@@ -39,7 +41,62 @@ class Machine:
         self.z_steps_per_mm = zsettings[spr] / zsettings["screw_pitch"]
 
         self.plate = Plate(self.settings["plates"]["standard 96"])
-        self.coms.send_settings(self.settings)
+        self.hw_init()
+
+    def hw_init(self):
+        # reboot the pico
+        run_pin = self.settings["machine"]["pins"]["3b_pico_reset_pin"]
+        pio.setup(run_pin, pio.OUT)
+        pio.output(run_pin, pio.LOW)
+        time.sleep(0.1)
+        pio.output(run_pin, pio.HIGH)
+        time.sleep(0.1)
+        coms = self.coms = serlib.ComsChannel()
+        # send kinematic motor settings ------------
+        motors = self.settings["motors"]
+        a_mot_settings = serlib.get_mot_argvec(motors["a"])
+        coms.send_int_vec(serlib.A_MOTOR, a_mot_settings)
+        coms.get_confirm()
+
+        b_mot_settings = serlib.get_mot_argvec(motors["b"])
+        coms.send_int_vec(serlib.B_MOTOR, b_mot_settings)
+        coms.get_confirm()
+
+        z_mot_settings = serlib.get_mot_argvec(motors["z"])
+        coms.send_int_vec(serlib.Z_MOTOR, z_mot_settings)
+        coms.get_confirm()
+
+        # send pump motor settings -----------------
+        for pump_conf in motors["pumps"]:
+            pump_settings = serlib.get_mot_argvec(pump_conf)
+            coms.send_int_vec(serlib.NEW_PUMP, pump_settings)
+            coms.get_confirm()
+
+        # send other pin settings ------------------
+        pinsettings = self.settings["machine"]["pins"]
+        pins = [
+            pinsettings["motor_enable_pin"],
+            pinsettings["pump_enable_pin"],
+            pinsettings["a_endstop"],
+            pinsettings["b_endstop"],
+            pinsettings["z_endstop"]
+        ]
+
+        coms.send_int_vec(serlib.MACHINE_PIN_DEFINITIONS, pins)
+        coms.send_code(serlib.CONFIRM)
+        coms.get_confirm()
+
+        self.position_known = False
+        self.current_position = MachinePosition()
+        self.home_offset = MachinePosition()
+
+    def coms_loop(self):
+        while True:
+            # probably do other stuff here also like alert
+            asyncio.run(self.coms.get_packet())
+            code = self.coms.most_recent_rx.code
+            if code == serlib.WAKE:
+                self.hw_init()
 
     def get_pos_FK(self, target: MachinePosition) -> MachinePosition:
         xy = solve_5bar_FK(self.settings, target.alpha, target.beta)
