@@ -1,4 +1,4 @@
-const devUrl = "http://10.0.0.225:5000/" //  TODO CHANGE
+const devUrl = "http://10.136.220.142:5000" //  TODO CHANGE
 // "undefined" means the URL will be computed from the `window.location` object
 
 export const apiCall = async (args) => {
@@ -35,6 +35,30 @@ export const set_url_param = (name, value) => {
   const url = new URL(window.location);
   url.searchParams.set(name, value)
   window.history.pushState({}, "", url)
+}
+
+export const get_url_experiment = async () => {
+  const title = get_url_param("title")
+  const version = get_url_param("version")
+  let out_data
+  if (title == null || version == null) {
+    return false
+  }
+  await apiCall({
+    route: "fetchExperiment",
+    body: {
+      title: title,
+      version: version
+    }
+  })
+    .then(parsed_response => {
+      if (parsed_response?.failure == true) {
+        return false
+      }
+      console.log("returning: ", parsed_response)
+      out_data = parsed_response
+    })
+  return out_data
 }
 
 export const dataStream = new EventSource(`${devUrl}/control`)

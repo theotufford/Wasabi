@@ -1,35 +1,34 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useContext } from 'react'
 import PlateElement from './plateElement.jsx'
 import InstructionForm from './InstructionForm.jsx'
 import { v4 as uuidv4 } from 'uuid';
 import SaveButton from './SaveButton.jsx';
 import './Programmer.css'
+import { get_url_param } from './backendConfig.jsx';
+import { ExperimentContext } from './experiment_context.jsx';
 import LegendElement from './legend.jsx'
 import { version } from 'react'
 import apiCall from './backendConfig.jsx';
 
 function Programmer(props) {
-  const [experiment, set_experiment_ue] = useState(props.experiment.current)
 
+  const { experiment, set_experiment } = useContext(ExperimentContext)
 
-  // locally we want to interface with the experiment while also updating its external context
-  // but we do not want to be dealing with an external reference directly other than
-  // keeping it in sync with the local one
-  const setExperiment = (value) => {
-    const ret = set_experiment_ue(value)
-    props.experiment.current = experiment
-    console.log("set current experiment to be: ", experiment)
-    return ret
+  const modify_experiment = (key, value) => {
+    set_experiment(previous_value => ({ ...previous_value, [key]: value }))
   }
-
+  const loading = useRef(true)
+  if (loading.current == "done") {
+    loading.current = false
+  }
   const setTitle = (value) => {
-    setExperiment(prev => ({ ...prev, title: value }))
+    modify_experiment("title", value)
   }
   const setPlateDimensions = (value) => {
-    setExperiment(prev => ({ ...prev, plateDimensions: value }))
+    modify_experiment("plateDimensions", value)
   }
   const setForms = (value) => {
-    setExperiment(prev => ({ ...prev, forms: value }))
+    modify_experiment("forms", value)
   }
 
   const [color_lib, set_color_lib] = useState(new Map())
@@ -57,6 +56,14 @@ function Programmer(props) {
     })
   }
 
+  if (loading.current == true) {
+    loading.current = "done"
+    console.log("forms: ", Object.keys(experiment.forms))
+    if (Object.keys(experiment.forms).length === 0)
+      addEmptyForm()
+  }
+
+
   const deleteForm = (event) => {
     const target_id = event.target.id
     console.log("deleting form with id: ", target_id)
@@ -71,22 +78,6 @@ function Programmer(props) {
     }
   }
 
-  const loading = useRef(true)
-
-  if (loading.current == "done") {
-    loading.current = false
-    setExperiment(props.experiment.current)
-  }
-  if (loading.current == true) {
-    loading.current = "done"
-  }
-
-  useEffect(() => {
-    console.log("forms: ", Object.keys(experiment.forms))
-    if (Object.keys(experiment.forms).length === 0)
-      addEmptyForm()
-  }, [loading])
-
   return (
     <div id="experiment">
       <div id="forms">
@@ -94,7 +85,7 @@ function Programmer(props) {
           <input
             type="text"
             name="experimentTitle"
-            defaultValue={props.experiment.current.title}
+            defaultValue={experiment.title}
             onBlur={titleChange}
             onKeyDown={keydownHandler}
             placeholder="experiment title"
@@ -102,7 +93,7 @@ function Programmer(props) {
           <span className="version-label">v{experiment.version}</span>
         </div>
         <div className="form-actions">
-          <SaveButton experiment={experiment} setExperiment={setExperiment} />
+          <SaveButton/>
         </div>
         <div className="sheet-wrap">
           <table>
@@ -135,8 +126,8 @@ function Programmer(props) {
         <button className="add-form-btn" onClick={addEmptyForm}>+ add reagent</button>
       </div>
       <div id="visualElements">
-        <PlateElement experiment={experiment} set_color_lib={set_color_lib} />
-        <LegendElement experiment={experiment} color_lib={color_lib} />
+        <PlateElement set_color_lib={set_color_lib} />
+        <LegendElement color_lib={color_lib} />
       </div>
     </div>
   )

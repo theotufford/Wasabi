@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import apiCall from './backendConfig.jsx'
-import { set_url_param, get_url_param } from './backendConfig.jsx'
+import { set_url_param, get_url_experiment, get_url_param } from './backendConfig.jsx'
 
 const BrowserElement = (props) => {
 
@@ -43,9 +43,18 @@ const BrowserElement = (props) => {
     get_experiments()
   }, [])
 
+
   const select_experiment = (experiment) => {
     set_url_param("title", experiment.title)
     set_url_param("version", experiment.version)
+    get_url_experiment().then((found_experiment) => {
+      if (found_experiment == false || found_experiment == undefined) {
+        return
+      }
+      props.set_experiment(found_experiment)
+    })
+    const dialog_target = document.getElementById("browser")
+    dialog_target.close()
   }
 
   const handle_search = (event) => {
@@ -54,14 +63,14 @@ const BrowserElement = (props) => {
   }
 
   return (
-    <div>
+    <dialog id="browser">
       <ul style={{ listStyleType: 'none' }}>
         {visible_experiments.map(exp => (
           <li key={exp.title} className='searchListItem' onClick={() => select_experiment(exp)}> {exp.title} {exp.version} </li>
         ))}
       </ul>
-      <input onInput={handle_search}/>
-    </div>
+      <input onInput={handle_search} />
+    </dialog>
   )
 }
 export default BrowserElement

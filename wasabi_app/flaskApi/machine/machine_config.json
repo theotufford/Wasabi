@@ -45,12 +45,12 @@
       {
         "stp_pin": 10,
         "dir_pin": 11,
-        "invert_dir": 1,
-        "ang_v_max": 50,
-        "ang_accel_rad": 250,
+        "invert_dir": -1,
+        "ang_v_max": 35,
+        "ang_accel_rad": 1,
         "steps_per_rev": 1600,
-        "rads_per_ul": 0.075,
-        "compensation_factor": 1.00
+        "ul_per_rad": 1,
+        "compensation_factor": 1.71
       },
       {
         "stp_pin": 13,
@@ -59,7 +59,7 @@
         "ang_v_max": 300,
         "ang_accel_rad": 1,
         "steps_per_rev": 200,
-        "rads_per_ul": 0.3,
+        "ul_per_rad": 0.3,
         "compensation_factor": 1.15
       },
       {
@@ -69,7 +69,7 @@
         "ang_v_max": 300,
         "ang_accel_rad": 1,
         "steps_per_rev": 200,
-        "rads_per_ul": 0.3,
+        "ul_per_rad": 0.3,
         "compensation_factor": 1.15
       }
     ]

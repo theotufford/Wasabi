@@ -52,8 +52,10 @@ def fetchExperiment():
     print(data)
     dbRepsonse = getExperiment(data)
     if dbRepsonse is None:
-        return jsonify({"data": "experiment fetch failed!"})
-    return jsonify(dict(dbRepsonse))
+        return jsonify({"failure": True})
+    exp = json.loads(dict(dbRepsonse)["data"])
+    print(f"exp: {exp}")
+    return jsonify(exp)
 
 
 @bp.route('/saveExperiment', methods=["POST"])
@@ -62,20 +64,16 @@ def saveExperiment():
     db = get_db()
     autoSave = data["autosave"]
     title = data["title"]
+    version = data["version"]
     experimentJson = json.dumps(data)
-
     dbFetch = getExperiment({"title": title})
     selected = {}
     if dbFetch is not None:
         selected = dict(dbFetch)
-    version = selected.get("version") or 0
-
     if selected.get('data') == experimentJson:  # duplicate protection
         print('trying to save duplicate, aborting')
         return jsonify('trying to save a perfect duplicate')
     if not autoSave:
-        if selected is not {}:
-            version = version+1
         db.execute("""
                    INSERT INTO experiments
                    (data, title, version)
@@ -86,7 +84,7 @@ def saveExperiment():
         close_db()
         return jsonify({"version": version})
     db.execute("""
-               UPDATE experiments 
+               UPDATE experiments
                SET data = ?
                WHERE (title = ?)
                """, (experimentJson, "autosave"))

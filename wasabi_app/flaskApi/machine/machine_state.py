@@ -181,13 +181,16 @@ class Machine:
                 return False
         if reagent is None and id is None:
             raise ValueError()
-        pump_settings = self.settings["motors"]["pumps"][id]
-        rads_per_ul = pump_settings["rads_per_ul"]
+        pump_settings = self.settings["motors"]["pumps"][id-1]
+        ul_per_rad = pump_settings["ul_per_rad"]
+        print(f"pumpsettings: {pump_settings}")
+        compensation_factor = pump_settings["compensation_factor"]
         # TODO ^ calibrate
-        ul_per_rev = 1 / (rads_per_ul * 2 * math.pi)
+        ul_per_rev = ul_per_rad * 2 * math.pi * compensation_factor
+        print(f"sending at ul per rev of: {ul_per_rev}")
         steps_per_ul = pump_settings["steps_per_rev"] / ul_per_rev
-        total_steps = math.floor(
-            pump_settings["compensation_factor"] * volume * steps_per_ul)
+        total_steps = math.floor(volume * steps_per_ul)
+        print(f"sending steps{total_steps}")
         self.coms.send_pump_action_steps(id, total_steps)
 
     def dispense(self, volume, reagent=None, id=None):

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
+import { ExperimentContext } from './experiment_context.jsx';
 import WellElement from './wellElement.jsx'
 
 const alph = "abcdefghijklmnopqrstuvwxyz".split('')
@@ -53,8 +54,9 @@ const get_range = (formObject) => {
 }
 
 function PlateElement(props) {
-  const rows = props.experiment.plateDimensions.rows
-  const columns = props.experiment.plateDimensions.columns
+  const { experiment, set_experiment } = useContext(ExperimentContext)
+  const rows = experiment.plateDimensions.rows
+  const columns = experiment.plateDimensions.columns
   const staticColorLibrary = [
     "Red",
     "Blue",
@@ -94,9 +96,9 @@ function PlateElement(props) {
 
   useEffect(() => {
     const tmp = get_empty_plate_matrix()
-    const form_array = Object.keys(props.experiment.forms)
+    const form_array = Object.keys(experiment.forms)
     form_array.forEach((form_id) => {
-      const form = props.experiment.forms[form_id]
+      const form = experiment.forms[form_id]
       const plate_range = get_range(form)
       if (plate_range) {
         const lowerBound = plate_range.lowerBound
@@ -131,7 +133,7 @@ function PlateElement(props) {
     set_plate_matrix(tmp)
     props.set_color_lib(color_lib)
 
-  }, [props.experiment.forms])
+  }, [experiment.forms])
 
 
   return (

@@ -1,31 +1,36 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useContext } from 'react'
 import { apiCall, control_call, dataStream } from './backendConfig.jsx'
 import Pump_block from './pump_interface.jsx'
 import TestButton from './browserFrame.jsx'
+import { ExperimentContext } from './experiment_context.jsx';
 
 function Controller(props) {
-  const experiment = props.experiment.current
-  // TODO:
-  // live position
-  // home button
-  // run button
-  // reagent table
-  // data stream
-
+  const { experiment, set_experiment } = useContext(ExperimentContext)
   const [serialMessage, setSerialMessage] = useState(".....")
   const [pump_array, set_pump_array] = useState({})
+  const [reagents, set_reagents] = useState([])
+  const [reagents_needed, set_reagents_needed] = useState([])
 
-  const reagents = useRef([])
-
-  const reagents_needed = useRef([])
-
-  const get_reagents_needed = () => {
-    reagents_needed.current = reagents.current.filter(reagent => (!Object.values(pump_array).includes(reagent)))
-  }
 
   useEffect(() => {
-    get_reagents_needed()
-  }, [props.experiment.current])
+    load_needed()
+  }, [experiment])
+
+  const load_needed = () => {
+    const tmp = []
+    console.log("controller exp: ", experiment)
+    Object.keys(experiment.forms).forEach((form_id) => {
+      const form = experiment.forms[form_id]
+      const reagent = form.reagent
+      console.log("REAGENT", reagent)
+      if (tmp.includes(reagent)) {
+        return
+      }
+      tmp.push(reagent)
+    })
+    set_reagents(tmp)
+    set_reagents_needed(tmp.filter(reagent => (!Object.values(pump_array).includes(reagent))))
+  }
 
 
   // on page load
@@ -39,20 +44,11 @@ function Controller(props) {
       .then(data => {
         set_pump_array(data)
       })
-    Object.keys(experiment.forms).forEach((form_id) => {
-      const form = experiment.forms[form_id]
-      if (reagents.current.includes(form.reagent)) {
-        return
-      }
-      reagents.current.push(form.reagent)
-    })
-    get_reagents_needed()
+    load_needed()
   }, [])
 
   let title_text = "no experiment loaded"
   if (experiment.title != "") title_text = experiment.title;
-
-
 
   const send_home = () => {
     control_call({ route: "home" })
@@ -130,7 +126,7 @@ function Controller(props) {
       </div>
       <>
         reagents needed for experiment that arent loaded: <ul>
-          {reagents_needed.current.map(name => (<li> - {name}</li>))}
+          {reagents_needed.map(name => (<li> - {name}</li>))}
         </ul>
         {
           Object.keys(pump_array).map((id) => (
@@ -138,9 +134,9 @@ function Controller(props) {
               <Pump_block
                 key={id} id={id}
                 reagent={pump_array[id]}
-                reagents={reagents.current}
+                reagents={reagents}
                 set_pump_array={set_pump_array}
-                reagents_needed={reagents_needed.current} />
+                reagents_needed={reagents_needed} />
             </div>
           ))
         }

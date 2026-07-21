@@ -1,30 +1,34 @@
-import { useEffect, useRef, useState } from 'react';
-import  apiCall  from './backendConfig.jsx';
+import { useState, useRef, useEffect, useContext } from 'react'
+import { ExperimentContext } from './experiment_context.jsx';
+import { apiCall, set_url_param } from './backendConfig.jsx';
 const SaveButton = (props) => {
-	const autoSave = useRef(true)
-	const save = (experiment) => {
-		console.log('autosave = ', autoSave)
-		experiment.autosave = autoSave.current
-		console.log('color map save : ', experiment.colorLib)
-		apiCall({
-			route:"saveExperiment",
-			body:experiment
-		})
-	}
-	const experiment = props.experiment
-	const setExperiment = props.setExperiment
-	const explicitSave = () => {
-		autoSave.current = false
-		setExperiment({...experiment, version:(experiment.version + 1)})
-		save(experiment)
-	}
-	useEffect(() => { //save on change 
-		autoSave.current = true
-		save(experiment)
+  const { experiment, set_experiment } = useContext(ExperimentContext)
+  const autoSave = useRef(true)
+  const save = () => {
+    apiCall({
+      route: "saveExperiment",
+      body: { ...experiment, autosave: autoSave.current }
+    }).then(response => {
+      if (!autoSave.current) {
+        console.log("version: ", experiment.version)
+        set_url_param("version", experiment.version)
+        set_url_param("title", experiment.title)
+      }
+    })
+  }
+  const explicitSave = () => {
+    autoSave.current = false
+    set_experiment(prev => ({ ...prev, version: prev.version + 1 }))
+    save()
+  }
 
-	}, [experiment])
-	return (
-		<button onClick={explicitSave}>Save</button>
-	)
+  useEffect(() => { //save on change 
+    autoSave.current = true
+    save()
+  }, [experiment])
+
+  return (
+    <button onClick={explicitSave}>Save</button>
+  )
 }
 export default SaveButton

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useContext, useState } from 'react'
 import { useEffect } from 'react';
+import { ExperimentContext } from './experiment_context.jsx';
 import './legend.css'
 
 const diffBlockDefault = {
@@ -32,7 +33,8 @@ const defaultRender = (args) => {
 }
 
 function LegendElement(props) {
-  const forms = props.experiment.forms
+  const { experiment, set_experiment } = useContext(ExperimentContext)
+  const forms = experiment.forms
   console.log("called legend element refresh: ", props)
   const color_lib = props.color_lib
   const keyArray = Array.from(color_lib.keys(color_lib))
@@ -65,7 +67,6 @@ function LegendElement(props) {
 
   const tree = new Map()
   const renderedBranches = []
-
   console.log("handling legend tree generation with:", keySets)
   keySets.forEach((layer, layerIndex) => {
     if (layerIndex > keySets.length) {
@@ -115,7 +116,7 @@ function LegendElement(props) {
 
           for (let formIndex of [...diffKeys]) {
             const form = forms[formIndex]
-            info += `${form.method} volume of ${form.reagent} \n`
+            info += ` ${form.method} volume of ${form.reagent} `
           }
 
           const keySetHtml = defaultRender({
