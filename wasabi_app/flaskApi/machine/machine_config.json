@@ -10,69 +10,89 @@
       "3b_pico_reset_pin":18,
       "motor_enable_pin": 2,
       "pump_enable_pin": 0,
-      "a_endstop": 3,
-      "b_endstop": 4,
-      "z_endstop": 5
-    }
-  },
-  "motors": {
-    "a": {
-      "stp_pin": 28,
-      "dir_pin": 27,
-      "invert_dir": 1,
-      "ang_v_max": 10,
-      "ang_accel_rad": 18,
-      "steps_per_rev": 1600
+      "a_endstop": 22,
+      "b_endstop": 21,
+      "z_endstop": 20
     },
-    "b": {
-      "stp_pin": 20,
-      "dir_pin": 19,
-      "invert_dir": 1,
-      "ang_v_max": 10,
-      "ang_accel_rad": 18,
-      "steps_per_rev": 1600
-    },
-    "z": {
-      "stp_pin": 6,
-      "dir_pin": 7,
-      "invert_dir": 0,
-      "ang_v_max": 8,
-      "ang_accel_rad": 30,
-      "steps_per_rev": 1600,
-      "screw_pitch": 4
-    },
-    "pumps": [
-      {
+    "motors": {
+      "a": {
+        "stp_pin": 14,
+        "dir_pin": 15,
+        "invert_dir": 1,
+        "ang_v_max": 10,
+        "ang_accel_rad": 18,
+        "steps_per_rev": 1600
+      },
+      "b": {
         "stp_pin": 10,
         "dir_pin": 11,
-        "invert_dir": -1,
-        "ang_v_max": 35,
-        "ang_accel_rad": 1,
+        "invert_dir": 1,
+        "ang_v_max": 10,
+        "ang_accel_rad": 18,
+        "steps_per_rev": 1600
+      },
+      "z": {
+        "stp_pin": 6,
+        "dir_pin": 7,
+        "invert_dir": 0,
+        "ang_v_max": 8,
+        "ang_accel_rad": 30,
         "steps_per_rev": 1600,
-        "ul_per_rad": 1,
-        "compensation_factor": 1.71
+        "screw_pitch": 4
       },
-      {
-        "stp_pin": 13,
-        "dir_pin": 14,
-        "invert_dir": 0,
-        "ang_v_max": 300,
-        "ang_accel_rad": 1,
-        "steps_per_rev": 200,
-        "ul_per_rad": 0.3,
-        "compensation_factor": 1.15
-      },
-      {
-        "stp_pin": 18,
-        "dir_pin": 19,
-        "invert_dir": 0,
-        "ang_v_max": 300,
-        "ang_accel_rad": 1,
-        "steps_per_rev": 200,
-        "ul_per_rad": 0.3,
-        "compensation_factor": 1.15
-      }
-    ]
+      "pumps": [
+        {
+          "stp_pin": 4,
+          "dir_pin": 5,
+          "invert_dir": 0,
+          "ang_v_max": 8,
+          "ang_accel_rad": 12,
+          "steps_per_rev": 1600,
+          "rads_per_ul": 10,
+          "compensation_factor": 1
+        },
+        {
+          "stp_pin": 12,
+          "dir_pin": 13,
+          "invert_dir": 0,
+          "ang_v_max": 8,
+          "ang_accel_rad": 12,
+          "steps_per_rev": 1600,
+          "rads_per_ul": 10,
+          "compensation_factor": 1
+        },
+        {
+          "stp_pin": 18,
+          "dir_pin": 19,
+          "invert_dir": 0,
+          "ang_v_max": 8,
+          "ang_accel_rad": 12,
+          "steps_per_rev": 1600,
+          "rads_per_ul": 10,
+          "compensation_factor": 1
+        },
+        {
+          "stp_pin": 2,
+          "dir_pin": 3,
+          "invert_dir": 0,
+          "ang_v_max": 8,
+          "ang_accel_rad": 12,
+          "steps_per_rev": 1600,
+          "rads_per_ul": 10,
+          "compensation_factor": 1
+        },
+        {
+          "stp_pin": 8,
+          "dir_pin": 9,
+          "invert_dir": 0,
+          "ang_v_max": 8,
+          "ang_accel_rad": 12,
+          "steps_per_rev": 1600,
+          "rads_per_ul": 10,
+          "compensation_factor": 1
+        }
+      ]
+    }
   },
   "plates": {
     "standard 96": {

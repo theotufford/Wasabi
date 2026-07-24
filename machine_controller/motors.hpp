@@ -18,7 +18,7 @@ using namespace std;
 
 class Motor {
 public:
-  inline static auto async_bay = vector<Motor *>(4,0);
+  inline static auto async_bay = vector<Motor *>(4, 0);
   static void move_isr(uint alarm);
 
   int alarm_num;
@@ -54,6 +54,7 @@ public:
   double total_move_time;
   double TORADS = (2 * M_PI / stp_per_rev);
   double TOSTEPS = (stp_per_rev / (2 * M_PI));
+  bool is_pump;
 
   void claim_isr();
   void move_precalc();
@@ -68,6 +69,9 @@ public:
   void update_dir();
   void reverse_dir();
   void set_dir(int dir);
+
+  void singular_accel_move(int step_count);
+  void singular_linear_move(int step_count);
   void buzz();
 
   Motor(const vector<int> &argumentVector);

@@ -64,11 +64,12 @@ int main() {
 
     auto new_motor = new Motor(coms.argumentVector);
     if (coms.coms_rx_code == NEW_PUMP) {
+      new_motor->is_pump = true;
       pumps.push_back(new_motor);
     } else {
+      new_motor->is_pump = false;
       axis_motors.push_back(new_motor);
     }
-
     coms.send_code(CONFIRM);
   }
 
@@ -163,16 +164,24 @@ int main() {
     }
     case PUMP_ACTION: {
       int pump_id = coms.argumentVector[0] - 1;
-      int step_count = coms.argumentVector[1];
       Motor &pump = *pumps[pump_id];
-      pump.live_abs_pos = 0;
-      pump.move_delta = step_count;
-      pump.move_precalc();
-      pump.update_dir();
-      pump.move_init_time = get_absolute_time();
-      hardware_alarm_force_irq(pump.alarm_num);
-      while (pump.live_abs_pos != abs(pump.move_delta)) {
-        tight_loop_contents();
+      int step_count = coms.argumentVector[1];
+
+      if (step_count == 0) {
+        break;
+      }
+
+      bool is_aspiration = step_count < 0;
+
+      int accel_distance_steps =
+          floor((pump.vMax * pump.vMax) / (2. * pump.ang_accel) * pump.TOSTEPS);
+
+      if (is_aspiration) {
+        pump.singular_linear_move(step_count);
+      } else {
+        pump.singular_accel_move(-accel_distance_steps);
+        step_count += accel_distance_steps;
+        pump.singular_accel_move(step_count);
       }
       break;
     }

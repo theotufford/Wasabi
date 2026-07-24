@@ -677,13 +677,13 @@
         "uuid": "e730f2d0-7d87-425a-b103-afd0181ca94d"
       }
     ],
-    "used_designators": "SW1-2,#PWR61",
+    "used_designators": "",
     "variants": []
   },
   "sheets": [
     [
       "e730f2d0-7d87-425a-b103-afd0181ca94d",
-      "mainBoard_kicad"
+      "main_board_independent_pumps"
     ]
   ],
   "text_variables": {},

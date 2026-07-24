@@ -30,7 +30,6 @@ Motor::Motor(const vector<int> &argumentVector)
   gpio_set_dir(step_pin, GPIO_OUT);
   gpio_set_dir(dir_pin, GPIO_OUT);
   gpio_put(dir_pin, dir_pin_inverted);
-  return;
 }
 
 void Motor::buzz() {
@@ -81,16 +80,16 @@ void Motor::step() {
 }
 
 void Motor::move_precalc() {
-  ang_targ_dist = TORADS * abs(move_delta); // gets the total distance of
+  ang_targ_dist = TORADS * abs(move_delta); // gets the total distance
   float v_reached = vMax;
   // if the max v isnt reached by halfway
   // we use the highest v reached as the
   // vmax in our calculations
   bool short_hop = (ang_targ_dist / 2) < ((float)(vMax * vMax) / ang_accel);
-  if (short_hop) {
+  if (short_hop && !is_pump) {
     v_reached = sqrt(ang_targ_dist * ang_accel);
   }
-  accel_stop = (v_reached * v_reached) / (2 * ang_accel);
+  accel_stop = (v_reached * v_reached) / (2. * ang_accel);
   constv_stop = (ang_targ_dist - (v_reached * v_reached) / (2 * ang_accel));
   total_move_time = (ang_targ_dist / v_reached + v_reached / ang_accel);
   claim_isr();
@@ -109,27 +108,49 @@ void Motor::claim_isr() {
 }
 
 int Motor::move_callback() {
-
   step();
-
   if (live_abs_pos == abs(move_delta)) {
+
     hardware_alarm_unclaim(alarm_num);
     return 0;
   }
 
-
   double theta = TORADS * (live_abs_pos + 1);
   double stepTiming;
+
   if (theta < accel_stop) {
     stepTiming = sqrt((2 * theta) / ang_accel);
-  } else if (theta < constv_stop) {
+  } else if (theta < constv_stop || is_pump) {
     stepTiming = (theta / vMax) + (vMax / (2. * ang_accel));
   } else {
     stepTiming =
         total_move_time - sqrt((2 * (ang_targ_dist - theta)) / ang_accel);
   }
+
   uint64_t next_step_time = (uint64_t)(stepTiming * 1e6f);
   hardware_alarm_set_target(alarm_num,
                             delayed_by_us(move_init_time, next_step_time));
   return 0;
+}
+
+void Motor::singular_accel_move(int step_count) {
+  live_abs_pos = 0;
+  move_delta = step_count;
+  move_precalc();
+  update_dir();
+  move_init_time = get_absolute_time();
+  hardware_alarm_force_irq(alarm_num);
+  while (live_abs_pos != abs(move_delta)) {
+    tight_loop_contents();
+  }
+}
+void Motor::singular_linear_move(int step_count) {
+  live_abs_pos = 0;
+  move_delta = step_count;
+  update_dir();
+  uint64_t delay = (uint64_t)( 0.25 * 1e6f/(vMax * TOSTEPS));
+  while (live_abs_pos != abs(move_delta)) {
+    sleep_us(delay);
+    step();
+  }
 }
