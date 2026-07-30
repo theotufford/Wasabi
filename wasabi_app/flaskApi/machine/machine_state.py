@@ -2,6 +2,7 @@ import time
 import asyncio
 from ..db import get_db
 import math
+import inspect
 import json
 import RPi.GPIO as pio
 from .kinematics import solve_5bar_FK, solve_5bar_IK, MachinePosition, Vec2d, make_pos
@@ -237,16 +238,50 @@ class Machine:
 
         motor_settings = self.settings["machine"]["motors"]
         pump_settings = motor_settings["pumps"][id-1]
+
+        speed = pump_settings["ang_v_max"]
+        accel = pump_settings["ang_accel_rad"]
+
         ul_per_rad = pump_settings["ul_per_rad"]
         compensation_factor = pump_settings["compensation_factor"]
         spr = motor_settings["common_settings"]["pump_steps_per_revoulution"]
+
         ul_per_rev = ul_per_rad * 2 * math.pi * compensation_factor
         steps_per_ul = spr / ul_per_rev
         total_steps = math.floor(volume * steps_per_ul)
-        self.coms.send_pump_action_steps(id, total_steps)
+        self.coms.send_pump_action_steps(id, speed, accel, total_steps)
 
     def dispense(self, volume, reagent=None, id=None):
         self.send_pump_action(volume, reagent, id)
 
     def aspirate(self, reagent, volume):
         self.send_pump_action(-volume, reagent, id)
+
+
+class MethodLibrary:
+    def __init__(self, machine: Machine):
+        self.method_callables = {}
+        self.method_info = {}
+        self.machine = machine
+
+    def call_method(self, name, args_dict):
+
+    def register_method(self, method_function, other=None):
+        sig = inspect.signature(method_function)
+        args = dict(sig.parameters.items())
+        method_name = method_function.__name__
+        if not args.get("machine") or not args["machine"].annotation == Machine:
+            raise ValueError(f"method: {method_name} needs machine parameter!")
+        self.method_callables[method_name] = method_function
+        self.method_info[method_name] = {"inputs":[], "other": other}
+        for arg_name in args:
+            param = args[arg_name]
+            if param.annotation.__name__ == Machine:
+                continue
+            self.method_info[method_name]["inputs"].append({
+                    "name": arg_name,
+                    "type": param.annotation.__name__
+                })
+
+    def update_(self):
+

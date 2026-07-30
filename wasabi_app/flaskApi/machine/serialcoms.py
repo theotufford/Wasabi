@@ -197,7 +197,7 @@ class ComsChannel:
         self.send_int_vec(MOVE, [alpha, beta, z])
         self.get_confirm()
 
-    def send_pump_action_steps(self, motor_id, vol_step_count):
+    def send_pump_action_steps(self, motor_id, speed, accel, vol_step_count):
         self.send_int_vec(PUMP_ACTION, [motor_id, vol_step_count])
         self.get_confirm()
 
