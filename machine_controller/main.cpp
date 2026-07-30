@@ -165,8 +165,9 @@ int main() {
     case PUMP_ACTION: {
       int pump_id = coms.argumentVector[0] - 1;
       Motor &pump = *pumps[pump_id];
-      int step_count = coms.argumentVector[1];
-
+      pump.vMax = coms.argumentVector[1];
+      pump.ang_accel = coms.argumentVector[2];
+      int step_count = coms.argumentVector[3];
       if (step_count == 0) {
         break;
       }

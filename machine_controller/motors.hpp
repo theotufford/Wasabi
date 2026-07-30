@@ -27,8 +27,8 @@ public:
   const int dir_pin;
   const int dir_pin_inverted;
   const int stp_per_rev;
-  const int vMax;
-  const int ang_accel;
+  int vMax;
+  int ang_accel;
 
   bool homed;
   enum {
