@@ -59,7 +59,6 @@ const BrowserElement = (props) => {
 
   const handle_search = (event) => {
     const search_value = event.target.value
-    console.log("search_value: ", search_value)
   }
 
   return (

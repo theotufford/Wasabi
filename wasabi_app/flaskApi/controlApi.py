@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, Blueprint, request, session
+import asyncio
 from .db import get_db
 import threading
 import time
@@ -17,7 +18,7 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         coms = machine.coms
         coms.send_home()
         while coms.most_recent_rx.code != INITIAL_POSITION:
-            coms.get_packet()
+            asyncio.run(coms.get_packet())
         initial_position_steps = coms.most_recent_rx.get_int_argvec()
         machine.coms.send_move_steps(*initial_position_steps)
         machine.current_position = machine.from_steps(*initial_position_steps)

@@ -33,46 +33,83 @@ class Machine:
         with open(settings_path, "r") as conf:
             self.settings = json.load(conf)
 
-        self.motor_settings = self.settings["motors"]
-        spr = "steps_per_rev"
-        self.a_steps_per_rad = self.motor_settings["a"][spr] / (2 * math.pi)
-        self.b_steps_per_rad = self.motor_settings["b"][spr] / (2 * math.pi)
-        zsettings = self.motor_settings["z"]
-        self.z_steps_per_mm = zsettings[spr] / zsettings["screw_pitch"]
+        mach = self.settings["machine"]
+        spr = mach["motors"]["common_settings"]["kinematic_steps_per_revolution"]
+        pitch = mach["machineDimensions"]["z_screw_pitch"]
+        self.a_steps_per_rad = spr / (2 * math.pi)
+        self.b_steps_per_rad = spr / (2 * math.pi)
+        self.z_steps_per_mm = spr / pitch
 
         self.plate = Plate(self.settings["plates"]["standard 96"])
         self.hw_init()
 
     def hw_init(self):
         # reboot the pico
-        run_pin = self.settings["machine"]["pins"]["3b_pico_reset_pin"]
-        pio.setup(run_pin, pio.OUT)
-        pio.output(run_pin, pio.LOW)
+        pi3b_pins = self.settings["machine"]["pins"]["on_3b_server_board"]
+        pico_reset_pin = pi3b_pins["pico_reset_pin"]
+        stage_enable_pin = pi3b_pins["stage_enable_pin"]
+        pump_ms1 = pi3b_pins["pump_ms1"]
+        pump_ms2 = pi3b_pins["pump_ms2"]
+        pio.setup(pico_reset_pin, pio.OUT)
+        pio.setup(stage_enable_pin, pio.OUT)
+        pio.setup(pump_ms1, pio.OUT)
+        pio.setup(pump_ms2, pio.OUT)
+
+        pio.output(stage_enable_pin, pio.HIGH)
+
+        pio.output(pico_reset_pin, pio.LOW)
         time.sleep(0.1)
-        pio.output(run_pin, pio.HIGH)
+        pio.output(pico_reset_pin, pio.HIGH)
         time.sleep(0.1)
         coms = self.coms = serlib.ComsChannel()
         # send kinematic motor settings ------------
-        motors = self.settings["motors"]
-        a_mot_settings = serlib.get_mot_argvec(motors["a"])
+        motors = self.settings["machine"]["motors"]
+        common_settings = motors["common_settings"]
+        a_mot_settings = [
+            motors["a"]["stp_pin"],
+            motors["a"]["dir_pin"],
+            motors["a"]["invert_dir"],
+            1600,  # hard coded to max microsteps
+            common_settings["arms_angular_max_velocity"],
+            common_settings["arms_angular_accel"]
+        ]
+        b_mot_settings = [
+            motors["b"]["stp_pin"],
+            motors["b"]["dir_pin"],
+            motors["b"]["invert_dir"],
+            1600,  # hard coded to max microsteps
+            common_settings["arms_angular_max_velocity"],
+            common_settings["arms_angular_accel"]
+        ]
+        z_mot_settings = [
+            motors["z"]["stp_pin"],
+            motors["z"]["dir_pin"],
+            motors["z"]["invert_dir"],
+            1600,  # hard coded to max microsteps
+            common_settings["arms_angular_max_velocity"],
+            common_settings["arms_angular_accel"]
+        ]
         coms.send_int_vec(serlib.A_MOTOR, a_mot_settings)
         coms.get_confirm()
-
-        b_mot_settings = serlib.get_mot_argvec(motors["b"])
         coms.send_int_vec(serlib.B_MOTOR, b_mot_settings)
         coms.get_confirm()
-
-        z_mot_settings = serlib.get_mot_argvec(motors["z"])
         coms.send_int_vec(serlib.Z_MOTOR, z_mot_settings)
         coms.get_confirm()
-
+        pump_microsteps = common_settings["pump_steps_per_revoulution"]
         # send pump motor settings -----------------
         for pump_conf in motors["pumps"]:
-            pump_settings = serlib.get_mot_argvec(pump_conf)
+            pump_settings = [
+                pump_conf["stp_pin"],
+                pump_conf["dir_pin"],
+                pump_conf["invert_dir"],
+                pump_microsteps,
+                pump_conf["ang_v_max"],
+                pump_conf["ang_accel_rad"]
+            ]
             coms.send_int_vec(serlib.NEW_PUMP, pump_settings)
             coms.get_confirm()
 
-        # send other pin settings ------------------
+        # send other pico pin settings -------------
         pinsettings = self.settings["machine"]["pins"]
         pins = [
             pinsettings["motor_enable_pin"],
@@ -85,6 +122,22 @@ class Machine:
         coms.send_int_vec(serlib.MACHINE_PIN_DEFINITIONS, pins)
         coms.send_code(serlib.CONFIRM)
         coms.get_confirm()
+
+        if pump_microsteps == 200:
+            pio.output(pump_ms1, pio.LOW)
+            pio.output(pump_ms2, pio.LOW)
+        elif pump_microsteps == 400:
+            pio.output(pump_ms1, pio.HIGH)
+            pio.output(pump_ms2, pio.LOW)
+        elif pump_microsteps == 800:
+            pio.output(pump_ms1, pio.LOW)
+            pio.output(pump_ms2, pio.HIGH)
+        elif pump_microsteps == 1600:
+            pio.output(pump_ms1, pio.HIGH)
+            pio.output(pump_ms2, pio.HIGH)
+        else:
+            raise ValueError(f"pump microsteps malconfigured!! options are 200, 400, 800, 1600, currently configured to {
+                             pump_microsteps}")
 
         self.position_known = False
         self.current_position = MachinePosition()
@@ -181,16 +234,15 @@ class Machine:
                 return False
         if reagent is None and id is None:
             raise ValueError()
-        pump_settings = self.settings["motors"]["pumps"][id-1]
+
+        motor_settings = self.settings["machine"]["motors"]
+        pump_settings = motor_settings["pumps"][id-1]
         ul_per_rad = pump_settings["ul_per_rad"]
-        print(f"pumpsettings: {pump_settings}")
         compensation_factor = pump_settings["compensation_factor"]
-        # TODO ^ calibrate
+        spr = motor_settings["common_settings"]["pump_steps_per_revoulution"]
         ul_per_rev = ul_per_rad * 2 * math.pi * compensation_factor
-        print(f"sending at ul per rev of: {ul_per_rev}")
-        steps_per_ul = pump_settings["steps_per_rev"] / ul_per_rev
+        steps_per_ul = spr / ul_per_rev
         total_steps = math.floor(volume * steps_per_ul)
-        print(f"sending steps{total_steps}")
         self.coms.send_pump_action_steps(id, total_steps)
 
     def dispense(self, volume, reagent=None, id=None):

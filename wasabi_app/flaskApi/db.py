@@ -55,7 +55,7 @@ def init_db():
         db.executescript(f.read().decode('utf8'))
     with current_app.open_resource('./machine/machine_config.json') as j:
         config = j.read()
-        pumps = json.loads(config)["motors"]["pumps"]
+        pumps = json.loads(config)["machine"]["motors"]["pumps"]
         print(pumps)
         count = len(pumps)
         print(count)
