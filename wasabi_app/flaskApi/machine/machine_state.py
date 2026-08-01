@@ -259,12 +259,13 @@ class Machine:
 
 
 class MethodLibrary:
-    def __init__(self, machine: Machine):
+    def __init__(self):
         self.method_callables = {}
         self.method_info = {}
         self.machine = machine
 
-    def call_method(self, name, args_dict):
+    def call_method(self, machine: Machine, name, args_dict):
+        self.method_callables[name](machine=machine, **args_dict)
 
     def register_method(self, method_function, other=None):
         sig = inspect.signature(method_function)
@@ -273,15 +274,14 @@ class MethodLibrary:
         if not args.get("machine") or not args["machine"].annotation == Machine:
             raise ValueError(f"method: {method_name} needs machine parameter!")
         self.method_callables[method_name] = method_function
-        self.method_info[method_name] = {"inputs":[], "other": other}
+        self.method_info[method_name] = {"inputs": [], "other": other}
         for arg_name in args:
             param = args[arg_name]
             if param.annotation.__name__ == Machine:
                 continue
             self.method_info[method_name]["inputs"].append({
-                    "name": arg_name,
-                    "type": param.annotation.__name__
-                })
+                "name": arg_name,
+                "type": param.annotation.__name__
+            })
 
     def update_(self):
-

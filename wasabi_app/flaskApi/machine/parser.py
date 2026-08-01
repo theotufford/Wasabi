@@ -26,29 +26,6 @@ def run_experiment(machine: Machine, data):
             instruction_form["from"], instruction_form["to"])
 
         well_array = corners_to_range(from_input, to_input)
-        direction = instruction_form["direction"]
-        increment = instruction_form["increment"]
-        initial_volume = instruction_form["initial_volume"]
-        basis_def = {
-            "up": Vec2d(0, -1),
-            "down": Vec2d(0, 1),
-            "left": Vec2d(-1, 0),
-            "right": Vec2d(1, 0)
-        }
-
-        delta_vec = basis_def[direction] * increment
-
-        if direction in ["left", "up"]:
-            well_array = well_array.reverse()
-
-        initial_pos = alph_to_vec(well_array[0])
-
-        for well in well_array:
-            relative_postion = alph_to_vec(well) - initial_pos
-            volume = initial_volume + dot_product(relative_postion, delta_vec)
-
-            machine.goto_well(well)
-            machine.dispense(volume, reagent=instruction_form["reagent"])
 
     def serial_dilution(instruction_form: dict):
         pass
