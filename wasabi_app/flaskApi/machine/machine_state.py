@@ -21,9 +21,11 @@ class Plate:
 
 
 class Machine:
-    def __init__(self, settings_path):
+    def __init__(self, settings_path, method_library):
         self.current_position = MachinePosition()
         self.home_offset = MachinePosition()
+        self.methods: MethodLibrary = method_library
+        self.methods.machine = self
         self.motors_enabled = True
         self.abs_plate_map = {}
         self.error = None
@@ -137,8 +139,9 @@ class Machine:
             pio.output(pump_ms1, pio.HIGH)
             pio.output(pump_ms2, pio.HIGH)
         else:
-            raise ValueError(f"pump microsteps malconfigured!! options are 200, 400, 800, 1600, currently configured to {
-                             pump_microsteps}")
+            raise ValueError(f"pump microsteps malconfigured!!\
+                             options are 200, 400, 800, 1600, currently\
+                             configured to {pump_microsteps}")
 
         self.position_known = False
         self.current_position = MachinePosition()
@@ -239,9 +242,6 @@ class Machine:
         motor_settings = self.settings["machine"]["motors"]
         pump_settings = motor_settings["pumps"][id-1]
 
-        speed = pump_settings["ang_v_max"]
-        accel = pump_settings["ang_accel_rad"]
-
         ul_per_rad = pump_settings["ul_per_rad"]
         compensation_factor = pump_settings["compensation_factor"]
         spr = motor_settings["common_settings"]["pump_steps_per_revoulution"]
@@ -249,7 +249,22 @@ class Machine:
         ul_per_rev = ul_per_rad * 2 * math.pi * compensation_factor
         steps_per_ul = spr / ul_per_rev
         total_steps = math.floor(volume * steps_per_ul)
+        speed = pump_settings["ang_v_max"]
+        accel = pump_settings["ang_accel_rad"]
+        is_aspiration = total_steps < 0
+        if is_aspiration:
+            speed = pump_settings["aspiration_ang_v"]
+
         self.coms.send_pump_action_steps(id, speed, accel, total_steps)
+
+        if not is_aspiration:
+            droplet_retract_volume = pump_settings["droplet_vol_ul"]
+            speed = pump_settings["aspiration_ang_v"]
+            droplet_retract_steps = - \
+                math.floor(droplet_retract_volume * steps_per_ul)
+            time.sleep(0.1)
+            self.coms.send_pump_action_steps(
+                id, speed, accel, droplet_retract_steps)
 
     def dispense(self, volume, reagent=None, id=None):
         self.send_pump_action(volume, reagent, id)
@@ -262,10 +277,16 @@ class MethodLibrary:
     def __init__(self):
         self.method_callables = {}
         self.method_info = {}
-        self.machine = machine
+        self.machine: Machine
 
-    def call_method(self, machine: Machine, name, args_dict):
-        self.method_callables[name](machine=machine, **args_dict)
+    def call_method(self, name, args_dict):
+        self.method_callables[name](machine=self.machine, **args_dict)
+
+    def run_experiment(self, data):
+        for form in data["forms"]:
+            name = form["method"]
+            self.call_method(name, form)
+        self.machine.goto_pos(self.machine.home_offset)
 
     def register_method(self, method_function, other=None):
         sig = inspect.signature(method_function)
@@ -277,11 +298,22 @@ class MethodLibrary:
         self.method_info[method_name] = {"inputs": [], "other": other}
         for arg_name in args:
             param = args[arg_name]
-            if param.annotation.__name__ == Machine:
+            annotation = param.annotation
+
+            if annotation.__name__ == "Machine":
                 continue
+            sub_args: tuple | None = None
+            try:
+                sub_args = annotation.__args__
+            except AttributeError:
+                print(f"param {arg_name} doesnt have any sub-arguments")
+
             self.method_info[method_name]["inputs"].append({
                 "name": arg_name,
-                "type": param.annotation.__name__
+                "type": annotation.__name__,
+                "args": sub_args
             })
 
-    def update_(self):
+    def output_methods_outline(self):
+        with open("private/methods.json", "w") as file:
+            file.write(json.dumps(self.method_info))

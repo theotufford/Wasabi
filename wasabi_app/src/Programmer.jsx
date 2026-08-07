@@ -45,14 +45,25 @@ function Programmer(props) {
     setForms(tmp)
   }
 
+  const cleanse_highlighting = () => {
+    console.log("cleansing highlights")
+    const tmp = structuredClone(experiment.forms)
+    Object.keys(experiment.forms).forEach((form_id) => {
+      tmp[form_id].is_highlighted = false
+    })
+    console.log(tmp)
+    setForms(tmp)
+  }
+
   const addEmptyForm = () => {
+    cleanse_highlighting()
+    const current_form_count = experiment.forms.length
     modifyForms({
       id: uuidv4(),
-      reagent: "",
       method: "constant",
-      methodObject: {},
-      from: "", to: "",
-      colors: []
+      well_array: [],
+      is_highlighted: true,
+      index: current_form_count
     })
   }
 
@@ -93,35 +104,16 @@ function Programmer(props) {
           <span className="version-label">v{experiment.version}</span>
         </div>
         <div className="form-actions">
-          <SaveButton/>
+          <SaveButton />
         </div>
         <div className="sheet-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th className="row-num-header"></th>
-                <th>reagent</th>
-                <th>method</th>
-                <th>params</th>
-                <th>range</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.keys(experiment.forms).map((form_id, index) => (
-                <InstructionForm
-                  key={form_id}
-                  className="instructionForm"
-                  constructor={experiment.forms[form_id]}
-                  id={form_id}
-                  rowIndex={index + 1}
-                  modifyForms={modifyForms}
-                  deleteForm={deleteForm}
-                  keydownHandler={keydownHandler}
-                />
-              ))}
-            </tbody>
-          </table>
+          {Object.keys(experiment.forms).map((form_id) => (
+            <InstructionForm
+              id={form_id}
+              key={form_id}
+              className="instructionForm"
+            />
+          ))}
         </div>
         <button className="add-form-btn" onClick={addEmptyForm}>+ add reagent</button>
       </div>

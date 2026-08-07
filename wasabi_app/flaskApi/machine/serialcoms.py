@@ -198,7 +198,7 @@ class ComsChannel:
         self.get_confirm()
 
     def send_pump_action_steps(self, motor_id, speed, accel, vol_step_count):
-        self.send_int_vec(PUMP_ACTION, [motor_id, vol_step_count])
+        self.send_int_vec(PUMP_ACTION, [ motor_id, speed, accel, vol_step_count])
         self.get_confirm()
 
     async def check_and_handle_CRC32(self, callback: callable):

@@ -1,5 +1,6 @@
 from . import db
 from .machine import machine_state
+from .methods import methods
 from . import dataApi
 from . import controlApi
 from flask import Flask, session
@@ -24,8 +25,8 @@ app.register_blueprint(dataApi.bp)
 
 # import the database into the app
 
-machine = machine_state.Machine("./flaskApi/machine/machine_config.json")
-
+machine = machine_state.Machine("./public/machine_config.json", methods)
+methods.output_methods_outline()
 ctlAPI = controlApi.machine_aware_bp_factory(machine)
 
 app.register_blueprint(ctlAPI, url_prefix="/control")

@@ -99,23 +99,19 @@ function PlateElement(props) {
     const form_array = Object.keys(experiment.forms)
     form_array.forEach((form_id) => {
       const form = experiment.forms[form_id]
-      const plate_range = get_range(form)
-      if (plate_range) {
-        const lowerBound = plate_range.lowerBound
-        const upperBound = plate_range.upperBound
-        for (let row = lowerBound.y; row <= upperBound.y; row++) {
-          for (let column = lowerBound.x; column <= upperBound.x; column++) {
-            const well = tmp[row][column]
-            if (!well) {
-              // TODO add security to this so people dont silent error keep impossible well ranges
-              continue
-            }
+      const well_array = form?.well_array
+      if (!well_array) {
+        return
+      }
+      for (let row = 0; row < rows; row++) {
+        for (let column = 0; column < columns; column++) {
+          const well = tmp[row][column]
+          if (well_array.includes(well.id)) {
             well.forms_attached.push(form_id)
           }
         }
       }
     })
-
     const color_lib = new Map();
     for (let row = 0; row < rows; row++) {
       for (let column = 0; column < columns; column++) {

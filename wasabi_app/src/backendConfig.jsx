@@ -1,10 +1,9 @@
-const devUrl = "http://10.136.250.161:5000" //  TODO CHANGE
 // "undefined" means the URL will be computed from the `window.location` object
 
 export const apiCall = async (args) => {
   const method = args?.method || "POST"
   console.log("args: ", args)
-  const jsonResponse = await fetch(`${devUrl}/dataApi/${args?.route}`, {
+  const jsonResponse = await fetch(`api/dataApi/${args?.route}`, {
     method: method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(args?.body)
@@ -16,7 +15,7 @@ export const apiCall = async (args) => {
 export const control_call = async (args) => {
   const method = args?.method || "POST"
   console.log("args: ", args)
-  const jsonResponse = await fetch(`${devUrl}/control/${args?.route}`, {
+  const jsonResponse = await fetch(`api/control/${args?.route}`, {
     method: method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(args?.body)
@@ -61,7 +60,7 @@ export const get_url_experiment = async () => {
   return out_data
 }
 
-export const dataStream = new EventSource(`${devUrl}/control`)
+export const dataStream = new EventSource(`api/control/serial_stream`)
 
 
 export default apiCall

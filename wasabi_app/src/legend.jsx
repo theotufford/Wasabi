@@ -35,13 +35,11 @@ const defaultRender = (args) => {
 function LegendElement(props) {
   const { experiment, set_experiment } = useContext(ExperimentContext)
   const forms = experiment.forms
-  console.log("called legend element refresh: ", props)
   const color_lib = props.color_lib
   const keyArray = Array.from(color_lib.keys(color_lib))
 
   // map string type keys for color combos to sets of form uuids
   const formKeySets = keyArray.map((formKeyString) => (new Set(JSON.parse(formKeyString))))
-  console.log("keys: ", formKeySets)
 
   // put key sets into size ranked 2d array where each size of key set
   // has one sub array that contains all the key sets of that size
@@ -67,7 +65,6 @@ function LegendElement(props) {
 
   const tree = new Map()
   const renderedBranches = []
-  console.log("handling legend tree generation with:", keySets)
   keySets.forEach((layer, layerIndex) => {
     if (layerIndex > keySets.length) {
       console.log('no parents found and len not min size ? basically how did this key get here: ', layer)

@@ -4,7 +4,9 @@ import { apiCall, set_url_param } from './backendConfig.jsx';
 const SaveButton = (props) => {
   const { experiment, set_experiment } = useContext(ExperimentContext)
   const autoSave = useRef(true)
+
   const save = () => {
+    console.log("save call: ", experiment)
     apiCall({
       route: "saveExperiment",
       body: { ...experiment, autosave: autoSave.current }
@@ -16,6 +18,7 @@ const SaveButton = (props) => {
       }
     })
   }
+
   const explicitSave = () => {
     autoSave.current = false
     set_experiment(prev => ({ ...prev, version: prev.version + 1 }))

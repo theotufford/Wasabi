@@ -27,7 +27,7 @@
         "arms_angular_accel": 18,
         "z_max_angular_velocity": 5,
         "z_angular_accel": 30,
-        "pump_steps_per_revoulution": 200,
+        "pump_steps_per_revoulution": 1600,
         "kinematic_steps_per_revolution": 1600
       },
       "a": {
@@ -49,11 +49,13 @@
         {
           "stp_pin": 4,
           "dir_pin": 5,
-          "invert_dir": 0,
-          "ang_v_max": 50,
-          "ang_accel_rad": 12,
+          "invert_dir": 1,
+          "ang_v_max": 100,
+          "ang_accel_rad": 1600,
           "ul_per_rad": 1,
-          "compensation_factor": 1
+          "aspiration_ang_v": 5,
+          "compensation_factor": 1,
+          "droplet_vol_ul":3
         },
         {
           "stp_pin": 12,
@@ -61,8 +63,10 @@
           "invert_dir": 0,
           "ang_v_max": 8,
           "ang_accel_rad": 12,
-          "ul_per_rad": 10,
-          "compensation_factor": 1
+          "ul_per_rad": 1,
+          "aspiration_ang_v": 20,
+          "compensation_factor": 1,
+          "droplet_vol_ul":3
         },
         {
           "stp_pin": 18,
@@ -70,8 +74,11 @@
           "invert_dir": 0,
           "ang_v_max": 8,
           "ang_accel_rad": 12,
-          "ul_per_rad": 10,
-          "compensation_factor": 1
+          "ul_per_rad": 1,
+          "aspiration_ang_v": 20,
+          "compensation_factor": 1,
+          "droplet_vol_ul":3
+
         },
         {
           "stp_pin": 2,
@@ -79,8 +86,11 @@
           "invert_dir": 0,
           "ang_v_max": 8,
           "ang_accel_rad": 12,
-          "ul_per_rad": 10,
-          "compensation_factor": 1
+          "ul_per_rad": 1,
+          "aspiration_ang_v": 20,
+          "compensation_factor": 1,
+          "droplet_vol_ul":3
+
         },
         {
           "stp_pin": 8,
@@ -88,8 +98,11 @@
           "invert_dir": 0,
           "ang_v_max": 8,
           "ang_accel_rad": 12,
-          "ul_per_rad": 10,
-          "compensation_factor": 1
+          "ul_per_rad": 1,
+          "aspiration_ang_v": 20,
+          "compensation_factor": 1,
+          "droplet_vol_ul":3
+
         }
       ]
     }

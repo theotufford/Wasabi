@@ -19,6 +19,30 @@ def xy_to_alph(x, y):
     return f"{alph}{x + 1}"
 
 
+def get_linear_well_array_height(well_array: list):
+    x, lowest_seen = alph_to_xy(well_array[0])
+    x, highest_seen = alph_to_xy(well_array[-1])
+    for well in well_array:
+        x, y = alph_to_xy(well)
+        if y > highest_seen:
+            highest_seen = y
+        if y < lowest_seen:
+            lowest_seen = y
+    return highest_seen - lowest_seen
+
+
+def get_linear_well_array_width(well_array: list):
+    lowest_seen, y = alph_to_xy(well_array[0])
+    highest_seen, y = alph_to_xy(well_array[-1])
+    for well in well_array:
+        x, y = alph_to_xy(well)
+        if x > highest_seen:
+            highest_seen = x
+        if x < lowest_seen:
+            lowest_seen = x
+        return highest_seen - lowest_seen
+
+
 def order_from_to_coords(from_input, to_input):
     from_x, from_y = alph_to_xy(from_input)
     to_x, to_y = alph_to_xy(to_input)

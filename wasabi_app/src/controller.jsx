@@ -36,6 +36,7 @@ function Controller(props) {
   // on page load
   useEffect(() => {
     dataStream.onmessage = (e) => {
+      console.log("received: ", e)
       setSerialMessage(e.data)
     }
     //get and set key value pump array from backend db

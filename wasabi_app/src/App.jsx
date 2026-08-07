@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, createContext } from 'react'
 import Programmer from './Programmer.jsx'
 import { apiCall, get_url_param, set_url_param, get_url_experiment } from './backendConfig.jsx'
+import { v4 as uuidv4 } from 'uuid';
 import { ExperimentContext } from './experiment_context.jsx'
 import BrowserElement from './browserFrame.jsx'
 import Controller from './controller.jsx'
@@ -11,7 +12,16 @@ const empty_experiment = {
   title: "",
   version: 0,
   plateDimensions: { rows: 8, columns: 12 },
-  forms: {}
+  forms: {
+    form_0: {
+      id: "form_0", 
+      method: "constant",
+      well_array: [],
+      is_highlighted: true,
+      index: 0
+    }
+
+  }
 }
 
 function App() {
@@ -20,12 +30,12 @@ function App() {
   const update_experiment = async () => {
     get_url_experiment().then(found_experiment => {
       console.log(found_experiment)
-        if (found_experiment == false || found_experiment == undefined) {
-          return
-        }
-        console.log("setting experiment to", found_experiment)
-        set_experiment(found_experiment)
-      })
+      if (found_experiment == false || found_experiment == undefined) {
+        return
+      }
+      console.log("setting experiment to", found_experiment)
+      set_experiment(found_experiment)
+    })
   }
 
   const url_title = get_url_param("title")
@@ -48,12 +58,12 @@ function App() {
   const goToEditor = () => {
     window_state.current = "editor"
     set_selected_window(
-      <Programmer/>)
+      <Programmer />)
   }
 
 
   const [selected_window, set_selected_window] = useState(
-    <Controller/>
+    <Controller />
   )
 
   const new_experiment = () => {

@@ -61,6 +61,7 @@ def fetchExperiment():
 @bp.route('/saveExperiment', methods=["POST"])
 def saveExperiment():
     data = request.get_json()
+    print(f"saving {data}")
     db = get_db()
     autoSave = data["autosave"]
     title = data["title"]

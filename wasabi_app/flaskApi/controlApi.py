@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, Blueprint, request, session
+from flask import Flask, jsonify, Blueprint, request, session, Response
 import asyncio
 from .db import get_db
 import threading
@@ -7,11 +7,10 @@ import json
 from .machine.serialcoms import ComsChannel, INITIAL_POSITION, ENABLE_MOTORS, DISABLE_MOTORS, ENABLE_PUMPS, DISABLE_PUMPS
 from .machine.machine_state import Machine
 from .machine import kinematics as kine
-from .machine.parser import run_experiment
 
 
 def machine_aware_bp_factory(machine: Machine) -> Blueprint:
-    bp = Blueprint('machine_aware_bp', __name__)
+    bp = Blueprint('machine_aware_bp', __name__, url_prefix='/control')
 
     @bp.route('/home', methods=['POST'])
     def home():
@@ -93,7 +92,19 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     def handle_experiment_run():
         data = request.get_json()
         experiment = data["experiment"]
-        run_experiment(machine, experiment)
+        machine.methods.run_experiment(experiment)
         return jsonify({"data": "successful run!"})
+
+    def monitor():
+        prev = machine.coms.most_recent_rx
+        while True:
+            time.sleep(1)
+            if machine.coms.most_recent_rx != prev:
+                prev = machine.coms.most_recent_rx
+                yield jsonify({"data": "hello"})
+
+    @bp.route('/serial_stream', methods=['GET'])
+    def return_serial_response_stream():
+        return Response(monitor(), mimetype="text/event-stream")
 
     return bp
