@@ -33,6 +33,20 @@ function Programmer(props) {
 
   const [color_lib, set_color_lib] = useState(new Map())
 
+
+  color_lib.entries().forEach(([ key, color ]) => {
+    const form_ids = JSON.parse(key)
+    form_ids.forEach(id => {
+      const color_array = experiment.forms[id]?.colors
+      if (!color_array) {
+        return
+      }
+      if (!color_array.includes(color)){
+      color_array.push(color)
+      }
+    })
+  })
+
   const titleChange = (event) => {
     const title = event.target.value
     if (title === undefined) return;
@@ -45,26 +59,23 @@ function Programmer(props) {
     setForms(tmp)
   }
 
-  const cleanse_highlighting = () => {
-    console.log("cleansing highlights")
+  const addEmptyForm = () => {
+    const current_form_count = experiment.forms.length
+    const new_id = uuidv4()
     const tmp = structuredClone(experiment.forms)
     Object.keys(experiment.forms).forEach((form_id) => {
-      tmp[form_id].is_highlighted = false
+      tmp[form_id].is_selected = false
     })
-    console.log(tmp)
-    setForms(tmp)
-  }
-
-  const addEmptyForm = () => {
-    cleanse_highlighting()
-    const current_form_count = experiment.forms.length
-    modifyForms({
-      id: uuidv4(),
+    const empty_form = {
+      id: new_id,
       method: "constant",
       well_array: [],
-      is_highlighted: true,
+      colors:[],
+      is_selected: true,
       index: current_form_count
-    })
+    }
+    tmp[new_id] = empty_form
+    setForms(tmp)
   }
 
   if (loading.current == true) {

@@ -1,1 +1,133 @@
-{"constant": {"inputs": [{"name": "well_array", "type": "_empty", "args": null}, {"name": "reagent", "type": "_empty", "args": null}, {"name": "volume", "type": "float", "args": null}], "other": null}, "incremental_gradient": {"inputs": [{"name": "well_array", "type": "_empty", "args": null}, {"name": "reagent", "type": "_empty", "args": null}, {"name": "direction", "type": "Literal", "args": ["up", "down", "left", "right"]}, {"name": "increment", "type": "float", "args": null}, {"name": "initial_volume", "type": "float", "args": null}], "other": null}, "exponential_gradient": {"inputs": [{"name": "well_array", "type": "_empty", "args": null}, {"name": "reagent", "type": "_empty", "args": null}, {"name": "direction", "type": "Literal", "args": ["up", "down", "left", "right"]}, {"name": "base", "type": "float", "args": null}, {"name": "initial_volume", "type": "float", "args": null}], "other": null}, "end_target_gradient": {"inputs": [{"name": "well_array", "type": "_empty", "args": null}, {"name": "reagent", "type": "_empty", "args": null}, {"name": "direction", "type": "Literal", "args": ["down", "right"]}, {"name": "spacing_type", "type": "Literal", "args": ["linear", "exponential"]}, {"name": "top_left_volume", "type": "float", "args": null}, {"name": "bottom_right_volume", "type": "float", "args": null}], "other": null}}
+{
+  "constant": {
+    "inputs": [
+      {
+        "name": "well_array",
+        "type": "_empty",
+        "args": null
+      },
+      {
+        "name": "reagent",
+        "type": "_empty",
+        "args": null
+      },
+      {
+        "name": "volume",
+        "type": "float",
+        "args": null
+      }
+    ],
+    "other": null
+  },
+  "incremental_gradient": {
+    "inputs": [
+      {
+        "name": "well_array",
+        "type": "_empty",
+        "args": null
+      },
+      {
+        "name": "reagent",
+        "type": "_empty",
+        "args": null
+      },
+      {
+        "name": "direction",
+        "type": "Literal",
+        "args": [
+          "up",
+          "down",
+          "left",
+          "right"
+        ]
+      },
+      {
+        "name": "increment",
+        "type": "float",
+        "args": null
+      },
+      {
+        "name": "initial_volume",
+        "type": "float",
+        "args": null
+      }
+    ],
+    "other": null
+  },
+  "exponential_gradient": {
+    "inputs": [
+      {
+        "name": "well_array",
+        "type": "_empty",
+        "args": null
+      },
+      {
+        "name": "reagent",
+        "type": "_empty",
+        "args": null
+      },
+      {
+        "name": "direction",
+        "type": "Literal",
+        "args": [
+          "up",
+          "down",
+          "left",
+          "right"
+        ]
+      },
+      {
+        "name": "base",
+        "type": "float",
+        "args": null
+      },
+      {
+        "name": "initial_volume",
+        "type": "float",
+        "args": null
+      }
+    ],
+    "other": null
+  },
+  "end_target_gradient": {
+    "inputs": [
+      {
+        "name": "well_array",
+        "type": "_empty",
+        "args": null
+      },
+      {
+        "name": "reagent",
+        "type": "_empty",
+        "args": null
+      },
+      {
+        "name": "direction",
+        "type": "Literal",
+        "args": [
+          "down",
+          "right"
+        ]
+      },
+      {
+        "name": "spacing_type",
+        "type": "Literal",
+        "args": [
+          "linear",
+          "exponential"
+        ]
+      },
+      {
+        "name": "top_left_volume",
+        "type": "float",
+        "args": null
+      },
+      {
+        "name": "bottom_right_volume",
+        "type": "float",
+        "args": null
+      }
+    ],
+    "other": null
+  }
+}

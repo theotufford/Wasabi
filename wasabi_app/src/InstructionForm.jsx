@@ -13,18 +13,21 @@ const blur_on_enter = (kd_event) => {
 function InstructionForm(props) {
   const { experiment, set_experiment } = useContext(ExperimentContext)
   const this_form = experiment.forms[props.id]
+
   const self_destruct = () => {
     const tmp = structuredClone(experiment)
     delete tmp.forms[props.id]
     console.log("updating experiment to: ", tmp)
     set_experiment(tmp)
   }
+
   const mutate_form_data = (key, value) => {
     console.log("mutating form data with key: ", key, "value: ", value)
     const tmp = structuredClone(experiment.forms)
     tmp[props.id] = { ...this_form, [key]: value }
     set_experiment(previous_value => ({ ...previous_value, forms: tmp }))
   }
+
   function Method_Input(props) {
     const mod_function = (event) => {
       let value = event.target.value
@@ -42,7 +45,12 @@ function InstructionForm(props) {
       return
     }
     if (props.name === "reagent") {
-      return
+      return (<input
+        placeholder="input reagent name"
+        defaultValue={current_value}
+        onKeyDown={blur_on_enter}
+        onBlur={mod_function} />
+      )
     }
     if (props.type == "Literal") {
       return (
@@ -78,11 +86,26 @@ function InstructionForm(props) {
     }
   }
 
+  const select_this_form = () => {
+    const tmp = structuredClone(experiment.forms)
+    Object.keys(experiment.forms).forEach((form_id) => {
+      tmp[form_id].is_selected = false
+    })
+    tmp[props.id].is_selected = true
+    set_experiment((prev) => ({ ...prev, forms: tmp }))
+  }
+
   const method_options = Object.keys(methods)
   const selected_method_info = methods[this_form.method]
-  if (this_form.is_highlighted == true) {
+
+  let minimized = "method: " + this_form.method
+  if (selected_method_info?.inputs?.["reagent"]) {
+    minimized += "reagent: " + this_form.reagent
+  }
+
+  if (this_form.is_selected == true) {
     return (
-      <div>
+      <div className='selected_form'>
         <select onChange={(e) => mutate_form_data("method", e.target.value)}>
           {method_options.map((key) => {
             const filtered_name = key.replaceAll("_", " ")
@@ -93,6 +116,13 @@ function InstructionForm(props) {
         </select>
         {selected_method_info.inputs.map((input) => <Method_Input {...input} />)}
         <button onClick={self_destruct}>x</button>
+      </div>
+    )
+  } else {
+    return (
+      <div className='unselected_form'>
+        {minimized}
+        <button onClick={select_this_form}>edit</button>
       </div>
     )
   }

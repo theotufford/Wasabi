@@ -17,8 +17,9 @@ const empty_experiment = {
       id: "form_0", 
       method: "constant",
       well_array: [],
-      is_highlighted: true,
-      index: 0
+      is_selected: true,
+      index: 0,
+      colors: []
     }
 
   }
@@ -95,8 +96,6 @@ function App() {
       <button command="show-modal" commandfor="browser">pick experiment</button>
       <BrowserElement
         author={author}
-        experiment={experiment}
-        set_experiment={set_experiment}
       />
     </ExperimentContext>
   )
