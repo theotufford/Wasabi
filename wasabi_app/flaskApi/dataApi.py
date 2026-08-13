@@ -158,21 +158,3 @@ def new_author():
     return jsonify('success')
 
 
-@bp.route('/update_reagent', methods=["POST"])
-def update_pump_map():
-    data = request.get_json()
-    print(f"attempting to update reagents with: {data}")
-
-    id = data["id"]
-    reagent = data["reagent"]
-
-    db = get_db()
-    db.execute("""
-                UPDATE pumpMap
-                SET reagent = ?
-                WHERE pumpID = ?
-                """,
-               (reagent, id))
-    db.commit()
-    close_db()
-    return jsonify({"data": f"updated pump {id} to contain {reagent}"})

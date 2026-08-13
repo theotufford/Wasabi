@@ -1,13 +1,74 @@
 import time
+import string
+import copy
 import asyncio
 from ..db import get_db
 import math
 import inspect
 import json
+from typing import Self
 import RPi.GPIO as pio
 from .kinematics import solve_5bar_FK, solve_5bar_IK, MachinePosition, Vec2d, make_pos
 from . import serialcoms as serlib
 from .utils import alph_to_vec
+
+
+class Reagent_Mix:
+    def __init__(self):
+        self.contents = {}
+
+    def get_total_volume(self):
+        total_volume = 0
+        for reagent in self.contents:
+            held_volume = self.contents[reagent]
+            total_volume += held_volume
+        return total_volume
+
+    def release_volume(self, target_volume):
+        total_volume = self.get_total_volume()
+        if total_volume == 0:
+            raise ValueError(
+                f"attempting to release volume from empty reagent mix")
+
+        released_volume = Reagent_Mix()
+
+        if total_volume < target_volume:
+            released_volume.contents = self.contents
+            return released_volume
+
+        v_total = self.get_total_volume()
+        for reagent in self.contents:
+            volume = (self.contents[reagent] / v_total) * target_volume
+            self.contents[reagent] -= volume
+            released_volume.contents[reagent] = volume
+
+        return released_volume
+
+    def __repr__(self):
+        return f"{self.contents}"
+
+    def gain_reagent(self, volume, reagent):
+        if not self.contents.get(reagent):
+            self.contents[reagent] = 0
+        self.contents[reagent] += volume
+        self.empty = False
+
+    def gain_mixed_volume(self, liquid: Self):
+        for reagent in liquid.contents:
+            volume = liquid.contents[reagent]
+            self.gain_reagent(volume, reagent)
+
+
+class Well():
+    def __init__(self, relative_position: Vec2d):
+        self.relative_position = relative_position
+        self.liquid = Reagent_Mix()
+
+    def release_aspirate(self, volume) -> Reagent_Mix:
+        return self.liquid.release_volume(volume)
+
+    def gain_liquid(self, liquid: Reagent_Mix):
+        return self.liquid.gain_mixed_volume(liquid)
 
 
 class Plate:
@@ -15,6 +76,26 @@ class Plate:
         self.rows = settings["rows"]
         self.columns = settings["columns"]
         self.spacing = settings["spacing"]
+        self.by_alph: dict[str, Well] = self.make_clear_plate()
+
+    def make_clear_plate(self):
+        by_alph = {}
+        for row_y in range(0, self.rows):
+            alph = string.ascii_uppercase[row_y]
+            for col_x in range(0, self.columns):
+                by_alph[f"{alph}{
+                    col_x + 1}"] = Well(self.spacing * Vec2d(col_x, row_y))
+        return by_alph
+
+    def reset_plate(self):
+        self.by_alph = self.make_clear_plate()
+
+    def get_well_vol_dict(self):
+        out = {}
+        for alph in self.by_alph:
+            well = self.by_alph[alph]
+            out[alph] = well.liquid.contents
+        return out
 
     def __repr__(self):
         return f"{self.rows}x{self.columns}; {self.spacing}mm"
@@ -23,6 +104,7 @@ class Plate:
 class Machine:
     def __init__(self, settings_path, method_library):
         self.current_position = MachinePosition()
+        self.current_well = None
         self.home_offset = MachinePosition()
         self.methods: MethodLibrary = method_library
         self.methods.machine = self
@@ -30,25 +112,34 @@ class Machine:
         self.abs_plate_map = {}
         self.error = None
         self.position_known = False
-
+        self.settings_path = settings_path
+        self.run_is_simulation = False
         self.coms: serlib.ComsChannel
 
-        with open(settings_path, "r") as conf:
-            self.settings = json.load(conf)
-
-        mach = self.settings["machine"]
+        mach = self.settings()["machine"]
         spr = mach["motors"]["common_settings"]["kinematic_steps_per_revolution"]
         pitch = mach["machineDimensions"]["z_screw_pitch"]
         self.a_steps_per_rad = spr / (2 * math.pi)
         self.b_steps_per_rad = spr / (2 * math.pi)
         self.z_steps_per_mm = spr / pitch
 
-        self.plate = Plate(self.settings["plates"]["standard 96"])
+        self.pump_line_contents = {}
+        pumps = mach["motors"]["pumps"]
+        for id in range(0, len(pumps)):
+            line_contents = Reagent_Mix()
+            self.pump_line_contents[id] = [line_contents]
+
+        self.plate = Plate(self.settings()["plates"]["standard 96"])
         self.hw_init()
+
+    def settings(self):
+        with open(self.settings_path, "r") as conf:
+            settings = json.load(conf)
+            return settings
 
     def hw_init(self):
         # reboot the pico
-        pi3b_pins = self.settings["machine"]["pins"]["on_3b_server_board"]
+        pi3b_pins = self.settings()["machine"]["pins"]["on_3b_server_board"]
         pico_reset_pin = pi3b_pins["pico_reset_pin"]
         stage_enable_pin = pi3b_pins["stage_enable_pin"]
         pump_ms1 = pi3b_pins["pump_ms1"]
@@ -66,7 +157,7 @@ class Machine:
         time.sleep(0.1)
         coms = self.coms = serlib.ComsChannel()
         # send kinematic motor settings ------------
-        motors = self.settings["machine"]["motors"]
+        motors = self.settings()["machine"]["motors"]
         common_settings = motors["common_settings"]
         a_mot_settings = [
             motors["a"]["stp_pin"],
@@ -89,8 +180,8 @@ class Machine:
             motors["z"]["dir_pin"],
             motors["z"]["invert_dir"],
             1600,  # hard coded to max microsteps
-            common_settings["arms_angular_max_velocity"],
-            common_settings["arms_angular_accel"]
+            common_settings["z_max_angular_velocity"],
+            common_settings["z_angular_accel"]
         ]
         coms.send_int_vec(serlib.A_MOTOR, a_mot_settings)
         coms.get_confirm()
@@ -113,7 +204,7 @@ class Machine:
             coms.get_confirm()
 
         # send other pico pin settings -------------
-        pinsettings = self.settings["machine"]["pins"]
+        pinsettings = self.settings()["machine"]["pins"]
         pins = [
             pinsettings["motor_enable_pin"],
             pinsettings["pump_enable_pin"],
@@ -156,14 +247,14 @@ class Machine:
                 self.hw_init()
 
     def get_pos_FK(self, target: MachinePosition) -> MachinePosition:
-        xy = solve_5bar_FK(self.settings, target.alpha, target.beta)
+        xy = solve_5bar_FK(self.settings(), target.alpha, target.beta)
         target.x = xy["x"]
         target.y = xy["y"]
         target.fksolved = True
         return target
 
     def get_pos_IK(self, pos_target: MachinePosition) -> MachinePosition:
-        angles = solve_5bar_IK(self.settings, pos_target.x, pos_target.y)
+        angles = solve_5bar_IK(self.settings(), pos_target.x, pos_target.y)
         pos_target.alpha = angles["alpha"]
         pos_target.beta = angles["beta"]
         pos_target.iksolved = True
@@ -189,36 +280,28 @@ class Machine:
         if not self.position_known:
             print("trying to move absolutely without being homed!")
             return
-        pos = self.get_pos_IK(pos)
-        steps = self.to_steps(pos)
-        self.coms.send_move_steps(**steps)
-        self.current_position = pos
-
-    def populate_plate_map(self) -> None:
-        relative = {}
-        for alph_row_ind in range(0, self.plate.rows):
-            alph = chr(alph_row_ind + 65)
-            for col_id in range(0, self.plate.columns):
-                col_x = - col_id * self.plate.spacing
-                row_y = alph_row_ind * self.plate.spacing
-                relative[f"{alph}{col_id + 1}"] = Vec2d(col_x, row_y)
-        print(f"relative: {relative}")
-        for wellID in relative:
-            well_rel_vec = relative[wellID]
-            endpt = self.home_offset + well_rel_vec
-            print(f"endpt: {endpt}")
-            self.abs_plate_map[wellID] = self.get_pos_IK(endpt)
+        if not self.run_is_simulation:
+            pos = self.get_pos_IK(pos)
+            steps = self.to_steps(pos)
+            self.coms.send_move_steps(**steps)
+            self.current_position = pos
+        self.current_well = None
 
     def goto_well(self, coord: str):
-        well_position_vector = alph_to_vec(coord) * self.plate.spacing
-        pos = self.home_offset + well_position_vector
-        print(f"""got goto_well: {coord})
-        set to go to: {pos.x} {pos.y}
-        home offset is: {self.home_offset}
-        well_position_vector is: {well_position_vector.x, well_position_vector.y}
-        """)
-
+        pos = self.home_offset
+        if self.current_well is not None:
+            pos = pos + self.current_well.relative_position
         self.goto_pos(pos)
+        self.current_well = self.plate.by_alph[coord]
+
+    def get_reagent(self, id):
+        db = get_db()
+        reagent = db.execute("""
+                          SELECT reagent FROM pumpMap
+                          WHERE pumpID = ?
+                          LIMIT 1
+                          """, (id,)).fetchone()[0]
+        return reagent
 
     def get_pump_id(self, reagent):
         # get pump map
@@ -230,47 +313,60 @@ class Machine:
                           """, (reagent,)).fetchone()[0]
         return ID
 
-    def send_pump_action(self, volume, reagent=None, id=None):
-        if reagent is not None:
-            id = self.get_pump_id(reagent)
-            if id is None:
-                print(f"reagent '{reagent}' not found in pumpmap!")
-                return False
-        if reagent is None and id is None:
-            raise ValueError()
-
-        motor_settings = self.settings["machine"]["motors"]
+    def send_pump_action(self, volume, id):
+        motor_settings = self.settings()["machine"]["motors"]
         pump_settings = motor_settings["pumps"][id-1]
 
         ul_per_rad = pump_settings["ul_per_rad"]
         compensation_factor = pump_settings["compensation_factor"]
         spr = motor_settings["common_settings"]["pump_steps_per_revoulution"]
 
-        ul_per_rev = ul_per_rad * 2 * math.pi * compensation_factor
-        steps_per_ul = spr / ul_per_rev
-        total_steps = math.floor(volume * steps_per_ul)
         speed = pump_settings["ang_v_max"]
         accel = pump_settings["ang_accel_rad"]
-        is_aspiration = total_steps < 0
-        if is_aspiration:
-            speed = pump_settings["aspiration_ang_v"]
 
-        self.coms.send_pump_action_steps(id, speed, accel, total_steps)
+        droplet_retract_volume = pump_settings["droplet_vol_ul"]
+        asp_speed = pump_settings["aspiration_ang_v"]
+
+        ul_per_rev = ul_per_rad * 2 * math.pi * compensation_factor
+        steps_per_ul = spr / ul_per_rev
+
+        total_steps = math.floor(volume * steps_per_ul)
+        retract_steps = math.floor(droplet_retract_volume * steps_per_ul)
+
+        is_aspiration = volume < 0
 
         if not is_aspiration:
-            droplet_retract_volume = pump_settings["droplet_vol_ul"]
-            speed = pump_settings["aspiration_ang_v"]
-            droplet_retract_steps = - \
-                math.floor(droplet_retract_volume * steps_per_ul)
-            time.sleep(0.1)
             self.coms.send_pump_action_steps(
-                id, speed, accel, droplet_retract_steps)
+                id, speed, accel, total_steps + retract_steps)
+            self.coms.send_pump_action_steps(
+                id, asp_speed, accel, -retract_steps)
+        else:
+            self.coms.send_pump_action_steps(id, asp_speed, accel, total_steps)
 
     def dispense(self, volume, reagent=None, id=None):
-        self.send_pump_action(volume, reagent, id)
+        if volume == 0:
+            return
 
-    def aspirate(self, reagent, volume):
-        self.send_pump_action(-volume, reagent, id)
+        if not id:
+            id = self.get_pump_id(reagent)
+        held_volume = self.pump_line_contents[id][-1]
+        output_liquid = held_volume.release_volume(volume)
+        if held_volume.get_total_volume() == 0:
+            self.pump_line_contents.pop()
+
+        self.current_well.gain_liquid(output_liquid)
+
+        if not self.run_is_simulation:
+            self.send_pump_action(volume, id)
+
+    def aspirate(self,  volume, id):
+        if volume == 0:
+            return
+        pump_line = self.pump_line_contents[id]
+        aspirated_liquid = self.current_well.release_volume(volume)
+        pump_line.append(aspirated_liquid)
+        if not self.run_is_simulation:
+            self.send_pump_action(volume, id)
 
 
 class MethodLibrary:
@@ -280,13 +376,40 @@ class MethodLibrary:
         self.machine: Machine
 
     def call_method(self, name, args_dict):
+        inputs = self.method_info[name]["inputs"]
+        valid_keys = [input["name"] for input in inputs]
+        args_dict = {key: value for key,
+                     value in args_dict.items() if key in valid_keys}
         self.method_callables[name](machine=self.machine, **args_dict)
 
+    def simulate_experiment(self, data) -> Plate:
+        pre_sim_machine = copy.deepcopy(self.machine)
+        self.machine.run_is_simulation = True
+        self.machine.position_known = True
+        pump_id = 0
+        seen_reagents = []
+        for form_id in data["forms"]:
+            form = data["forms"][form_id]
+            reagent = form.get("reagent")
+            if reagent not in seen_reagents:
+                seen_reagents.append(reagent)
+                reagent_line = self.machine.pump_line_contents[pump_id][0]
+                reagent_line.gain_reagent(999999999999999, reagent)
+                pump_id += 1
+            name = form["method"]
+            print(f"pump lines configured: {self.machine.pump_line_contents}")
+            self.call_method(name, form)
+        output_plate = copy.deepcopy(self.machine.plate)
+        self.machine = pre_sim_machine
+        return output_plate
+
     def run_experiment(self, data):
-        for form in data["forms"]:
+        for form_id in data["forms"]:
+            form = data["forms"][form_id]
             name = form["method"]
             self.call_method(name, form)
         self.machine.goto_pos(self.machine.home_offset)
+        return self.machine.plate
 
     def register_method(self, method_function, other=None):
         sig = inspect.signature(method_function)

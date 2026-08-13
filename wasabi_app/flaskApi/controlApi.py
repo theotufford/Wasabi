@@ -1,11 +1,11 @@
 from flask import Flask, jsonify, Blueprint, request, session, Response
 import asyncio
-from .db import get_db
+from .db import get_db, close_db
 import threading
 import time
 import json
 from .machine.serialcoms import ComsChannel, INITIAL_POSITION, ENABLE_MOTORS, DISABLE_MOTORS, ENABLE_PUMPS, DISABLE_PUMPS
-from .machine.machine_state import Machine
+from .machine.machine_state import Machine, Reagent_Mix
 from .machine import kinematics as kine
 
 
@@ -53,7 +53,10 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         data = request.get_json()
         volume_ul = float(data["volume"])
         id = int(data["id"])
-        machine.send_pump_action(volume=volume_ul, id=id)
+        if volume_ul > 0:
+            machine.dispense(volume=volume_ul, id=id)
+        else:
+            machine.aspirate(volume=volume_ul, id=id)
         return jsonify({"data": "successful pump action"})
 
     @bp.route('/move', methods=['POST'])
@@ -95,6 +98,46 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         machine.methods.run_experiment(experiment)
         return jsonify({"data": "successful run!"})
 
+    @bp.route('/simulate_experiment', methods=['POST'])
+    def handle_experiment_simulation():
+        data = request.get_json()
+        db = get_db()
+        db.execute("""
+            DROP TABLE IF EXISTS tmp_pump_map;
+        """)
+        db.execute("""
+            CREATE TABLE tmp_pump_map AS SELECT * FROM pumpMap
+        """)
+        db.commit()
+        close_db()
+
+        experiment = data["experiment"]
+        forms = data["experiment"]["forms"]
+        reagents_needed = []
+        for formkey in forms:
+            form = forms[formkey]
+            reagent = form["reagent"]
+            reagents_needed.append(reagent)
+        id = 0
+        for reagent in reagents_needed:
+            db_update_pumps(reagent, id)
+            id += 1
+        output_plate = machine.methods.simulate_experiment(experiment)
+        plate_data = output_plate.get_well_vol_dict()
+
+        db = get_db()
+        db.execute("""
+                   DROP TABLE IF EXISTS pumpMap;
+               """)
+        db.execute("""
+                   CREATE TABLE pumpMap
+                   AS SELECT * FROM tmp_pump_map
+                   """)
+        db.commit()
+        close_db()
+
+        return jsonify({"data": plate_data})
+
     def monitor():
         prev = machine.coms.most_recent_rx
         while True:
@@ -106,5 +149,27 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     @bp.route('/serial_stream', methods=['GET'])
     def return_serial_response_stream():
         return Response(monitor(), mimetype="text/event-stream")
+
+    def db_update_pumps(reagent, id):
+        db = get_db()
+        print(f"inserting into db: {id} has {reagent}")
+        db.execute("""
+                    UPDATE pumpMap
+                    SET reagent = ?
+                    WHERE pumpID = ?
+                    """,
+                   (reagent, id))
+        db.commit()
+        close_db()
+
+    @bp.route('/update_reagent', methods=["POST"])
+    def update_pump_map():
+        data = request.get_json()
+        print(f"attempting to update reagents with: {data}")
+        id = data["id"]
+        reagent = data["reagent"]
+
+        db_update_pumps(reagent, id)
+        return jsonify({"data": f"updated pump {id} to contain {reagent}"})
 
     return bp

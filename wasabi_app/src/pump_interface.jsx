@@ -15,7 +15,7 @@ function Pump_block(props) {
     props.set_pump_array(prev => (
       { ...prev, [id]: new_reagent }
     ))
-    apiCall({
+    control_call({
       route: "update_reagent",
       body: {
         id: id,

@@ -14,7 +14,7 @@ def constant(machine: Machine,
              volume: float):
     for well in well_array:
         machine.goto_well(well)
-        machine.dispense()
+        machine.dispense(volume, reagent=reagent)
 
 
 def general_gradient(machine: Machine,

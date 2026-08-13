@@ -22,7 +22,7 @@ def close_db(e=None):
 
 def pumpUpdate(id=None, reagent=None):
     db = get_db()
-    if id and reagent:
+    if id is not None and reagent is not None:
         if reagent == "not-configured":
             db.execute(
                 """
@@ -59,7 +59,7 @@ def init_db():
         print(pumps)
         count = len(pumps)
         print(count)
-        for id in range(1, count+1):
+        for id in range(0, count):
             print(f"pump to create: {id}  ")
             pumpUpdate(id=id, reagent="not-configured")
         db.execute("""

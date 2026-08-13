@@ -21,8 +21,8 @@ const empty_experiment = {
       index: 0,
       colors: []
     }
-
-  }
+  },
+  simulated_platemap: {}
 }
 
 function App() {

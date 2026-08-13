@@ -1,8 +1,11 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useContext } from 'react'
+import { ExperimentContext } from './experiment_context.jsx'
 import apiCall from './backendConfig.jsx'
 import { set_url_param, get_url_experiment, get_url_param } from './backendConfig.jsx'
 
 const BrowserElement = (props) => {
+
+  const { experiment, set_experiment } = useContext(ExperimentContext)
 
   const [all_experiments, set_all_experiments] = useState([])
   const [visible_experiments, set_visible_experiments] = useState([])
@@ -51,7 +54,7 @@ const BrowserElement = (props) => {
       if (found_experiment == false || found_experiment == undefined) {
         return
       }
-      props.set_experiment(found_experiment)
+      set_experiment(found_experiment)
     })
     const dialog_target = document.getElementById("browser")
     dialog_target.close()

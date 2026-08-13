@@ -179,7 +179,7 @@ def solve_5bar_FK(settings: dict, alpha: float, beta: float) -> dict:
     midpoint = (wrist_A + wrist_B)/2
     wrist_to_wrist = wrist_B - wrist_A
     midpoint_to_joint_length = math.sqrt(
-        hand_length ** 2 - (((wrist_to_wrist.get_length())/2) ** 2))
+        hand_length ** 2 - ((wrist_to_wrist.get_length()/2) ** 2))
     wrist_to_wrist_unit_vec = wrist_to_wrist.normalize()
     midpoint_to_hand_joint = midpoint_to_joint_length * \
         Vec2d(-wrist_to_wrist_unit_vec.y, abs(wrist_to_wrist_unit_vec.x))

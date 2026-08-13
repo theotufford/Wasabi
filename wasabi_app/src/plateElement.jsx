@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { ExperimentContext } from './experiment_context.jsx';
 import WellElement from './wellElement.jsx'
+import { get_url_param } from './backendConfig.jsx';
 import { useRef } from 'react';
 
 const alph = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('')

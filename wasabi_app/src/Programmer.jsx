@@ -4,7 +4,7 @@ import InstructionForm from './InstructionForm.jsx'
 import { v4 as uuidv4 } from 'uuid';
 import SaveButton from './SaveButton.jsx';
 import './Programmer.css'
-import { get_url_param } from './backendConfig.jsx';
+import { control_call, get_url_param } from './backendConfig.jsx';
 import { ExperimentContext } from './experiment_context.jsx';
 import LegendElement from './legend.jsx'
 import { version } from 'react'
@@ -34,15 +34,15 @@ function Programmer(props) {
   const [color_lib, set_color_lib] = useState(new Map())
 
 
-  color_lib.entries().forEach(([ key, color ]) => {
+  color_lib.entries().forEach(([key, color]) => {
     const form_ids = JSON.parse(key)
     form_ids.forEach(id => {
       const color_array = experiment.forms[id]?.colors
       if (!color_array) {
         return
       }
-      if (!color_array.includes(color)){
-      color_array.push(color)
+      if (!color_array.includes(color)) {
+        color_array.push(color)
       }
     })
   })
@@ -70,7 +70,7 @@ function Programmer(props) {
       id: new_id,
       method: "constant",
       well_array: [],
-      colors:[],
+      colors: [],
       is_selected: true,
       index: current_form_count
     }
@@ -100,14 +100,27 @@ function Programmer(props) {
     }
   }
 
+  const simulate_experiment = () => {
+    const plate_output = control_call({
+      route: "simulate_experiment",
+      body: {
+        experiment: experiment
+      }
+    }).then(data =>
+      console.log(data))
+  }
+
+  const url_title = get_url_param("title")
+
   return (
     <div id="experiment">
       <div id="forms">
         <div className="title-row">
           <input
             type="text"
+            key={url_title}
             name="experimentTitle"
-            defaultValue={experiment.title}
+            defaultValue={url_title}
             onBlur={titleChange}
             onKeyDown={keydownHandler}
             placeholder="experiment title"
@@ -122,13 +135,13 @@ function Programmer(props) {
             <InstructionForm
               id={form_id}
               key={form_id}
-              className="instructionForm"
             />
           ))}
         </div>
         <button className="add-form-btn" onClick={addEmptyForm}>+ add reagent</button>
       </div>
       <div id="visualElements">
+        <button onClick={simulate_experiment}>simulate experiment</button>
         <PlateElement set_color_lib={set_color_lib} />
         <LegendElement color_lib={color_lib} />
       </div>
