@@ -5,7 +5,6 @@ def alph_to_xy(alph):
     coordchar = alph[0].capitalize()
     coord_x = int(alph[1:]) - 1
     coord_y = ord(coordchar) - ord('A')
-    print(f"converted {alph} into {coord_x}, {coord_y}")
     return [coord_x, coord_y]
 
 
@@ -40,7 +39,7 @@ def get_linear_well_array_width(well_array: list):
             highest_seen = x
         if x < lowest_seen:
             lowest_seen = x
-        return highest_seen - lowest_seen
+    return highest_seen - lowest_seen
 
 
 def order_from_to_coords(from_input, to_input):

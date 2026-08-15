@@ -14,6 +14,8 @@ class Vec2d:
     def __mul__(self, scalar):
         if isinstance(scalar, (int, float)):
             return Vec2d(self.x * scalar, self.y * scalar)
+        else:
+            return NotImplemented
 
     def get_length(self):
         return math.sqrt(self.x ** 2 + self.y ** 2)

@@ -4,11 +4,12 @@ import InstructionForm from './InstructionForm.jsx'
 import { v4 as uuidv4 } from 'uuid';
 import SaveButton from './SaveButton.jsx';
 import './Programmer.css'
-import { control_call, get_url_param } from './backendConfig.jsx';
-import { ExperimentContext } from './experiment_context.jsx';
+import { control_call } from './backendConfig.jsx';
+import { ExperimentContext } from './ExperimentContext.jsx';
 import LegendElement from './legend.jsx'
 import { version } from 'react'
 import apiCall from './backendConfig.jsx';
+import { useParams } from 'react-router-dom';
 
 function Programmer(props) {
 
@@ -46,12 +47,6 @@ function Programmer(props) {
       }
     })
   })
-
-  const titleChange = (event) => {
-    const title = event.target.value
-    if (title === undefined) return;
-    setTitle(title)
-  }
 
   const modifyForms = (formObject) => {
     const tmp = structuredClone(experiment.forms)
@@ -110,18 +105,16 @@ function Programmer(props) {
       console.log(data))
   }
 
-  const url_title = get_url_param("title")
-
   return (
     <div id="experiment">
       <div id="forms">
         <div className="title-row">
           <input
             type="text"
-            key={url_title}
+            key={experiment.title}
             name="experimentTitle"
-            defaultValue={url_title}
-            onBlur={titleChange}
+            defaultValue={experiment.title}
+            onBlur={(event) => setTitle(event.target.value)}
             onKeyDown={keydownHandler}
             placeholder="experiment title"
           />

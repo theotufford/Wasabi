@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useContext } from 'react'
 import { apiCall, control_call, dataStream } from './backendConfig.jsx'
 import Pump_block from './pump_interface.jsx'
 import TestButton from './browserFrame.jsx'
-import { ExperimentContext } from './experiment_context.jsx';
+import { ExperimentContext } from './ExperimentContext.jsx'
 
 function Controller(props) {
   const { experiment, set_experiment } = useContext(ExperimentContext)

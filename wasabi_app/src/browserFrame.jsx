@@ -1,13 +1,10 @@
 import { useState, useRef, useEffect, useContext } from 'react'
-import { ExperimentContext } from './experiment_context.jsx'
+import { ExperimentContext } from './ExperimentContext.jsx'
 import apiCall from './backendConfig.jsx'
-import { set_url_param, get_url_experiment, get_url_param } from './backendConfig.jsx'
-
 const BrowserElement = (props) => {
 
-  const { experiment, set_experiment } = useContext(ExperimentContext)
+  const { experiment, set_experiment, load_experiment} = useContext(ExperimentContext)
 
-  const [all_experiments, set_all_experiments] = useState([])
   const [visible_experiments, set_visible_experiments] = useState([])
 
   const filter_older_versions = (experimentlist) => {
@@ -37,7 +34,6 @@ const BrowserElement = (props) => {
         tempList.push(experiment)
       }))
       .then(() => {
-        set_all_experiments(tempList)
         set_visible_experiments(filter_older_versions(tempList))
       })
   }
@@ -48,14 +44,7 @@ const BrowserElement = (props) => {
 
 
   const select_experiment = (experiment) => {
-    set_url_param("title", experiment.title)
-    set_url_param("version", experiment.version)
-    get_url_experiment().then((found_experiment) => {
-      if (found_experiment == false || found_experiment == undefined) {
-        return
-      }
-      set_experiment(found_experiment)
-    })
+    select_experiment(experiment.title, experiment.version)
     const dialog_target = document.getElementById("browser")
     dialog_target.close()
   }

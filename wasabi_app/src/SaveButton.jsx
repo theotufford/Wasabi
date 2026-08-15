@@ -1,28 +1,23 @@
 import { useState, useRef, useEffect, useContext } from 'react'
-import { ExperimentContext } from './experiment_context.jsx';
-import { apiCall, set_url_param } from './backendConfig.jsx';
+import { ExperimentContext } from './ExperimentContext.jsx';
+import { apiCall } from './backendConfig.jsx';
+
 const SaveButton = (props) => {
-  const { experiment, set_experiment } = useContext(ExperimentContext)
+
   const autoSave = useRef(true)
+  const { experiment, set_experiment } = useContext(ExperimentContext)
 
   const save = () => {
-    console.log("save call: ", experiment)
     apiCall({
       route: "saveExperiment",
       body: { ...experiment, autosave: autoSave.current }
-    }).then(response => {
-      if (!autoSave.current) {
-        console.log("version: ", experiment.version)
-        set_url_param("version", experiment.version)
-        set_url_param("title", experiment.title)
-      }
     })
   }
 
   const explicitSave = () => {
     autoSave.current = false
-    set_experiment(prev => ({ ...prev, version: prev.version + 1 }))
     save()
+    set_experiment(prev => ({ ...prev, version: prev.version + 1 }))
   }
 
   useEffect(() => { //save on change 

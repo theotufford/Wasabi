@@ -1,7 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
-import { ExperimentContext } from './experiment_context.jsx';
+import { ExperimentContext } from './ExperimentContext.jsx';
 import WellElement from './wellElement.jsx'
-import { get_url_param } from './backendConfig.jsx';
 import { useRef } from 'react';
 
 const alph = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('')
@@ -9,6 +8,7 @@ const alph = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('')
 function coords_to_alph(x, y) {
   return `${alph[y]}${x + 1}`
 }
+
 function alph_to_coords(str) {
   const x = parseInt(str.slice(1), 10) - 1
   const y = alph.indexOf(str[0])
@@ -62,6 +62,21 @@ const get_well_array_from_corners = (corner_1, corner_2) => {
   }
   console.log("got well array: ", well_arr)
   return well_arr
+}
+
+// top left to bottom right sorting of a linear well array
+const alph_sort = (well_array) => {
+  const alph_compare = (alph1, alph2) => {
+    const coord1 = alph_to_coords(alph1)
+    const coord2 = alph_to_coords(alph2)
+    if (coord1.y > coord2.y) return 1
+    if (coord1.y < coord2.y) return -1
+
+    // implicit else y1 = y2
+    if (coord1.x > coord2.x) return 1
+    else return -1
+  }
+  return well_array.sort(alph_compare)
 }
 
 function PlateElement(props) {
@@ -170,7 +185,9 @@ function PlateElement(props) {
       select_group.current.corner_2 = target_id
     }
     const tmp = structuredClone(experiment.forms)
-    tmp[current_form.id] = { ...structuredClone(tmp[current_form.id]), well_array: Array.from(wells) }
+    const well_array = alph_sort(Array.from(wells))
+
+    tmp[current_form.id] = { ...structuredClone(tmp[current_form.id]), well_array: well_array}
     set_experiment(prev => ({ ...prev, forms: tmp }))
   }
 

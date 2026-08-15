@@ -1,6 +1,6 @@
 import { useContext, useState } from 'react'
 import { useEffect } from 'react';
-import { ExperimentContext } from './experiment_context.jsx';
+import { ExperimentContext } from './ExperimentContext';
 import './legend.css'
 
 const diffBlockDefault = {
@@ -33,7 +33,7 @@ const defaultRender = (args) => {
 }
 
 function LegendElement(props) {
-  const { experiment, set_experiment } = useContext(ExperimentContext)
+  const {experiment} = useContext(ExperimentContext)
   const forms = experiment.forms
   const color_lib = props.color_lib
   const keyArray = Array.from(color_lib.keys(color_lib))

@@ -1,4 +1,4 @@
-import { ExperimentContext } from './experiment_context';
+import { ExperimentContext } from './ExperimentContext.jsx';
 import './instructionForm.css'
 import methods from './assets/methods.json'
 import { useContext, useState } from 'react';

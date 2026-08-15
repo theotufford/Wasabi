@@ -25,7 +25,7 @@ def general_gradient(machine: Machine,
                      spacing_type: Literal["linear", "exponential"],
                      initial_volume: float = 0,
                      final_volume: float = 0,
-                     spacing_coeficcient: float = 1,
+                     spacing_coefficient: float = 1,
                      ):
     # the reason y is flipped is because we are
     # translating row n as being n units in the +y direction
@@ -42,42 +42,43 @@ def general_gradient(machine: Machine,
     initial_pos = alph_to_vec(well_array[0])
 
     # fixes bad input by rotating
-    # WPB vector 180 degrees because its assumed a negative spacing coeficcient
+    # WPB vector 180 degrees because its assumed a negative spacing coefficient
     # is meant to indicate decrement
-    spacing_coeficcient_sign = spacing_coeficcient / abs(spacing_coeficcient)
+    spacing_coefficient_sign = spacing_coefficient / abs(spacing_coefficient)
 
-    spacing_vec = well_plate_basis[direction] * spacing_coeficcient_sign
+    spacing_vec = well_plate_basis[direction] * spacing_coefficient_sign
 
     if gradient_type == "end target":
-        sizeval = 1
-        if direction is "right":
-            sizeval = get_linear_well_array_width(well_array)
-        if direction is "down":
-            sizeval = get_linear_well_array_height(well_array)
+        step_count = 1
+        if direction == "right":
+            step_count = get_linear_well_array_width(well_array)
+        if direction == "down":
+            step_count = get_linear_well_array_height(well_array)
 
         delta_v = final_volume - initial_volume
         delta_v_sign = delta_v / abs(delta_v)
 
         spacing_vec *= delta_v_sign
 
-        if spacing_type is "linear":
-            spacing_coeficcient = abs(delta_v) / sizeval
-            spacing_vec *= spacing_coeficcient
-        if spacing_type is "exponential":
-            spacing_coeficcient = abs(delta_v) ** (1/sizeval)
+        spacing_coefficient = 1
+        if spacing_type == "linear":
+            spacing_coefficient = abs(delta_v) / step_count
+        if spacing_type == "exponential":
+            spacing_coefficient = (final_volume/initial_volume) ** (1/step_count)
 
     for well in well_array:
         relative_postion = alph_to_vec(well) - initial_pos
 
         volume: float
 
-        if spacing_type is "linear":
+        print(f"spacing vec {spacing_vec}")
+        print(f" coefficient {spacing_coefficient}")
+
+        if spacing_type == "linear":
             volume = initial_volume + \
                 dot_product(relative_postion, spacing_vec)
-        if spacing_type is "exponential":
-            volume = initial_volume + \
-                spacing_coeficcient ** dot_product(
-                    relative_postion, spacing_vec)
+        if spacing_type == "exponential":
+            volume = initial_volume * (spacing_coefficient ** dot_product(relative_postion, spacing_vec))
 
         machine.goto_well(well)
         machine.dispense(volume, reagent)
@@ -94,7 +95,7 @@ def incremental_gradient(machine: Machine,
                      gradient_type="spacing",
                      spacing_type="linear",
                      initial_volume=initial_volume,
-                     spacing_coeficcient=increment)
+                     spacing_coefficient=increment)
 
 
 @methods.register_method
@@ -109,7 +110,7 @@ def exponential_gradient(machine: Machine,
                      gradient_type="spacing",
                      spacing_type="exponential",
                      initial_volume=initial_volume,
-                     spacing_coeficcient=base)
+                     spacing_coefficient=base)
 
 
 @methods.register_method
@@ -124,4 +125,6 @@ def end_target_gradient(machine: Machine,
     general_gradient(machine, well_array, reagent, direction,
                      gradient_type="end target",
                      spacing_type=spacing_type,
-                     initial_volume=top_left_volume)
+                     initial_volume=top_left_volume,
+                     final_volume=bottom_right_volume
+                     )
