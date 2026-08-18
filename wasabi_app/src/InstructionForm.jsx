@@ -17,6 +17,7 @@ function InstructionForm(props) {
   const self_destruct = () => {
     const tmp = structuredClone(experiment)
     delete tmp.forms[props.id]
+    tmp.selected_id = Object.keys(tmp.forms)[0]
     console.log("updating experiment to: ", tmp)
     set_experiment(tmp)
   }
@@ -29,6 +30,7 @@ function InstructionForm(props) {
   }
 
   function Method_Input(props) {
+    console.log("method input props: ", props)
     const mod_function = (event) => {
       let value = event.target.value
       if (props.type == "float") {
@@ -42,7 +44,14 @@ function InstructionForm(props) {
     const filtered_name = props.name.replaceAll("_", " ")
     const current_value = this_form?.[props.name]
     if (props.name === "well_array") {
-      return
+      return (
+        <div>
+          <p>click on wells to select them, shift click to select a region, space to deselect all</p>
+        </div>
+      )
+    }
+    if (props.name == "volume_array") {
+      this_form.is_direct_input = true
     }
     if (props.name === "reagent") {
       return (<input
@@ -88,11 +97,9 @@ function InstructionForm(props) {
 
   const select_this_form = () => {
     const tmp = structuredClone(experiment.forms)
-    Object.keys(experiment.forms).forEach((form_id) => {
-      tmp[form_id].is_selected = false
-    })
-    tmp[props.id].is_selected = true
-    set_experiment((prev) => ({ ...prev, forms: tmp }))
+    tmp[experiment.selected_id].is_selected = false
+    tmp[this_form.id].is_selected = true
+    set_experiment((prev) => ({ ...prev, selected_id: [this_form.id], forms: tmp }))
   }
 
   const method_options = Object.keys(methods)

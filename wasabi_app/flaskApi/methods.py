@@ -2,9 +2,23 @@ from flask import Flask, jsonify, Blueprint, request, session
 from typing import Literal
 from .machine.machine_state import Machine, MethodLibrary
 from .machine.kinematics import Vec2d, dot_product
-from .machine.utils import alph_to_vec, get_linear_well_array_height, get_linear_well_array_width
+from .machine.utils import alph_to_vec, get_linear_well_array_height, get_linear_well_array_width, xy_to_alph
 
 methods = MethodLibrary()
+
+
+@methods.register_method
+def volume_map(machine: Machine,
+               volume_array: list,
+               reagent):
+    for row_id in volume_array:
+        row = volume_array[row_id]
+        for col_id in range(0, len(row)):
+            volume_target = row[col_id]
+            if volume_target == 0:
+                continue
+            wellid = xy_to_alph(col_id, row_id)
+            machine.goto_well(wellid)
 
 
 @methods.register_method
@@ -64,7 +78,8 @@ def general_gradient(machine: Machine,
         if spacing_type == "linear":
             spacing_coefficient = abs(delta_v) / step_count
         if spacing_type == "exponential":
-            spacing_coefficient = (final_volume/initial_volume) ** (1/step_count)
+            spacing_coefficient = (
+                final_volume/initial_volume) ** (1/step_count)
 
     for well in well_array:
         relative_postion = alph_to_vec(well) - initial_pos
@@ -78,7 +93,8 @@ def general_gradient(machine: Machine,
             volume = initial_volume + \
                 dot_product(relative_postion, spacing_vec)
         if spacing_type == "exponential":
-            volume = initial_volume * (spacing_coefficient ** dot_product(relative_postion, spacing_vec))
+            volume = initial_volume * \
+                (spacing_coefficient ** dot_product(relative_postion, spacing_vec))
 
         machine.goto_well(well)
         machine.dispense(volume, reagent)

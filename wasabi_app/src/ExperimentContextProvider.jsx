@@ -19,6 +19,7 @@ const empty_experiment = {
       colors: []
     }
   },
+  selected_id: "form_0",
   simulated_platemap: {}
 }
 

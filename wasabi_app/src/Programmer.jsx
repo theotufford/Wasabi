@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useContext } from 'react'
-import PlateElement from './plateElement.jsx'
+import PlateElement from './plate_element.jsx'
 import InstructionForm from './InstructionForm.jsx'
 import { v4 as uuidv4 } from 'uuid';
 import SaveButton from './SaveButton.jsx';
 import './Programmer.css'
 import { control_call } from './backendConfig.jsx';
 import { ExperimentContext } from './ExperimentContext.jsx';
-import LegendElement from './legend.jsx'
+import ComboTree from './color_combo_tree.jsx'
 import { version } from 'react'
 import apiCall from './backendConfig.jsx';
 import { useParams } from 'react-router-dom';
@@ -55,12 +55,15 @@ function Programmer(props) {
   }
 
   const addEmptyForm = () => {
-    const current_form_count = experiment.forms.length
-    const new_id = uuidv4()
-    const tmp = structuredClone(experiment.forms)
-    Object.keys(experiment.forms).forEach((form_id) => {
-      tmp[form_id].is_selected = false
-    })
+    const current_form_count = Object.keys(experiment.forms).length
+    console.log(current_form_count)
+    const tmp = structuredClone(experiment)
+    let new_id = uuidv4()
+    if (current_form_count == 0) {
+      new_id = "form_0"
+    } else {
+      tmp.forms[experiment.selected_id].is_selected = false
+    }
     const empty_form = {
       id: new_id,
       method: "constant",
@@ -69,8 +72,9 @@ function Programmer(props) {
       is_selected: true,
       index: current_form_count
     }
-    tmp[new_id] = empty_form
-    setForms(tmp)
+    tmp.forms[new_id] = empty_form
+    tmp.selected_id = new_id
+    set_experiment(tmp)
   }
 
   if (loading.current == true) {
@@ -136,7 +140,7 @@ function Programmer(props) {
       <div id="visualElements">
         <button onClick={simulate_experiment}>simulate experiment</button>
         <PlateElement set_color_lib={set_color_lib} />
-        <LegendElement color_lib={color_lib} />
+        <ComboTree color_lib={color_lib} />
       </div>
     </div>
   )

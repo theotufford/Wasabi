@@ -79,7 +79,7 @@ const alph_sort = (well_array) => {
   return well_array.sort(alph_compare)
 }
 
-function PlateElement(props) {
+function Color_plate_map(props) {
   const { experiment, set_experiment } = useContext(ExperimentContext)
   const rows = experiment.plateDimensions.rows
   const columns = experiment.plateDimensions.columns
@@ -159,12 +159,7 @@ function PlateElement(props) {
   const select_group = useRef({ corner_1: "", corner_2: "" })
 
   const handle_well_click = (click_event) => {
-    let current_form
-    Object.entries(experiment.forms).forEach(([id, form]) => {
-      if (form.is_selected) {
-        current_form = form
-      }
-    })
+    const current_form = experiment.forms[experiment.selected_id]
     click_event.preventDefault()
     const target_id = click_event.currentTarget.id
     let wells = new Set([target_id])
@@ -203,4 +198,4 @@ function PlateElement(props) {
     </div>
   )
 }
-export default PlateElement
+export default Color_plate_map

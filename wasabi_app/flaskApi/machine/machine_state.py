@@ -127,6 +127,7 @@ class Machine:
         pumps = mach["motors"]["pumps"]
         for id in range(0, len(pumps)):
             line_contents = Reagent_Mix()
+            line_contents.gain_reagent(999999999999999, "whatever is in this pump")
             self.pump_line_contents[id] = [line_contents]
 
         self.plate = Plate(self.settings()["plates"]["standard 96"])
@@ -346,8 +347,7 @@ class Machine:
     def dispense(self, volume, reagent=None, id=None):
         if volume == 0:
             return
-
-        if not id:
+        if id is None:
             id = self.get_pump_id(reagent)
         held_volume = self.pump_line_contents[id][-1]
         output_liquid = held_volume.release_volume(volume)
