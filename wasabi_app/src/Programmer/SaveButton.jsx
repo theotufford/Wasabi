@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useContext } from 'react'
-import { ExperimentContext } from './ExperimentContext.jsx';
-import { apiCall } from './backendConfig.jsx';
+import { ExperimentContext } from '../ExperimentContext.jsx';
+import { apiCall } from '../backendConfig.jsx';
 
 const SaveButton = (props) => {
 
@@ -29,4 +29,5 @@ const SaveButton = (props) => {
     <button onClick={explicitSave}>Save</button>
   )
 }
+
 export default SaveButton

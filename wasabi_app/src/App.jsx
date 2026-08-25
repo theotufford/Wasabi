@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, createContext } from 'react'
 import { BrowserRouter, Routes, Route, Link, NavLink } from 'react-router-dom';
-import Programmer from './Programmer.jsx'
 import { ExperimentContextProvider } from './ExperimentContextProvider.jsx';
-import Controller from './controller.jsx'
+import Controller from './Controller/controller.jsx'
+import Programmer from './Programmer/Programmer.jsx'
+
 import { useContext } from 'react';
 
 function App() {

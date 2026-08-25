@@ -9,16 +9,12 @@ methods = MethodLibrary()
 
 @methods.register_method
 def volume_map(machine: Machine,
-               volume_array: list,
+               volume_map: dict,
                reagent):
-    for row_id in volume_array:
-        row = volume_array[row_id]
-        for col_id in range(0, len(row)):
-            volume_target = row[col_id]
-            if volume_target == 0:
-                continue
-            wellid = xy_to_alph(col_id, row_id)
-            machine.goto_well(wellid)
+    for wellid in volume_map:
+        volume = volume_map[wellid]
+        machine.goto_well(wellid)
+        machine.dispense(volume, reagent=reagent)
 
 
 @methods.register_method
@@ -26,6 +22,7 @@ def constant(machine: Machine,
              well_array,
              reagent,
              volume: float):
+    print("well array: ", well_array)
     for well in well_array:
         machine.goto_well(well)
         machine.dispense(volume, reagent=reagent)
@@ -41,6 +38,7 @@ def general_gradient(machine: Machine,
                      final_volume: float = 0,
                      spacing_coefficient: float = 1,
                      ):
+    print("well array: ", well_array)
     # the reason y is flipped is because we are
     # translating row n as being n units in the +y direction
     well_plate_basis = {
@@ -51,7 +49,7 @@ def general_gradient(machine: Machine,
     }
 
     if direction in ["left", "up"]:
-        well_array = well_array.reverse()
+        well_array.reverse()
 
     initial_pos = alph_to_vec(well_array[0])
 
@@ -81,6 +79,9 @@ def general_gradient(machine: Machine,
             spacing_coefficient = (
                 final_volume/initial_volume) ** (1/step_count)
 
+    if spacing_type == "linear":
+        spacing_vec = spacing_vec * spacing_coefficient
+
     for well in well_array:
         relative_postion = alph_to_vec(well) - initial_pos
 
@@ -101,8 +102,7 @@ def general_gradient(machine: Machine,
 
 
 @methods.register_method
-def incremental_gradient(machine: Machine,
-                         well_array,
+def incremental_gradient(machine: Machine, well_array,
                          reagent,
                          direction: Literal["up", "down", "left", "right"],
                          increment: float,

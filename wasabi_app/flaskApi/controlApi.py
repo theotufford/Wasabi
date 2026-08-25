@@ -22,7 +22,6 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         machine.coms.send_move_steps(*initial_position_steps)
         machine.current_position = machine.from_steps(*initial_position_steps)
         machine.home_offset = machine.current_position
-        machine.current_well = machine.plate.by_alph["A1"]
         machine.position_known = True
         return jsonify({"data": "successful home"})
 
@@ -96,6 +95,7 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     def handle_experiment_run():
         data = request.get_json()
         experiment = data["experiment"]
+        machine.plate.reset_plate()
         machine.methods.run_experiment(experiment)
         return jsonify({"data": "successful run!"})
 

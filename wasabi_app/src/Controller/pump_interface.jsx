@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useRef } from "react"
-import { apiCall, control_call, dataStream } from './backendConfig.jsx'
+import { apiCall, control_call, dataStream } from '../backendConfig.jsx'
 
 
 function Pump_block(props) {

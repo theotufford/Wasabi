@@ -104,7 +104,6 @@ class Plate:
 class Machine:
     def __init__(self, settings_path, method_library):
         self.current_position = MachinePosition()
-        self.current_well = None
         self.home_offset = MachinePosition()
         self.methods: MethodLibrary = method_library
         self.methods.machine = self
@@ -115,7 +114,8 @@ class Machine:
         self.settings_path = settings_path
         self.run_is_simulation = False
         self.coms: serlib.ComsChannel
-
+        self.waste_well = Well(Vec2d(0, 0))
+        self.current_well = self.waste_well
         mach = self.settings()["machine"]
         spr = mach["motors"]["common_settings"]["kinematic_steps_per_revolution"]
         pitch = mach["machineDimensions"]["z_screw_pitch"]
@@ -127,7 +127,8 @@ class Machine:
         pumps = mach["motors"]["pumps"]
         for id in range(0, len(pumps)):
             line_contents = Reagent_Mix()
-            line_contents.gain_reagent(999999999999999, "whatever is in this pump")
+            line_contents.gain_reagent(
+                999999999999999, "whatever is in this pump")
             self.pump_line_contents[id] = [line_contents]
 
         self.plate = Plate(self.settings()["plates"]["standard 96"])
@@ -278,6 +279,7 @@ class Machine:
         return given_pos
 
     def goto_pos(self, pos: MachinePosition) -> None:
+        print(f"going to position: {pos}")
         if not self.position_known:
             print("trying to move absolutely without being homed!")
             return
@@ -286,13 +288,13 @@ class Machine:
             steps = self.to_steps(pos)
             self.coms.send_move_steps(**steps)
             self.current_position = pos
-        self.current_well = None
+        self.current_well = self.waste_well
 
     def goto_well(self, coord: str):
-        pos = self.home_offset
-        if self.current_well is not None:
-            pos = pos + self.current_well.relative_position
-        self.goto_pos(pos)
+        print(f"going to well: {coord}")
+        target_well = self.plate.by_alph[coord]
+        target_pos = self.home_offset + target_well.relative_position
+        self.goto_pos(target_pos)
         self.current_well = self.plate.by_alph[coord]
 
     def get_reagent(self, id):
@@ -316,7 +318,7 @@ class Machine:
 
     def send_pump_action(self, volume, id):
         motor_settings = self.settings()["machine"]["motors"]
-        pump_settings = motor_settings["pumps"][id-1]
+        pump_settings = motor_settings["pumps"][id]
 
         ul_per_rad = pump_settings["ul_per_rad"]
         compensation_factor = pump_settings["compensation_factor"]
@@ -393,7 +395,8 @@ class MethodLibrary:
             reagent = form.get("reagent")
             if reagent not in seen_reagents:
                 seen_reagents.append(reagent)
-                reagent_line = self.machine.pump_line_contents[pump_id][0]
+                reagent_line = self.machine.pump_line_contents[pump_id][0] = Reagent_Mix(
+                )
                 reagent_line.gain_reagent(999999999999999, reagent)
                 pump_id += 1
             name = form["method"]

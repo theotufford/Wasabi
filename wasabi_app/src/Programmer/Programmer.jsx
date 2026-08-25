@@ -3,13 +3,10 @@ import PlateElement from './plate_element.jsx'
 import InstructionForm from './InstructionForm.jsx'
 import { v4 as uuidv4 } from 'uuid';
 import SaveButton from './SaveButton.jsx';
-import './Programmer.css'
-import { control_call } from './backendConfig.jsx';
-import { ExperimentContext } from './ExperimentContext.jsx';
+import './css/Programmer.css'
+import { control_call } from '../backendConfig.jsx';
+import { ExperimentContext } from '../ExperimentContext.jsx';
 import ComboTree from './color_combo_tree.jsx'
-import { version } from 'react'
-import apiCall from './backendConfig.jsx';
-import { useParams } from 'react-router-dom';
 
 function Programmer(props) {
 
@@ -66,7 +63,7 @@ function Programmer(props) {
     }
     const empty_form = {
       id: new_id,
-      method: "constant",
+      method: "volume_map",
       well_array: [],
       colors: [],
       is_selected: true,

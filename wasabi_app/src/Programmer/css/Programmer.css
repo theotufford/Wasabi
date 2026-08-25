@@ -65,24 +65,3 @@
   min-width: 0;
 }
 
-#plateContainer {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.plateRow {
-  display: flex;
-  flex-flow: row nowrap;
-  gap: 3px;
-}
-
-.wellObject {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-}
-
-.wellObject svg circle {
-  transition: fill 0.2s;
-}

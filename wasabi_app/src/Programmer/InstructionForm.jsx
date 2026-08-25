@@ -1,7 +1,7 @@
-import { ExperimentContext } from './ExperimentContext.jsx';
-import './instructionForm.css'
-import methods from './assets/methods.json'
-import { useContext, useState } from 'react';
+import { ExperimentContext } from '../ExperimentContext.jsx';
+import './css/instructionForm.css'
+import methods from '../assets/methods.json'
+import { useContext, useEffect, useState } from 'react';
 
 
 const blur_on_enter = (kd_event) => {
@@ -22,15 +22,14 @@ function InstructionForm(props) {
     set_experiment(tmp)
   }
 
+
   const mutate_form_data = (key, value) => {
-    console.log("mutating form data with key: ", key, "value: ", value)
     const tmp = structuredClone(experiment.forms)
     tmp[props.id] = { ...this_form, [key]: value }
     set_experiment(previous_value => ({ ...previous_value, forms: tmp }))
   }
 
   function Method_Input(props) {
-    console.log("method input props: ", props)
     const mod_function = (event) => {
       let value = event.target.value
       if (props.type == "float") {
@@ -44,21 +43,17 @@ function InstructionForm(props) {
     const filtered_name = props.name.replaceAll("_", " ")
     const current_value = this_form?.[props.name]
     if (props.name === "well_array") {
-      return (
-        <div>
-          <p>click on wells to select them, shift click to select a region, space to deselect all</p>
-        </div>
-      )
+      return
     }
-    if (props.name == "volume_array") {
+    if (props.name == "volume_map") {
       this_form.is_direct_input = true
     }
     if (props.name === "reagent") {
-      return (<input
+      return (<div> reagent: <input
         placeholder="input reagent name"
         defaultValue={current_value}
         onKeyDown={blur_on_enter}
-        onBlur={mod_function} />
+        onBlur={mod_function} /></div>
       )
     }
     if (props.type == "Literal") {
@@ -95,6 +90,7 @@ function InstructionForm(props) {
     }
   }
 
+
   const select_this_form = () => {
     const tmp = structuredClone(experiment.forms)
     tmp[experiment.selected_id].is_selected = false
@@ -102,9 +98,8 @@ function InstructionForm(props) {
     set_experiment((prev) => ({ ...prev, selected_id: [this_form.id], forms: tmp }))
   }
 
-  const method_options = Object.keys(methods)
   const selected_method_info = methods[this_form.method]
-
+  const method_options = Object.keys(methods)
   let minimized = "method: " + this_form.method
   if (selected_method_info?.inputs?.["reagent"]) {
     minimized += "reagent: " + this_form.reagent
@@ -113,7 +108,7 @@ function InstructionForm(props) {
   if (this_form.is_selected == true) {
     return (
       <div className='selected_form'>
-        <select onChange={(e) => mutate_form_data("method", e.target.value)}>
+        <select defaultValue={this_form.method} onChange={(e) => mutate_form_data("method", e.target.value)}>
           {method_options.map((key) => {
             const filtered_name = key.replaceAll("_", " ")
             return (

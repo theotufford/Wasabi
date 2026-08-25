@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react'
 import { useEffect } from 'react';
 import { ExperimentContext } from './ExperimentContext';
-import './legend.css'
+import './css/legend.css'
 
 function LegendElement(props) {
   const {experiment} = useContext(ExperimentContext)

@@ -1,7 +1,7 @@
 import { useContext, useState } from 'react'
 import { useEffect } from 'react';
-import { ExperimentContext } from './ExperimentContext';
-import './legend.css'
+import { ExperimentContext } from '../ExperimentContext';
+import './css/legend.css'
 
 const diffBlockDefault = {
   width: "2vw",

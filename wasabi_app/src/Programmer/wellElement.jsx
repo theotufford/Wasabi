@@ -2,7 +2,7 @@ function WellElement(props) {
   const wellId = props.id
   const color = props.color
   return (
-    <div id={wellId} onMouseOver={ev => {ev.preventDefault()}} onClick={props.onClick} className = "wellObject">
+    <div id={wellId} onMouseOver={ev => {ev.preventDefault()}} onClick={props.onClick} className = "color_well">
     <svg version="1.1" viewBox = "-50 -50 100 100"
     width="100%" height="100%"
     xmlns="http://www.w3.org/2000/svg">

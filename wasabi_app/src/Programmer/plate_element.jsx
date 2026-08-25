@@ -1,26 +1,17 @@
 import { useContext, useEffect, useState } from 'react';
-import { ExperimentContext } from './ExperimentContext.jsx';
+import { ExperimentContext } from '../ExperimentContext.jsx';
 import WellElement from './wellElement.jsx'
 import { useRef } from 'react';
 import Color_plate_map from './color_plate_map.jsx';
+import "./css/plate.css"
+import InputPlate from './input_plate.jsx';
+import Volume_display_plate from './volume_display_plate.jsx';
 
 // range select
 // range common input
 // csv copy / paste
 // csv drag / drop
 // per-reagent view that triggers sim
-
-function Sum_volume_plate(props) {
-  return (<div>
-    sum plate
-  </div>)
-}
-
-function Direct_input_plate(props) {
-  return (<div>
-    input plate
-  </div>)
-}
 
 export default function PlateElement(props) {
   const { experiment, set_experiment } = useContext(ExperimentContext)
@@ -41,7 +32,7 @@ export default function PlateElement(props) {
     new_reagents.push(reagent)
   })
   if (new_reagents.length != 0) {
-    set_experiment_reagents((prev) => ([ ...prev, ...new_reagents ]))
+    set_experiment_reagents((prev) => ([...prev, ...new_reagents]))
   }
   const [view_mode, set_view_mode] = useState("color tree view")
   const view_options = {
@@ -50,17 +41,14 @@ export default function PlateElement(props) {
 
   experiment_reagents.forEach((reagent) => {
     console.log("reagent found: ", reagent)
-    view_options[`${reagent} total volume`] = <Sum_volume_plate reagent={reagent} />
+    view_options[`${reagent} total volume`] = < Volume_display_plate reagent={reagent} />
   })
 
   const selected_form = experiment.forms[experiment.selected_id]
   const is_direct_input = selected_form?.is_direct_input ? selected_form.is_direct_input : false
 
   if (is_direct_input) {
-    view_options["direct input"] = <Direct_input_plate />
-    if (view_mode != "direct input") {
-      set_view_mode("direct input")
-    }
+    view_options["direct input"] = <InputPlate />
   }
 
   const view_set_button = (e) => {

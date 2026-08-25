@@ -1,83 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
-import { ExperimentContext } from './ExperimentContext.jsx';
+import { ExperimentContext } from '../ExperimentContext.jsx';
 import WellElement from './wellElement.jsx'
 import { useRef } from 'react';
-
-const alph = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('')
-
-function coords_to_alph(x, y) {
-  return `${alph[y]}${x + 1}`
-}
-
-function alph_to_coords(str) {
-  const x = parseInt(str.slice(1), 10) - 1
-  const y = alph.indexOf(str[0])
-  if (Number.isNaN(x) || y === -1) {
-    return -1
-  }
-  return {
-    x: x,
-    y: y
-  }
-}
-
-const alph_corners_to_ordered_coords = (corner_1, corner_2) => {
-  corner_1 = alph_to_coords(corner_1)
-  corner_2 = alph_to_coords(corner_2)
-
-  if (corner_1 === -1 || corner_2 === -1) {
-    return undefined
-  }
-
-  let lower_x
-  let lower_y
-  let upper_x
-  let upper_y
-
-  if (corner_1.x > corner_2.x) {
-    upper_x = corner_1.x
-    lower_x = corner_2.x
-  } else {
-    upper_x = corner_2.x
-    lower_x = corner_1.x
-  }
-  if (corner_1.y > corner_2.y) {
-    upper_y = corner_1.y
-    lower_y = corner_2.y
-  } else {
-
-    upper_y = corner_2.y
-    lower_y = corner_1.y
-  }
-  return [{ x: lower_x, y: lower_y }, { x: upper_x, y: upper_y }]
-}
-
-const get_well_array_from_corners = (corner_1, corner_2) => {
-  const well_arr = []
-  const [lower, upper] = alph_corners_to_ordered_coords(corner_1, corner_2)
-  for (let x_coord = lower.x; x_coord <= upper.x; x_coord++) {
-    for (let y_coord = lower.y; y_coord <= upper.y; y_coord++) {
-      well_arr.push(coords_to_alph(x_coord, y_coord))
-    }
-  }
-  console.log("got well array: ", well_arr)
-  return well_arr
-}
-
-// top left to bottom right sorting of a linear well array
-const alph_sort = (well_array) => {
-  const alph_compare = (alph1, alph2) => {
-    const coord1 = alph_to_coords(alph1)
-    const coord2 = alph_to_coords(alph2)
-    if (coord1.y > coord2.y) return 1
-    if (coord1.y < coord2.y) return -1
-
-    // implicit else y1 = y2
-    if (coord1.x > coord2.x) return 1
-    else return -1
-  }
-  return well_array.sort(alph_compare)
-}
+import { alph_sort, alph, get_well_array_from_corners } from './utils.jsx';
 
 function Color_plate_map(props) {
   const { experiment, set_experiment } = useContext(ExperimentContext)
@@ -101,8 +26,8 @@ function Color_plate_map(props) {
     return picked;
   }
 
-  const get_empty_plate_matrix = () => {
-    const tmp_plate_matrix = [];
+  const get_empty_plate_matrix = (rows, columns) => {
+    const empty_plate_matrix = [];
     for (let row = 0; row < rows; row++) {
       const row_array = []
       for (let column = 0; column < columns; column++) {
@@ -112,15 +37,15 @@ function Color_plate_map(props) {
           color: '',
         })
       }
-      tmp_plate_matrix.push(row_array)
+      empty_plate_matrix.push(row_array)
     }
-    return tmp_plate_matrix
+    return empty_plate_matrix
   }
 
+  const [plate_matrix, set_plate_matrix] = useState(get_empty_plate_matrix(rows, columns))
 
-  const [plate_matrix, set_plate_matrix] = useState(get_empty_plate_matrix())
   useEffect(() => {
-    const tmp = get_empty_plate_matrix()
+    const tmp = get_empty_plate_matrix(rows, columns)
     const form_array = Object.keys(experiment.forms)
     form_array.forEach((form_id) => {
       const form = experiment.forms[form_id]
@@ -182,14 +107,14 @@ function Color_plate_map(props) {
     const tmp = structuredClone(experiment.forms)
     const well_array = alph_sort(Array.from(wells))
 
-    tmp[current_form.id] = { ...structuredClone(tmp[current_form.id]), well_array: well_array}
+    tmp[current_form.id] = { ...structuredClone(tmp[current_form.id]), well_array: well_array }
     set_experiment(prev => ({ ...prev, forms: tmp }))
   }
 
   return (
     <div id="plateContainer">
       {plate_matrix.map((rowElement, row) => (
-        <div key={row} className="plateRow">
+        <div key={row} className="color_plate_row">
           {rowElement.map((element, column) => (
             <WellElement onClick={handle_well_click} {...plate_matrix[row][column]} key={column} />
           ))}
