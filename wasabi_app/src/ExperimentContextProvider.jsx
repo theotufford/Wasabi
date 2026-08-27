@@ -4,29 +4,13 @@ import apiCall from "./backendConfig"
 import { useState } from "react"
 import { useEffect } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
-
-const empty_experiment = {
-  title: "",
-  version: 0,
-  plateDimensions: { rows: 8, columns: 12 },
-  forms: {
-    form_0: {
-      id: "form_0",
-      method: "volume_map",
-      well_array: [],
-      is_selected: true,
-      index: 0,
-      colors: []
-    }
-  },
-  selected_id: "form_0",
-  simulated_platemap: {}
-}
+import { empty_experiment } from "./ExperimentContext"
 
 export const ExperimentContextProvider = ({ children }) => {
   const [experiment, set_experiment] = useState(() => {
-    const saved_exp = localStorage.getItem("experiment")
-    return saved_exp !== null ? JSON.parse(saved_exp) : empty_experiment
+    // const saved_exp = localStorage.getItem("experiment")
+    // return saved_exp !== null ? JSON.parse(saved_exp) : empty_experiment
+    return empty_experiment
   })
 
   useEffect(() => {

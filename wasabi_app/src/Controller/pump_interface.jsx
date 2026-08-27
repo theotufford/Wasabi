@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useRef } from "react"
-import { apiCall, control_call, dataStream } from '../backendConfig.jsx'
+import { apiCall, control_call, dataStream } from '@src/backendConfig.jsx'
 
 
 function Pump_block(props) {
@@ -30,6 +30,7 @@ function Pump_block(props) {
         id: id,
       }
     })
+    props.load_needed()
   }
 
   const pump_action = (event) => {

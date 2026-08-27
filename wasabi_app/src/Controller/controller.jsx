@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useContext } from 'react'
-import { apiCall, control_call, dataStream } from '../backendConfig.jsx'
+import { apiCall, control_call, dataStream } from '@src/backendConfig.jsx'
 import Pump_block from './pump_interface.jsx'
-import TestButton from '../browserFrame.jsx'
-import { ExperimentContext } from '../ExperimentContext.jsx'
+import TestButton from '@src/browserFrame.jsx'
+import "./controller.css"
+import { ExperimentContext } from '@src/ExperimentContext.jsx'
 
 function Controller(props) {
   const { experiment, set_experiment } = useContext(ExperimentContext)
@@ -12,17 +13,12 @@ function Controller(props) {
   const [reagents_needed, set_reagents_needed] = useState([])
 
 
-  useEffect(() => {
-    load_needed()
-  }, [experiment])
-
   const load_needed = () => {
+    console.log("pump array: ", pump_array)
     const tmp = []
-    console.log("controller exp: ", experiment)
     Object.keys(experiment.forms).forEach((form_id) => {
       const form = experiment.forms[form_id]
       const reagent = form.reagent
-      console.log("REAGENT", reagent)
       if (tmp.includes(reagent)) {
         return
       }
@@ -45,8 +41,12 @@ function Controller(props) {
       .then(data => {
         set_pump_array(data)
       })
-    load_needed()
   }, [])
+
+  useEffect(() => {
+    load_needed()
+  }, [pump_array, experiment])
+
 
   let title_text = "no experiment loaded"
   if (experiment.title != "") title_text = experiment.title;
@@ -54,9 +54,11 @@ function Controller(props) {
   const send_home = () => {
     control_call({ route: "home" })
   }
-
   const send_set_home_offset = () => {
     control_call({ route: "set_home_offset" })
+  }
+  const send_set_waste_position = () => {
+    control_call({ route: "set_waste_position" })
   }
 
   const send_run_experiment = () => {
@@ -82,6 +84,17 @@ function Controller(props) {
     })
   }
 
+
+  const go_to_well = (wellid) => {
+    control_call({
+      route: "move",
+      body: {
+        move_context: "well",
+        well_target: wellid
+      }
+    })
+  }
+
   const go_to_pos = (move_type) => {
     control_call({
       route: "move",
@@ -93,27 +106,28 @@ function Controller(props) {
   }
 
   return (
-    <div>
+    <div className='controller'>
       <div>
         current experiment: {title_text}
       </div>
-      <div>Serial says:
-        <div className='serial_display'>{serialMessage}</div>
-      </div>
-      <div>
-        <div>
-          <input type="number" onChange={(e) => {
+      <div className='jogger'>
+        <div className='xy_jog'>
+          <label for="xyjog">X/Y jog increment: </label>
+          <input name='xyjog' type="number" onChange={(e) => {
             const val = e.target.valueAsNumber
             if (isNaN(val)) { return }
             jogIncrement.current = ([val, jogIncrement.current[1]])
           }} />
-          <button onClick={() => jog(jogIncrement.current[0], 0, 0)} >+x</button>
-          <button onClick={() => jog(-jogIncrement.current[0], 0, 0)} >-x</button>
-          <button onClick={() => jog(0, jogIncrement.current[0], 0)} >+y</button>
-          <button onClick={() => jog(0, -jogIncrement.current[0], 0)} >-y</button>
+          <div className='xy_control_buttons'>
+            <button onClick={() => jog(jogIncrement.current[0], 0, 0)} >+x</button>
+            <button onClick={() => jog(-jogIncrement.current[0], 0, 0)} >-x</button>
+            <button onClick={() => jog(0, jogIncrement.current[0], 0)} >+y</button>
+            <button onClick={() => jog(0, -jogIncrement.current[0], 0)} >-y</button>
+          </div>
         </div>
-        <div>
-          <input type="number" onChange={(e) => {
+        <div className='z_jog'>
+          <label for="zjog">z jog increment: </label>
+          <input name='zjog' type="number" onChange={(e) => {
             const val = e.target.valueAsNumber
             if (isNaN(val)) { return }
             jogIncrement.current = ([jogIncrement.current[0], val])
@@ -121,14 +135,17 @@ function Controller(props) {
           <button onClick={() => jog(0, 0, jogIncrement.current[1])} >+z</button>
           <button onClick={() => jog(0, 0, -jogIncrement.current[1])} >-z</button>
         </div>
+        <button onClick={send_home}>home</button>
+        <button onClick={send_set_home_offset}>set A1</button>
+        <button onClick={() => go_to_well("A1")}>go A1</button>
+        <button onClick={send_set_waste_position}>set waste position</button>
+        <button onClick={() => go_to_well("waste")}>go to waste well</button>
       </div>
-      <button onClick={send_home}>home and set work offset</button>
-      <div>
-      </div>
-      <>
-        reagents needed for experiment that arent loaded: <ul>
-          {reagents_needed.map(name => (<li> - {name}</li>))}
-        </ul>
+      <div className='pump_bay'>
+        {reagents_needed.length > 0 && (
+          <ul>
+            {reagents_needed.map(name => (<li>{name}</li>))}
+          </ul>)}
         {
           Object.keys(pump_array).map((id) => (
             <div>
@@ -137,11 +154,12 @@ function Controller(props) {
                 reagent={pump_array[id]}
                 reagents={reagents}
                 set_pump_array={set_pump_array}
-                reagents_needed={reagents_needed} />
+                reagents_needed={reagents_needed}
+                load_needed={load_needed} />
             </div>
           ))
         }
-      </>
+      </div>
       <button onClick={send_run_experiment}>run experiment!!</button>
     </div>
   )

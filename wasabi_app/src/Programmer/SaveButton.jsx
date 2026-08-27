@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useContext } from 'react'
-import { ExperimentContext } from '../ExperimentContext.jsx';
-import { apiCall } from '../backendConfig.jsx';
+import { ExperimentContext } from '@src/ExperimentContext.jsx';
+import { apiCall } from '@src/backendConfig.jsx';
 
 const SaveButton = (props) => {
 

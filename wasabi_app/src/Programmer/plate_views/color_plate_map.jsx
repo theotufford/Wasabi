@@ -1,8 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
-import { ExperimentContext } from '../ExperimentContext.jsx';
+import { ExperimentContext } from '@src/ExperimentContext.jsx';
 import WellElement from './wellElement.jsx'
 import { useRef } from 'react';
-import { alph_sort, alph, get_well_array_from_corners } from './utils.jsx';
+import { alph_sort, alph, get_well_array_from_corners } from '../utils.jsx';
 
 function Color_plate_map(props) {
   const { experiment, set_experiment } = useContext(ExperimentContext)

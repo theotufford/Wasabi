@@ -162,6 +162,9 @@ def solve_5bar_IK(settings: dict, target_x: float, target_y: float) -> dict:
 
     beta_final = 3 * math.pi / 2 - beta_1 - beta_2
 
+    print(f"solved IK - target_pos: {target}, alpha: {
+          (180 / math.pi) * alpha_final}, {(180 / math.pi) * beta_final}")
+
     return {"alpha": alpha_final, "beta": beta_final}
 
 

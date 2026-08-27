@@ -107,7 +107,7 @@ int main() {
       break;
     }
     case BUZZ: {
-      int pump_id = coms.argumentVector[0] - 1;
+      int pump_id = coms.argumentVector[0];
       Motor &pump = *pumps[pump_id];
       pump.buzz();
       break;
@@ -163,7 +163,7 @@ int main() {
       break;
     }
     case PUMP_ACTION: {
-      int pump_id = coms.argumentVector[0] - 1;
+      int pump_id = coms.argumentVector[0];
       Motor &pump = *pumps[pump_id];
       pump.vMax = coms.argumentVector[1];
       pump.ang_accel = coms.argumentVector[2];

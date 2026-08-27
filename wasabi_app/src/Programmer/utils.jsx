@@ -77,4 +77,3 @@ export function alph_sort(well_array){
   }
   return well_array.sort(alph_compare)
 }
-

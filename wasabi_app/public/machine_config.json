@@ -1,10 +1,10 @@
 {
   "machine": {
     "machineDimensions": {
-      "hand": 110,
-      "spacing": 90,
-      "arm": 70,
-      "tool_offset": 20,
+      "hand": 120,
+      "spacing": 85,
+      "arm": 85,
+      "tool_offset": 10,
       "z_screw_pitch": 4
 
     },
@@ -17,9 +17,9 @@
       },
       "motor_enable_pin": 26,
       "pump_enable_pin": 27,
-      "a_endstop": 22,
+      "a_endstop": 20,
       "b_endstop": 21,
-      "z_endstop": 20
+      "z_endstop": 22
     },
     "motors": {
       "common_settings": {
@@ -43,7 +43,7 @@
       "z": {
         "stp_pin": 6,
         "dir_pin": 7,
-        "invert_dir": 0
+        "invert_dir": 1
       },
       "pumps": [
         {

@@ -17,6 +17,10 @@
   gap: 14px;
 }
 
+.selected-form {
+  border: 1px solid var(--accent);
+}
+
 .title-row {
   display: flex;
   align-items: baseline;

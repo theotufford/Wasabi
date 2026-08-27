@@ -1,5 +1,6 @@
 import time
 import string
+from typing import Literal
 import copy
 import asyncio
 from ..db import get_db
@@ -62,6 +63,7 @@ class Reagent_Mix:
 class Well():
     def __init__(self, relative_position: Vec2d):
         self.relative_position = relative_position
+        self.absolute_position: MachinePosition()
         self.liquid = Reagent_Mix()
 
     def release_aspirate(self, volume) -> Reagent_Mix:
@@ -112,7 +114,8 @@ class Machine:
         self.error = None
         self.position_known = False
         self.settings_path = settings_path
-        self.run_is_simulation = False
+        self.in_simulation = False
+        self.impure_method_flag = False
         self.coms: serlib.ComsChannel
         self.waste_well = Well(Vec2d(0, 0))
         self.current_well = self.waste_well
@@ -283,19 +286,26 @@ class Machine:
         if not self.position_known:
             print("trying to move absolutely without being homed!")
             return
-        if not self.run_is_simulation:
+        if not self.in_simulation:
             pos = self.get_pos_IK(pos)
             steps = self.to_steps(pos)
             self.coms.send_move_steps(**steps)
             self.current_position = pos
         self.current_well = self.waste_well
 
-    def goto_well(self, coord: str):
-        print(f"going to well: {coord}")
-        target_well = self.plate.by_alph[coord]
+    def goto_well(self, wellid: str):
+
+        if wellid == "waste":
+            target_pos = self.waste_well.absolute_position
+            if target_pos is None:
+                raise ValueError("position of waste well is unknown!")
+            self.goto_pos(target_pos)
+            return
+
+        target_well = self.plate.by_alph[wellid]
         target_pos = self.home_offset + target_well.relative_position
         self.goto_pos(target_pos)
-        self.current_well = self.plate.by_alph[coord]
+        self.current_well = self.plate.by_alph[wellid]
 
     def get_reagent(self, id):
         db = get_db()
@@ -358,17 +368,19 @@ class Machine:
 
         self.current_well.gain_liquid(output_liquid)
 
-        if not self.run_is_simulation:
+        if not self.in_simulation:
             self.send_pump_action(volume, id)
 
-    def aspirate(self,  volume, id):
+    def aspirate(self, volume, id):
         if volume == 0:
             return
         pump_line = self.pump_line_contents[id]
         aspirated_liquid = self.current_well.release_volume(volume)
         pump_line.append(aspirated_liquid)
-        if not self.run_is_simulation:
+        if not self.in_simulation:
             self.send_pump_action(volume, id)
+        else:
+            self.impure_method_flag = True
 
 
 class MethodLibrary:
@@ -386,7 +398,7 @@ class MethodLibrary:
 
     def simulate_experiment(self, data) -> Plate:
         pre_sim_machine = copy.deepcopy(self.machine)
-        self.machine.run_is_simulation = True
+        self.machine.in_simulation = True
         self.machine.position_known = True
         pump_id = 0
         seen_reagents = []
@@ -414,14 +426,17 @@ class MethodLibrary:
         self.machine.goto_pos(self.machine.home_offset)
         return self.machine.plate
 
-    def register_method(self, method_function, other=None):
+    def register_method(self,
+                        method_function,
+                        function_purity: Literal["impure", "pure"] = None):
         sig = inspect.signature(method_function)
         args = dict(sig.parameters.items())
         method_name = method_function.__name__
         if not args.get("machine") or not args["machine"].annotation == Machine:
             raise ValueError(f"method: {method_name} needs machine parameter!")
         self.method_callables[method_name] = method_function
-        self.method_info[method_name] = {"inputs": [], "other": other}
+        self.method_info[method_name] = {
+            "inputs": [], "purity": function_purity}
         for arg_name in args:
             param = args[arg_name]
             annotation = param.annotation

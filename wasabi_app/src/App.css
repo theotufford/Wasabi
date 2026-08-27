@@ -25,8 +25,7 @@
   flex-wrap: wrap;
 }
 
-.nav-bar button {
-  font-size: 13px;
+.nav-link {
+  font-size: 19px;
   padding: 5px 13px;
 }
-

@@ -5,7 +5,7 @@ import threading
 import time
 import json
 from .machine.serialcoms import ComsChannel, INITIAL_POSITION, ENABLE_MOTORS, DISABLE_MOTORS, ENABLE_PUMPS, DISABLE_PUMPS
-from .machine.machine_state import Machine, Reagent_Mix
+from .machine.machine_state import Machine, Reagent_Mix, Well
 from .machine import kinematics as kine
 
 
@@ -24,6 +24,12 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         machine.home_offset = machine.current_position
         machine.position_known = True
         return jsonify({"data": "successful home"})
+
+    @bp.route('/set_waste_position', methods=['POST'])
+    def set_waste_position():
+        if not machine.position_known:
+            return home()
+        machine.waste_well.absolute_position = machine.current_position
 
     @bp.route('/set_home_offset', methods=['POST'])
     def set_home_offset():
@@ -82,7 +88,7 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
             absolute_target = relative_target
 
         machine.goto_pos(absolute_target)
-        return jsonify({"data": "successful jog"})
+        return jsonify({"data": f"successful {data["move_context"]} move"})
 
     @bp.route('/buzz', methods=['POST'])
     def buzz_pump():

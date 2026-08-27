@@ -28,8 +28,6 @@ function Keybound_Container({ children, function_map, ext_keystate }) {
       return
     }
     const active_keys_strKey = active_keys.toSorted().toString()
-    console.log("calling with ", active_keys_strKey)
-    console.log("function_library: ", function_library)
     const successful_call = function_library.current[active_keys_strKey]?.()
   }, [call_by_actives])
 

@@ -1,6 +1,6 @@
-import { ExperimentContext } from '../ExperimentContext.jsx';
+import { ExperimentContext } from '@src/ExperimentContext.jsx';
 import './css/instructionForm.css'
-import methods from '../assets/methods.json'
+import methods from '@src/assets/methods.json'
 import { useContext, useEffect, useState } from 'react';
 
 
@@ -22,8 +22,7 @@ function InstructionForm(props) {
     set_experiment(tmp)
   }
 
-
-  const mutate_form_data = (key, value) => {
+  const set_form_data = (key, value) => {
     const tmp = structuredClone(experiment.forms)
     tmp[props.id] = { ...this_form, [key]: value }
     set_experiment(previous_value => ({ ...previous_value, forms: tmp }))
@@ -38,7 +37,7 @@ function InstructionForm(props) {
       if (props.type == "int") {
         value = parseInt(value)
       }
-      mutate_form_data(props.name, value)
+      set_form_data(props.name, value)
     }
     const filtered_name = props.name.replaceAll("_", " ")
     const current_value = this_form?.[props.name]
@@ -92,42 +91,41 @@ function InstructionForm(props) {
 
 
   const select_this_form = () => {
+    if (this_form.is_selected) {
+      return
+    }
     const tmp = structuredClone(experiment.forms)
     tmp[experiment.selected_id].is_selected = false
     tmp[this_form.id].is_selected = true
     set_experiment((prev) => ({ ...prev, selected_id: [this_form.id], forms: tmp }))
   }
-
-  const selected_method_info = methods[this_form.method]
   const method_options = Object.keys(methods)
-  let minimized = "method: " + this_form.method
-  if (selected_method_info?.inputs?.["reagent"]) {
-    minimized += "reagent: " + this_form.reagent
-  }
+  const selected_tag = this_form.is_selected == true ? 'selected-form' : 'unselected-form'
 
-  if (this_form.is_selected == true) {
-    return (
-      <div className='selected_form'>
-        <select defaultValue={this_form.method} onChange={(e) => mutate_form_data("method", e.target.value)}>
-          {method_options.map((key) => {
-            const filtered_name = key.replaceAll("_", " ")
-            return (
-              <option key={key} value={key}>{filtered_name}</option>
-            )
-          })}
-        </select>
-        {selected_method_info.inputs.map((input) => <Method_Input {...input} />)}
-        <button onClick={self_destruct}>x</button>
+  useEffect(() => {
+    set_form_data("method_meta", methods[this_form.method])
+  }, [this_form.method])
+
+
+  console.log("method, meta", this_form.method, this_form.method_meta)
+  return (
+    <div className={selected_tag} onClick={select_this_form}>
+      <select defaultValue={this_form.method} onChange={(e) => {
+        set_form_data("method", e.target.value)
+      }}>
+        {method_options.map((key) => {
+          const filtered_name = key.replaceAll("_", " ")
+          return (
+            <option key={key} value={key}>{filtered_name}</option>
+          )
+        })}
+      </select>
+      <div className='method-container' key={this_form.method}>
+        {this_form.method_meta.inputs.map((input) => <Method_Input {...input} />)}
       </div>
-    )
-  } else {
-    return (
-      <div className='unselected_form'>
-        {minimized}
-        <button onClick={select_this_form}>edit</button>
-      </div>
-    )
-  }
+      <button onClick={self_destruct}>x</button>
+    </div>
+  )
 }
 
 export default InstructionForm

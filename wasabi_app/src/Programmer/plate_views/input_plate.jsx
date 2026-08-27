@@ -1,10 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
-import { ExperimentContext } from '../ExperimentContext.jsx';
-import WellElement from './wellElement.jsx'
+import { ExperimentContext } from '@src/ExperimentContext.jsx';
 import { useRef } from 'react';
-import { alph, alph_to_coords, get_int_array } from './utils.jsx';
-import Input_Cell from './input_cell.jsx';
-import Keybound_Container from '../keybound_container.jsx';
+import { alph, alph_to_coords, get_int_array } from '../utils.jsx';
+import Keybound_Container from '@src/keybound_container.jsx';
 
 const get_volume_map = (plate_matrix) => {
   let linearized = []
@@ -41,11 +39,21 @@ function InputPlate(props) {
     return empty_plate_matrix
   }
 
-
   const [plate_matrix, set_plate_matrix] = useState(get_initial_plate_matrix(rows, columns))
+
+  useEffect(() => {
+    set_plate_matrix(get_initial_plate_matrix(rows, columns))
+  }, [experiment.selected_id])
+
+
+
 
   const set_well_volume = (wellid, volume) => {
     const { x, y } = alph_to_coords(wellid)
+    const current_volume = plate_matrix[y][x].volume
+    if (current_volume === volume) {
+      return
+    }
     const modified_plate_matrix = structuredClone(plate_matrix)
     modified_plate_matrix[y][x] = { id: wellid, volume: volume }
     set_plate_matrix(modified_plate_matrix)
@@ -117,20 +125,17 @@ function InputPlate(props) {
   ])
 
   const handle_well_input = (event) => {
-    const value = parseFloat(event.target.value)
-    console.log("target: ", event.target)
-    if (isNaN(value)) {
-      return
-    }
+    const input_val = event.target.value
+    const value = parseFloat(input_val) || 0
     set_well_volume(event.target.id, value)
   }
 
   const keystate = useRef([])
 
   const handle_well_select = (event) => {
-    if (keystate.current.includes("Shift")) {
-      console.log("shift click grabbed! source is", event.target)
-    }
+    selected_inputs.current[0] == event.target.id
+    // if (keystate.current.includes("Shift")) {
+    // }
   }
 
 
@@ -146,18 +151,25 @@ function InputPlate(props) {
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody key={experiment.selected_id}>
             {plate_matrix.map((rowElement, row) => (
               <tr key={row} className="input_row">
                 <td className="row_label">{alph[row]}</td>
                 {rowElement.map((element, column) => (
-                  <td key={column * row} >
-                    <Input_Cell
-                      onFocus={handle_well_select}
-                      onBlur={() => { selected_inputs.current = [] }}
-                      onChange={handle_well_input}
-                      {...element}
-                    />
+                  <td key={(row + 1) + ((column) * rows)}  >
+                    <div className='input_cell'>
+                      <input
+                        inputMode='numeric'
+                        step="any"
+                        defaultValue={element.volume || null}
+                        key={element.volume}
+                        id={element.id}
+                        placeholder='0'
+                        onFocus={handle_well_select}
+                        onBlur={handle_well_input}
+                      />
+                      <span className='units-span'>μL</span>
+                    </div>
                   </td>
                 ))}
               </tr>
