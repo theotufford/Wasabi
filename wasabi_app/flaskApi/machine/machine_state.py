@@ -428,32 +428,45 @@ class MethodLibrary:
 
     def register_method(self,
                         method_function,
-                        function_purity: Literal["impure", "pure"] = None):
+                        # TODO purity inference
+                        function_purity: Literal["impure", "pure"] = "pure"):
+
         sig = inspect.signature(method_function)
         args = dict(sig.parameters.items())
         method_name = method_function.__name__
+
         if not args.get("machine") or not args["machine"].annotation == Machine:
             raise ValueError(f"method: {method_name} needs machine parameter!")
+
         self.method_callables[method_name] = method_function
-        self.method_info[method_name] = {
-            "inputs": [], "purity": function_purity}
+        is_direct_input = "volume_map" in args.keys()
+        has_region_select = "well_array" in args.keys()
+        has_region_select = has_region_select or "well_array_dict" in args.keys()
+        info = {
+            "inputs": [],
+            "purity": function_purity,
+            "has_region_select": has_region_select,
+            "is_direct_input": is_direct_input
+        }
+
         for arg_name in args:
             param = args[arg_name]
             annotation = param.annotation
-
             if annotation.__name__ == "Machine":
                 continue
+
             sub_args: tuple | None = None
             try:
                 sub_args = annotation.__args__
             except AttributeError:
                 print(f"param {arg_name} doesnt have any sub-arguments")
 
-            self.method_info[method_name]["inputs"].append({
+            info["inputs"].append({
                 "name": arg_name,
                 "type": annotation.__name__,
                 "args": sub_args
             })
+            self.method_info[method_name] = info
 
     def output_methods_outline(self):
         with open("private/methods.json", "w") as file:

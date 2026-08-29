@@ -1,8 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
+import SelectPlate from './plate_views/select_plate.jsx';
 import { ExperimentContext } from '@src/ExperimentContext.jsx';
 import OverviewPlate from './plate_views/OverviewPlate.jsx';
 import { useRef } from 'react';
-import Color_plate_map from './plate_views/color_plate_map.jsx';
 import "./css/plate.css"
 import InputPlate from './plate_views/input_plate.jsx';
 import PureOutcomePlate from './plate_views/pure_outcome_plate.jsx';
@@ -23,24 +23,26 @@ export default function PlateElement(props) {
 
   useEffect(() => {
     const method_meta = selected_form.method_meta
+    let new_options = default_options
     if (method_meta.is_direct_input) {
-      set_view_options({
-        ...default_options,
-        "": <InputPlate />,
-      })
+      new_options = {
+        ...new_options,
+        "input": <InputPlate />
+      }
+      set_view_mode("input")
     }
-    if (method_meta.is_pure_pattern) {
-      set_view_options({
-        ...default_options,
-        "": <PureOutcomePlate />
-      })
+    if (method_meta.has_region_select) {
+      new_options = {
+        ...new_options,
+        "": <SelectPlate />,
+        "outcome": (method_meta.purity == "pure" ?
+          <PureOutcomePlate /> :
+          <Impure_Input_Plate />
+        )
+      }
+      set_view_mode("")
     }
-    if (method_meta.is_impure_pattern) {
-      set_view_options({
-        ...default_options,
-        "": <Impure_Input_Plate />
-      })
-    }
+    set_view_options(new_options)
   }, [selected_form.method_meta])
 
   const view_set_button = (e) => {

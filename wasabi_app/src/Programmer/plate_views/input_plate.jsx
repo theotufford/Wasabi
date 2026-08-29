@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import { ExperimentContext } from '@src/ExperimentContext.jsx';
 import { useRef } from 'react';
-import { alph, alph_to_coords, get_int_array } from '../utils.jsx';
+import { alph, alph_to_coords, coords_to_alph, get_int_array } from '../utils.jsx';
 import Keybound_Container from '@src/keybound_container.jsx';
 
 const get_volume_map = (plate_matrix) => {
@@ -114,6 +114,30 @@ function InputPlate(props) {
 
   const selected_inputs = useRef([])
 
+  const cascade_sheet_input = (initial_well, value) => {
+    const input_rows = value.split(" ")
+    const value_map = input_rows.map(
+      (row_string) => row_string.split("\t").map(
+        (cell_value) => parseFloat(cell_value) || 0)
+    )
+    console.log("map:", value_map)
+    const temp_plate_matrix = structuredClone(plate_matrix)
+    const initial_coord = alph_to_coords(initial_well.id)
+    for (let row_index = 0; row_index < value_map.length; row_index++) {
+      const true_y = row_index + initial_coord.y
+      for (let col_index = 0; col_index < value_map[row_index].length; col_index++) {
+        console.log("given row: ", row_index ,": " ,value_map[row_index])
+        console.log("plate row: ", temp_plate_matrix[true_y])
+        const true_x = col_index + initial_coord.x
+        const well_object = temp_plate_matrix[true_y]?.[true_x]
+        if (!well_object) { continue }
+        well_object.volume = value_map[row_index][col_index]
+      }
+    }
+    set_plate_matrix(temp_plate_matrix)
+    console.log("updated: ", temp_plate_matrix)
+  }
+
   const space_blur = () => {
     document.activeElement?.blur();
   }
@@ -126,6 +150,10 @@ function InputPlate(props) {
 
   const handle_well_input = (event) => {
     const input_val = event.target.value
+    if (input_val.includes(" ") || input_val.includes("\n")) {
+      cascade_sheet_input(event.target, input_val)
+      return
+    }
     const value = parseFloat(input_val) || 0
     set_well_volume(event.target.id, value)
   }
@@ -165,8 +193,8 @@ function InputPlate(props) {
                         key={element.volume}
                         id={element.id}
                         placeholder='0'
-                        onFocus={handle_well_select}
-                        onBlur={handle_well_input}
+                        autoFocus={true}
+                        onChange={handle_well_input}
                       />
                       <span className='units-span'>μL</span>
                     </div>

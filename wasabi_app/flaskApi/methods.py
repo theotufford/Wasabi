@@ -6,12 +6,15 @@ from .machine.utils import alph_to_vec, get_linear_well_array_height, get_linear
 
 methods = MethodLibrary()
 
+
 @methods.register_method
 def volume_map(machine: Machine,
                volume_map: dict,
                reagent):
     for wellid in volume_map:
         volume = volume_map[wellid]
+        if volume == 0:
+            continue
         machine.goto_well(wellid)
         machine.dispense(volume, reagent=reagent)
 
@@ -101,7 +104,7 @@ def general_gradient(machine: Machine,
 
 
 @methods.register_method
-def incremental_gradient(machine: Machine, 
+def incremental_gradient(machine: Machine,
                          well_array,
                          reagent,
                          direction: Literal["up", "down", "left", "right"],

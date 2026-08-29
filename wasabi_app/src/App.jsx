@@ -28,6 +28,7 @@ function App() {
             </Link>
         }
         </nav>
+    <button onClick={make_new_experiment}>new</button>
       </div>
       <Routes>
         <Route path='/' element={<Controller />} />

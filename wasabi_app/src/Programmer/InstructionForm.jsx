@@ -109,7 +109,7 @@ function InstructionForm(props) {
 
   console.log("method, meta", this_form.method, this_form.method_meta)
   return (
-    <div className={selected_tag} onClick={select_this_form}>
+    <div className={selected_tag} onClick={select_this_form} onFocus={select_this_form}>
       <select defaultValue={this_form.method} onChange={(e) => {
         set_form_data("method", e.target.value)
       }}>

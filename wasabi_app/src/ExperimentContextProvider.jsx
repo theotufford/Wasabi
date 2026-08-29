@@ -8,9 +8,8 @@ import { empty_experiment } from "./ExperimentContext"
 
 export const ExperimentContextProvider = ({ children }) => {
   const [experiment, set_experiment] = useState(() => {
-    // const saved_exp = localStorage.getItem("experiment")
-    // return saved_exp !== null ? JSON.parse(saved_exp) : empty_experiment
-    return empty_experiment
+    const saved_exp = localStorage.getItem("experiment")
+    return saved_exp !== null ? JSON.parse(saved_exp) : empty_experiment
   })
 
   useEffect(() => {
