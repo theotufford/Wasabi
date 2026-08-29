@@ -182,6 +182,7 @@ int main() {
       } else {
         pump.singular_accel_move(-accel_distance_steps);
         step_count += accel_distance_steps;
+        sleep_ms(50);
         pump.singular_accel_move(step_count);
       }
       break;
@@ -228,7 +229,6 @@ int main() {
           int homing_switch_step_pos = ceil(amot.stp_per_rev * 250. / 360.);
           initial_position[0] = homing_switch_step_pos - amot.live_abs_pos;
           amot.current_position = homing_switch_step_pos;
-          // TODO
         } else {
           amot.step();
         }
