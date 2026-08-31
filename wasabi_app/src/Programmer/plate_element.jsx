@@ -1,12 +1,12 @@
 import { useContext, useEffect, useState } from 'react';
 import SelectPlate from './plate_views/select_plate.jsx';
-import { ExperimentContext } from '@src/ExperimentContext.jsx';
+import { AppGlobalContext } from '@src/AppGlobalContext.jsx';
 import OverviewPlate from './plate_views/OverviewPlate.jsx';
 import { useRef } from 'react';
 import "./css/plate.css"
 import InputPlate from './plate_views/input_plate.jsx';
 import PureOutcomePlate from './plate_views/pure_outcome_plate.jsx';
-import Impure_Input_Plate from './plate_views/impure_input_plate.jsx';
+import Impure_Outcome_plate from './plate_views/impure_outcome_plate.jsx';
 
 // range select
 // range common input
@@ -14,8 +14,8 @@ import Impure_Input_Plate from './plate_views/impure_input_plate.jsx';
 // csv drag / drop
 // per-reagent view that triggers sim
 
-export default function PlateElement(props) {
-  const { experiment, set_experiment } = useContext(ExperimentContext)
+function PlateElement(props) {
+  const { experiment, set_experiment } = useContext(AppGlobalContext)
   const selected_form = experiment.forms[experiment.selected_id]
   const default_options = { "overview": <OverviewPlate />, "": <>loading...</> }
   const [view_options, set_view_options] = useState(default_options)
@@ -34,28 +34,30 @@ export default function PlateElement(props) {
     if (method_meta.has_region_select) {
       new_options = {
         ...new_options,
-        "": <SelectPlate />,
-        "outcome": (method_meta.purity == "pure" ?
+        "select_plate": <SelectPlate />,
+        "outcome_plate": (method_meta.purity == "pure" ?
           <PureOutcomePlate /> :
-          <Impure_Input_Plate />
+          <Impure_Outcome_plate />
         )
       }
-      set_view_mode("")
+      set_view_mode("select_plate")
     }
     set_view_options(new_options)
   }, [selected_form.method_meta])
 
-  const view_set_button = (e) => {
-    const view_name = e.target.name
-    set_view_mode(view_name)
-  }
-
   return (
     <div>
-      <div id='plate_view'>
+      <div key={view_mode} id='plate_view'>
         {view_options[view_mode]}
       </div>
+       <select value = {view_mode} onChange={(ev) => { set_view_mode(ev.target.value) }} >
+        {Object.keys(view_options).map((view_name) => {
+          if ( view_name == "" ) return
+          return <option value={view_name}>{view_name}</option>
+        })}
+      </select>
     </div>
   )
-
 }
+
+export default PlateElement

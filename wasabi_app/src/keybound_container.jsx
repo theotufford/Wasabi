@@ -2,28 +2,21 @@ import { useEffect } from "react"
 import { useRef } from "react"
 import { useState } from "react"
 
-function get_alph_sort(arr) {
-  console.log("arr: ", arr)
-  return arr.toSorted((a, b) => a.localeCompare(b))
-}
-
-function Keybound_Container({ children, function_map, ext_keystate }) {
+function Keybound_Container({ children, function_map, update_keystate }) {
   const function_library = useRef({})
 
   useEffect(() => {
+    if (!function_map) { return }
     for (const [keybind, function_bind] of function_map) {
       const strKey = keybind.toSorted().toString()
       function_library.current[strKey] = function_bind
     }
-  }, [])
+  }, [function_map])
 
 
   const [active_keys, set_active_keys] = useState([])
-
   const call_by_actives = () => { }
-
   useEffect(() => {
-
     if (active_keys.length == 0) {
       return
     }
@@ -32,26 +25,43 @@ function Keybound_Container({ children, function_map, ext_keystate }) {
   }, [call_by_actives])
 
   const keydown_handler = (event) => {
-    if (!active_keys.includes(event.key)) {
-      set_active_keys(prev => [...prev, event.key])
-      ext_keystate.current = [...active_keys, event.key]
-    }
+    set_active_keys(prev => {
+      if (!prev.includes(event.key)) {
+        return [...prev, event.key]
+      }
+      return prev
+    })
     call_by_actives()
   }
 
   const keyup_handler = (event) => {
-    const filtered_keys = active_keys.filter((keyname) => keyname != event.key)
+    const filtered_keys = active_keys.filter((keyname) => keyname !== event.key)
     set_active_keys(filtered_keys)
-    ext_keystate.current == filtered_keys
   }
+
+  useEffect(() => {
+
+    window.addEventListener('keydown', keydown_handler);
+    window.addEventListener('keyup', keyup_handler);
+
+    return () => {
+      window.removeEventListener('keydown', keydown_handler);
+      window.removeEventListener('keyup', keyup_handler);
+    };
+  }, [])
+
+
+  useEffect(() => {
+    console.log("keystate changed: ", active_keys)
+    update_keystate(active_keys)
+  }, [active_keys])
 
   return (
     <div
-      onBlur={() => { set_active_keys([]) }}
       onKeyDown={keydown_handler}
-      onKeyUp={keyup_handler}>
+      onKeyUp={keyup_handler}
+    >
       {children}
     </div>)
 }
-
 export default Keybound_Container

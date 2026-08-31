@@ -20,7 +20,25 @@
   transition: fill 0.2s;
 }
 
-.input_cell {
+.selected {
+  border: 1px solid white;
+}
+
+.input-cell {
+  position: relative;
+  width: 100%;
+  height: 2vw;
+}
+
+.input-cell input {
+  width: 100%;
+  height: 100%;
+  border-radius: 0px;
+}
+
+
+
+.selected-input-cell {
   position: relative;
   width: 100%;
   height: 2vw;
@@ -37,13 +55,6 @@
   margin-right: 5px;
   z-index: 99999;
 }
-
-.input_cell input {
-  width: 100%;
-  height: 100%;
-  border-radius: 0px;
-}
-
 
 .input_row td,
 th {

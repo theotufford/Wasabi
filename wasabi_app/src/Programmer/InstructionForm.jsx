@@ -1,4 +1,4 @@
-import { ExperimentContext } from '@src/ExperimentContext.jsx';
+import { AppGlobalContext } from '@src/AppGlobalContext.jsx';
 import './css/instructionForm.css'
 import methods from '@src/assets/methods.json'
 import { useContext, useEffect, useState } from 'react';
@@ -11,7 +11,7 @@ const blur_on_enter = (kd_event) => {
 }
 
 function InstructionForm(props) {
-  const { experiment, set_experiment } = useContext(ExperimentContext)
+  const { experiment, set_experiment } = useContext(AppGlobalContext)
   const this_form = experiment.forms[props.id]
 
   const self_destruct = () => {
@@ -107,7 +107,6 @@ function InstructionForm(props) {
   }, [this_form.method])
 
 
-  console.log("method, meta", this_form.method, this_form.method_meta)
   return (
     <div className={selected_tag} onClick={select_this_form} onFocus={select_this_form}>
       <select defaultValue={this_form.method} onChange={(e) => {

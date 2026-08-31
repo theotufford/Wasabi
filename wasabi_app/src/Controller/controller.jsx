@@ -3,10 +3,10 @@ import { apiCall, control_call, dataStream } from '@src/backendConfig.jsx'
 import Pump_block from './pump_interface.jsx'
 import TestButton from '@src/browserFrame.jsx'
 import "./controller.css"
-import { ExperimentContext } from '@src/ExperimentContext.jsx'
+import { AppGlobalContext } from '@src/AppGlobalContext.jsx'
 
 function Controller(props) {
-  const { experiment, set_experiment } = useContext(ExperimentContext)
+  const { experiment, set_experiment } = useContext(AppGlobalContext)
   const [serialMessage, setSerialMessage] = useState(".....")
   const [pump_array, set_pump_array] = useState({})
   const [reagents, set_reagents] = useState([])
@@ -14,7 +14,8 @@ function Controller(props) {
 
 
   const load_needed = () => {
-    console.log("pump array: ", pump_array)
+    return
+     console.log("pump array: ", pump_array)
     const tmp = []
     Object.keys(experiment.forms).forEach((form_id) => {
       const form = experiment.forms[form_id]
@@ -32,7 +33,7 @@ function Controller(props) {
   // on page load
   useEffect(() => {
     dataStream.onmessage = (e) => {
-      console.log("received: ", e)
+       console.log("received: ", e)
       setSerialMessage(e.data)
     }
     //get and set key value pump array from backend db

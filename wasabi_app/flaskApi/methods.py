@@ -6,7 +6,6 @@ from .machine.utils import alph_to_vec, get_linear_well_array_height, get_linear
 
 methods = MethodLibrary()
 
-
 @methods.register_method
 def volume_map(machine: Machine,
                volume_map: dict,
@@ -21,7 +20,7 @@ def volume_map(machine: Machine,
 
 @methods.register_method
 def constant(machine: Machine,
-             well_array,
+             well_array: list,
              reagent,
              volume: float):
     print("well array: ", well_array)
@@ -31,7 +30,7 @@ def constant(machine: Machine,
 
 
 def general_gradient(machine: Machine,
-                     well_array,
+                     well_array: list,
                      reagent,
                      direction: Literal["up", "down", "left", "right"],
                      gradient_type: Literal["spacing", "end target"],
@@ -105,7 +104,7 @@ def general_gradient(machine: Machine,
 
 @methods.register_method
 def incremental_gradient(machine: Machine,
-                         well_array,
+                         well_array: list,
                          reagent,
                          direction: Literal["up", "down", "left", "right"],
                          increment: float,
@@ -119,7 +118,7 @@ def incremental_gradient(machine: Machine,
 
 @methods.register_method
 def exponential_gradient(machine: Machine,
-                         well_array,
+                         well_array: list,
                          reagent,
                          direction: Literal["up", "down", "left", "right"],
                          base: float,
@@ -134,7 +133,7 @@ def exponential_gradient(machine: Machine,
 
 @methods.register_method
 def end_target_gradient(machine: Machine,
-                        well_array,
+                        well_array: list,
                         reagent,
                         direction: Literal["down", "right"],
                         spacing_type: Literal["linear", "exponential"],

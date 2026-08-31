@@ -5,11 +5,11 @@ import { v4 as uuidv4 } from 'uuid';
 import SaveButton from './SaveButton.jsx';
 import './css/Programmer.css'
 import { control_call } from '@src/backendConfig.jsx';
-import { ExperimentContext, default_form } from '@src/ExperimentContext.jsx';
+import { AppGlobalContext, default_form } from '@src/AppGlobalContext.jsx';
 
 function Programmer(props) {
 
-  const { experiment, set_experiment } = useContext(ExperimentContext)
+  const { experiment, set_experiment } = useContext(AppGlobalContext)
 
   const modify_experiment = (key, value) => {
     set_experiment(previous_value => ({ ...previous_value, [key]: value }))
@@ -40,7 +40,6 @@ function Programmer(props) {
 
   const deleteForm = (event) => {
     const target_id = event.target.id
-    console.log("deleting form with id: ", target_id)
     const { [target_id]: _, ...new_forms_object } = experiment.forms;
     setForms(new_forms_object)
   }

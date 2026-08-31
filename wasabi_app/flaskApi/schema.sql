@@ -27,6 +27,4 @@ CREATE TABLE experiments (
   pastRunData TEXT,
   data TEXT, 
   machineCode TEXT,
-  pastMachineCode TEXT,
-  runcount INTEGER
 );

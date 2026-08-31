@@ -9,9 +9,9 @@ function Auth(props) {
     apiCall({ route: "get_authors" })
       .then(apiResponse => apiResponse.data)
       .then((data) => {
-        console.log("authors recieved: ", data)
+         console.log("authors recieved: ", data)
         set_authors(Array.from(data))
-        console.log("authors set: ", authors)
+         console.log("authors set: ", authors)
       })
   }
 
@@ -28,8 +28,8 @@ function Auth(props) {
   const new_author_name = useRef("")
 
   useEffect(() => {
-    console.log(new_author_name)
-    console.log(authors)
+     console.log(new_author_name)
+     console.log(authors)
   }, [authors, new_author_name])
 
   const new_author = () => {

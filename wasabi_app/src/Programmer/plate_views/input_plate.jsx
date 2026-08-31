@@ -1,152 +1,114 @@
 import { useContext, useEffect, useState } from 'react';
-import { ExperimentContext } from '@src/ExperimentContext.jsx';
+import { AppGlobalContext } from '@src/AppGlobalContext.jsx';
 import { useRef } from 'react';
-import { alph, alph_to_coords, coords_to_alph, get_int_array } from '../utils.jsx';
-import Keybound_Container from '@src/keybound_container.jsx';
+import { alph, make_plate_matrix, for_2d, alph_to_coords, coords_to_alph, get_int_array, get_well_array_from_corners } from '../utils.jsx';
 
-const get_volume_map = (plate_matrix) => {
-  let linearized = []
-  plate_matrix.forEach((row) => {
-    linearized = [...linearized, ...row]
-  })
-  const output = {}
-  linearized.forEach((well_element) => {
-    output[well_element.id] = well_element.volume
-  })
-  return output
+const get_new_well_obj = (row, column, volume_map = {}) => {
+  const well_id = coords_to_alph(column, row)
+  return {
+    id: well_id,
+    volume: volume_map[well_id] | 0
+  }
 }
 
+
 function InputPlate(props) {
-  const { experiment, set_experiment } = useContext(ExperimentContext)
+  const { keystate, set_keybind_function_map, experiment, set_experiment } = useContext(AppGlobalContext)
   const rows = experiment.plateDimensions.rows
   const columns = experiment.plateDimensions.columns
   const selected_form = experiment.forms[experiment.selected_id]
+  const get_input_plate_matrix = () => make_plate_matrix(rows, columns,
+    (x, y) => get_new_well_obj(y, x, selected_form.volume_map))
 
-  const get_initial_plate_matrix = (rows, columns) => {
-    const empty_plate_matrix = [];
-    for (let row = 0; row < rows; row++) {
-      const row_array = []
-      for (let column = 0; column < columns; column++) {
-        const id = `${alph[row]}${column + 1}`
-        const volume = selected_form?.volume_map?.[id] || 0
-        row_array.push({
-          id: id,
-          volume: volume
-        })
-      }
-      empty_plate_matrix.push(row_array)
+  const [plate_matrix, set_plate_matrix] = useState(get_input_plate_matrix())
+
+  const update_volume_map = (id, volume) => set_experiment(prev => {
+    const clone_exp = structuredClone(prev)
+    const selected_form_clone = clone_exp.forms[clone_exp.selected_id]
+    selected_form_clone.volume_map[id] = volume
+    return clone_exp
+  })
+
+  const verify_focused_wrapper = (callback) => (...args) => {
+    const active = document.activeElement
+    if (active.className === 'well-input') {
+      callback(...args)
     }
-    return empty_plate_matrix
   }
-
-  const [plate_matrix, set_plate_matrix] = useState(get_initial_plate_matrix(rows, columns))
 
   useEffect(() => {
-    set_plate_matrix(get_initial_plate_matrix(rows, columns))
-  }, [experiment.selected_id])
+    set_keybind_function_map(new Map([
+      [[" "], blur_all],
+      [["Escape"], blur_all],
+      [["Enter"], blur_all],
+      [["Control", "a"], select_all]
+    ]))
+    return () => {
+      set_keybind_function_map(new Map())
+    };
+  }, [])
 
-
-
-
-  const set_well_volume = (wellid, volume) => {
-    const { x, y } = alph_to_coords(wellid)
-    const current_volume = plate_matrix[y][x].volume
-    if (current_volume === volume) {
-      return
-    }
-    const modified_plate_matrix = structuredClone(plate_matrix)
-    modified_plate_matrix[y][x] = { id: wellid, volume: volume }
-    set_plate_matrix(modified_plate_matrix)
-  }
-
-  const reverting = useRef(false)
-  const plate_history = useRef([plate_matrix])
-  const plate_history_ind = useRef(0)
-
-  const undo = () => {
-    reverting.current = true
-    plate_history_ind.current = (plate_history_ind.current - 1) % 30;
-    const target_state = plate_history[plate_history_ind]
-    if (target_state == undefined) {
-      plate_history_ind.current += 1
-      return
-    }
-    set_plate_matrix(target_state)
-  }
-
-  const redo = () => {
-    reverting.current = true
-    plate_history_ind.current = (plate_history_ind.current + 1) % 30;
-    const target_state = plate_history[plate_history_ind]
-    if (target_state == undefined) {
-      plate_history_ind.current -= 1
-      return
-    }
-    set_plate_matrix(target_state)
-  }
-
-  const update_volume_map = () => {
-    set_experiment(prev => ({
-      ...prev,
-      forms: {
-        ...prev.forms,
-        [prev.selected_id]: {
-          ...prev.forms[prev.selected_id],
-          volume_map: get_volume_map(plate_matrix)
-        }
-      }
-    }))
-  }
   useEffect(() => {
-    update_volume_map()
-    if (reverting == true) {
-      reverting.current = false
-      return
-    }
+    set_plate_matrix(get_input_plate_matrix())
+  }, [selected_form.volume_map])
 
-    plate_history_ind.current = (plate_history_ind.current + 1) % 30;
-    plate_history.current[plate_history_ind] = plate_matrix
-    for (let i = plate_history_ind.current; i < plate_history.current.length; i++) {
-      plate_history.current[i] = undefined
-    }
-
-  }, [plate_matrix])
-
-  const selected_inputs = useRef([])
-
-  const cascade_sheet_input = (initial_well, value) => {
-    const input_rows = value.split(" ")
-    const value_map = input_rows.map(
-      (row_string) => row_string.split("\t").map(
-        (cell_value) => parseFloat(cell_value) || 0)
+  const parse_sheet_paste = (str) => {
+    const input_rows = str.split(" ")
+    return input_rows.map(
+      (row_string) => row_string.split(/[ \t ; , ]/)
+        .map((cell_value) => parseFloat(cell_value) || 0)
     )
-    console.log("map:", value_map)
-    const temp_plate_matrix = structuredClone(plate_matrix)
-    const initial_coord = alph_to_coords(initial_well.id)
-    for (let row_index = 0; row_index < value_map.length; row_index++) {
-      const true_y = row_index + initial_coord.y
-      for (let col_index = 0; col_index < value_map[row_index].length; col_index++) {
-        console.log("given row: ", row_index ,": " ,value_map[row_index])
-        console.log("plate row: ", temp_plate_matrix[true_y])
-        const true_x = col_index + initial_coord.x
-        const well_object = temp_plate_matrix[true_y]?.[true_x]
-        if (!well_object) { continue }
-        well_object.volume = value_map[row_index][col_index]
-      }
+  }
+
+  const cascade_sheet_input = (initial_well_element, value) => {
+    const parsed_volume_matrix = parse_sheet_paste(value)
+
+    const width = parsed_volume_matrix[0].length
+    const height = parsed_volume_matrix.length
+    const initial = alph_to_coords(initial_well_element.id)
+
+    for_2d(initial.x, initial.y, width, height, (x, y) => {
+      const volume_value = parsed_volume_matrix[y][x]
+      const target_wellid = coords_to_alph(x, y)
+      update_volume_map(target_wellid, volume_value)
+    })
+
+  }
+
+  const selected_wellids = useRef(new Set())
+  const last_well_selected = useRef("")
+
+  const select_all = verify_focused_wrapper(() => {
+    selected_wellids.current = new Set(plate_matrix.flat().map((well_obj) => well_obj.id))
+    const all_cells = Array.from(document.getElementsByClassName("input-cell"))
+    all_cells.forEach(element => (element.classList.add("selected")))
+  })
+
+  const blur_all = verify_focused_wrapper(() => {
+    document.activeElement.blur()
+    last_well_selected.current = ""
+    selected_wellids.current.forEach((id) => document.getElementById(id).classList.remove("selected"))
+    selected_wellids.current = new Set()
+  })
+
+  const handle_well_select = (event) => {
+
+    const initial_selected = new Set(selected_wellids.current)
+    const selected_wellid = event.target.id
+    selected_wellids.current.add(selected_wellid)
+
+    if (keystate.current.includes("Shift") && last_well_selected.current !== "") {
+      const new_id_set = new Set(get_well_array_from_corners(last_well_selected.current, selected_wellid))
+      selected_wellids.current = selected_wellids.current.union(new_id_set)
     }
-    set_plate_matrix(temp_plate_matrix)
-    console.log("updated: ", temp_plate_matrix)
-  }
 
-  const space_blur = () => {
-    document.activeElement?.blur();
-  }
+    last_well_selected.current = selected_wellid
+    const needs_html_select_class_updated = initial_selected.symmetricDifference(selected_wellids.current)
 
-  const keybinds_map = new Map([
-    [["Control", "z"], undo],
-    [["Control", "y"], redo],
-    [[" "], space_blur],
-  ])
+    needs_html_select_class_updated.forEach((id) => {
+      document.getElementById(id).classList.toggle("selected")
+    })
+  }
 
   const handle_well_input = (event) => {
     const input_val = event.target.value
@@ -155,57 +117,50 @@ function InputPlate(props) {
       return
     }
     const value = parseFloat(input_val) || 0
-    set_well_volume(event.target.id, value)
+    selected_wellids.current.forEach((id) => {
+      update_volume_map(id, value)
+    })
   }
-
-  const keystate = useRef([])
-
-  const handle_well_select = (event) => {
-    selected_inputs.current[0] == event.target.id
-    // if (keystate.current.includes("Shift")) {
-    // }
-  }
-
 
   return (
-    <Keybound_Container ext_keystate={keystate} function_map={keybinds_map}>
-      <div id="plateContainer">
-        <table>
-          <thead>
-            <tr className='input_row'>
-              <th> </th>
-              {get_int_array(columns).map((column_id) => (
-                <th key={column_id} scope='column'>{column_id + 1}</th>
+    <div id="plateContainer" >
+      <table>
+        <thead>
+          <tr className='input_row'>
+            <th> </th>
+            {get_int_array(columns).map((column_id) => (
+              <th key={column_id} scope='column'>{column_id + 1}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody key={experiment.selected_id}>
+          {plate_matrix.map((rowElement, row) => (
+            <tr key={row} className="input_row">
+              <td className="row_label">{alph[row]}</td>
+              {rowElement.map((element, column) => (
+                <td key={(row + 1) + ((column) * rows)}  >
+                  <div id={element.id} className="unselected input-cell">
+                    <input
+                      className='well-input'
+                      inputMode='numeric'
+                      step="any"
+                      defaultValue={element.volume || null}
+                      key={element.volume}
+                      id={element.id}
+                      placeholder='0'
+                      autoFocus={last_well_selected.current == element.id}
+                      onChange={handle_well_input}
+                      onFocus={handle_well_select}
+                    />
+                    <span className='units-span'>μL</span>
+                  </div>
+                </td>
               ))}
             </tr>
-          </thead>
-          <tbody key={experiment.selected_id}>
-            {plate_matrix.map((rowElement, row) => (
-              <tr key={row} className="input_row">
-                <td className="row_label">{alph[row]}</td>
-                {rowElement.map((element, column) => (
-                  <td key={(row + 1) + ((column) * rows)}  >
-                    <div className='input_cell'>
-                      <input
-                        inputMode='numeric'
-                        step="any"
-                        defaultValue={element.volume || null}
-                        key={element.volume}
-                        id={element.id}
-                        placeholder='0'
-                        autoFocus={true}
-                        onChange={handle_well_input}
-                      />
-                      <span className='units-span'>μL</span>
-                    </div>
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Keybound_Container>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

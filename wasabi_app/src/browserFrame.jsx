@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useContext } from 'react'
-import { ExperimentContext } from './ExperimentContext.jsx'
+import { AppGlobalContext } from './AppGlobalContext.jsx'
 import apiCall from './backendConfig.jsx'
 
 const BrowserElement = (props) => {
 
-  const { experiment, set_experiment, load_experiment} = useContext(ExperimentContext)
+  const { experiment, set_experiment, load_experiment} = useContext(AppGlobalContext)
 
   const [visible_experiments, set_visible_experiments] = useState([])
 
@@ -22,7 +22,7 @@ const BrowserElement = (props) => {
       })
       highest_versioned_of_name.push(highest_inst)
     })
-    console.log(highest_versioned_of_name)
+     console.log(highest_versioned_of_name)
     return highest_versioned_of_name
 
   }

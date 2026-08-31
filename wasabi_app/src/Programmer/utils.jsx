@@ -1,7 +1,45 @@
-export const alph = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('')
+export const alph = "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z".split(' ')
 
-export function get_int_array(n){
-  return Array.from({ length: n}, (_, i) => i)
+export function for_2d(
+  initial_x, initial_y,
+  max_x, max_y,
+  callback_fn,
+) {
+  for (let y = initial_y; y < max_y; y++) {
+    for (let x = initial_x; x < max_x; x++) {
+      callback_fn(x, y)
+    }
+  }
+}
+
+export function map_2d(
+  matrix,
+  callback_fn
+) {
+  const newmat = []
+  matrix.forEach((row) => {
+    const newrow = []
+    row.forEach((element) => {
+      newrow.push(callback_fn(element))
+    })
+    newmat.push(newrow)
+  })
+  return newmat
+}
+
+
+export function make_plate_matrix(rows, columns, well_generator_callback) {
+  const plate_matrix = []
+  for_2d(0, 0, columns, rows,
+    (x, y) => {
+      plate_matrix[y] = plate_matrix[y] ?? []
+      plate_matrix[y] = [...plate_matrix[y], well_generator_callback(x, y)]
+    })
+  return plate_matrix
+}
+
+export function get_int_array(n) {
+  return Array.from({ length: n }, (_, i) => i)
 }
 
 export function coords_to_alph(x, y) {
@@ -59,12 +97,11 @@ export function get_well_array_from_corners(corner_1, corner_2) {
       well_arr.push(coords_to_alph(x_coord, y_coord))
     }
   }
-  console.log("got well array: ", well_arr)
   return well_arr
 }
 
 // top left to bottom right sorting of a linear well array
-export function alph_sort(well_array){
+export function alph_sort(well_array) {
   const alph_compare = (alph1, alph2) => {
     const coord1 = alph_to_coords(alph1)
     const coord2 = alph_to_coords(alph2)

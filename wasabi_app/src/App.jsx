@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect, createContext } from 'react'
 import { BrowserRouter, Routes, Route, Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { ExperimentContextProvider } from './ExperimentContextProvider.jsx';
+import { AppGlobalContextProvider } from './AppGlobalContextProvider.jsx';
 import "./App.css"
 import Controller from './Controller/controller.jsx'
 import Programmer from './Programmer/Programmer.jsx'
 import { useContext } from 'react';
-import { empty_experiment, ExperimentContext } from './ExperimentContext.jsx';
+import { empty_experiment, AppGlobalContext } from './AppGlobalContext.jsx';
 
 function App() {
-  const { experiment, set_experiment } = useContext(ExperimentContext)
+  const { experiment, set_experiment } = useContext(AppGlobalContext)
   const location = useLocation()
   const navigate = useNavigate('/programmer')
   const make_new_experiment = () => {

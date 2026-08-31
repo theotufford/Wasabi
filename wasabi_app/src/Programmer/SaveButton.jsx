@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useContext } from 'react'
-import { ExperimentContext } from '@src/ExperimentContext.jsx';
+import { AppGlobalContext } from '@src/AppGlobalContext.jsx';
 import { apiCall } from '@src/backendConfig.jsx';
 
 const SaveButton = (props) => {
 
   const autoSave = useRef(true)
-  const { experiment, set_experiment } = useContext(ExperimentContext)
+  const { experiment, set_experiment } = useContext(AppGlobalContext)
 
   const save = () => {
     apiCall({

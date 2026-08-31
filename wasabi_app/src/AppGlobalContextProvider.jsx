@@ -1,15 +1,23 @@
 import { useContext } from "react"
-import { ExperimentContext } from "./ExperimentContext"
+import { AppGlobalContext } from "./AppGlobalContext"
 import apiCall from "./backendConfig"
 import { useState } from "react"
 import { useEffect } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
-import { empty_experiment } from "./ExperimentContext"
+import Keybound_Container from "./keybound_container"
+import { empty_experiment } from "./AppGlobalContext"
+import { useRef } from "react"
 
-export const ExperimentContextProvider = ({ children }) => {
+export const AppGlobalContextProvider = ({ children }) => {
+  const [keybind_function_map, set_keybind_function_map] = useState(new Map())
+  const keystate = useRef([])
   const [experiment, set_experiment] = useState(() => {
     const saved_exp = localStorage.getItem("experiment")
-    return saved_exp !== null ? JSON.parse(saved_exp) : empty_experiment
+    return (
+      saved_exp !== null ?
+        JSON.parse(saved_exp) :
+        empty_experiment
+    )
   })
 
   useEffect(() => {
@@ -36,14 +44,22 @@ export const ExperimentContextProvider = ({ children }) => {
       })
   }
 
+  const update_keystate = (new_keystate) => {
+    keystate.current = new_keystate
+  }
+
   return (
-    <ExperimentContext value={{
+    <AppGlobalContext value={{
       experiment: experiment,
       set_experiment: set_experiment,
-      load_experiment: load_experiment
+      load_experiment: load_experiment,
+      keystate: keystate,
+      set_keybind_function_map: set_keybind_function_map,
     }}>
-      {children}
-    </ExperimentContext>
+      <Keybound_Container function_map={keybind_function_map} update_keystate={update_keystate}>
+        {children}
+      </Keybound_Container>
+    </AppGlobalContext>
   )
 
 }
