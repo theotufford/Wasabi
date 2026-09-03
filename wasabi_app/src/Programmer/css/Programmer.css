@@ -6,8 +6,8 @@
   overflow: hidden;
 }
 
-#forms {
-  width: 580px;
+#instruction-input{
+  width: 10vw;
   min-width: 480px;
   border-right: 0.5px solid var(--border);
   padding: 20px;

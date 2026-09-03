@@ -6,6 +6,7 @@ import Controller from './Controller/controller.jsx'
 import Programmer from './Programmer/Programmer.jsx'
 import { useContext } from 'react';
 import { empty_experiment, AppGlobalContext } from './AppGlobalContext.jsx';
+import BrowserElement from './browserFrame.jsx';
 
 function App() {
   const { experiment, set_experiment } = useContext(AppGlobalContext)
@@ -28,7 +29,8 @@ function App() {
             </Link>
         }
         </nav>
-    <button onClick={make_new_experiment}>new</button>
+        <BrowserElement navigate_callback={navigate} />
+        <button command="show-modal" commandfor="browser" id="main-select-experiment">open different experiment</button>
       </div>
       <Routes>
         <Route path='/' element={<Controller />} />

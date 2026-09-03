@@ -52,7 +52,6 @@ function Keybound_Container({ children, function_map, update_keystate }) {
 
 
   useEffect(() => {
-    console.log("keystate changed: ", active_keys)
     update_keystate(active_keys)
   }, [active_keys])
 

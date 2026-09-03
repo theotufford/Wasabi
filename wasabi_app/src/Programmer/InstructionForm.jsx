@@ -2,6 +2,7 @@ import { AppGlobalContext } from '@src/AppGlobalContext.jsx';
 import './css/instructionForm.css'
 import methods from '@src/assets/methods.json'
 import { useContext, useEffect, useState } from 'react';
+import { Reagent_Selector } from '../Reagent_Selector';
 
 
 const blur_on_enter = (kd_event) => {
@@ -31,6 +32,7 @@ function InstructionForm(props) {
   function Method_Input(props) {
     const mod_function = (event) => {
       let value = event.target.value
+      console.log("got mod func call", value)
       if (props.type == "float") {
         value = parseFloat(value)
       }
@@ -48,11 +50,9 @@ function InstructionForm(props) {
       this_form.is_direct_input = true
     }
     if (props.name === "reagent") {
-      return (<div> reagent: <input
-        placeholder="input reagent name"
-        defaultValue={current_value}
-        onKeyDown={blur_on_enter}
-        onBlur={mod_function} /></div>
+      return (<div> reagent:
+        <Reagent_Selector selected_reagent={current_value} select_reagent={(value) => set_form_data("reagent", value) } />
+      </div>
       )
     }
     if (props.type == "Literal") {

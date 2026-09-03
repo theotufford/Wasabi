@@ -26,16 +26,10 @@ class Reagent_Mix:
         return total_volume
 
     def release_volume(self, target_volume):
-        total_volume = self.get_total_volume()
-        if total_volume == 0:
-            raise ValueError(
-                f"attempting to release volume from empty reagent mix")
-
+        # total_volume = self.get_total_volume()
         released_volume = Reagent_Mix()
-
-        if total_volume < target_volume:
-            released_volume.contents = self.contents
-            return released_volume
+        released_volume.contents = self.contents
+        return released_volume
 
         v_total = self.get_total_volume()
         for reagent in self.contents:
@@ -293,6 +287,10 @@ class Machine:
             self.current_position = pos
         self.current_well = self.waste_well
 
+    def stall_for_confirm(self, confirm_prompt_message):
+        if not self.in_simulation:
+            input("confirm_prompt_message")
+
     def goto_well(self, wellid: str):
 
         if wellid == "waste":
@@ -340,7 +338,7 @@ class Machine:
         droplet_retract_volume = pump_settings["droplet_vol_ul"]
         asp_speed = pump_settings["aspiration_ang_v"]
 
-        ul_per_rev = ul_per_rad * 2 * math.pi * compensation_factor
+        ul_per_rev = ul_per_rad * 2 * math.pi / compensation_factor
         steps_per_ul = spr / ul_per_rev
 
         total_steps = math.floor(volume * steps_per_ul)
@@ -363,8 +361,8 @@ class Machine:
             id = self.get_pump_id(reagent)
         held_volume = self.pump_line_contents[id][-1]
         output_liquid = held_volume.release_volume(volume)
-        if held_volume.get_total_volume() == 0:
-            self.pump_line_contents.pop()
+        # if held_volume.get_total_volume() == 0:
+        #     self.pump_line_contents.pop()
 
         self.current_well.gain_liquid(output_liquid)
 
@@ -375,7 +373,7 @@ class Machine:
         if volume == 0:
             return
         pump_line = self.pump_line_contents[id]
-        aspirated_liquid = self.current_well.release_volume(volume)
+        aspirated_liquid = self.current_well.release_aspirate(volume)
         pump_line.append(aspirated_liquid)
         if not self.in_simulation:
             self.send_pump_action(volume, id)

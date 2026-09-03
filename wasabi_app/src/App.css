@@ -29,3 +29,17 @@
   font-size: 19px;
   padding: 5px 13px;
 }
+
+.hidden {
+  visibility: hidden;
+  width: 0px;
+  height: 0px;
+}
+
+#main-select-experiment {
+  font-size: 19px;
+  padding: 5px 13px;
+  border-radius: 0px;
+  border: none;
+  align-self: flex-end;
+}

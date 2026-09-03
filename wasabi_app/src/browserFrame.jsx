@@ -4,7 +4,7 @@ import apiCall from './backendConfig.jsx'
 
 const BrowserElement = (props) => {
 
-  const { experiment, set_experiment, load_experiment} = useContext(AppGlobalContext)
+  const { experiment, set_experiment, load_experiment } = useContext(AppGlobalContext)
 
   const [visible_experiments, set_visible_experiments] = useState([])
 
@@ -22,7 +22,7 @@ const BrowserElement = (props) => {
       })
       highest_versioned_of_name.push(highest_inst)
     })
-     console.log(highest_versioned_of_name)
+    console.log(highest_versioned_of_name)
     return highest_versioned_of_name
 
   }
@@ -45,7 +45,7 @@ const BrowserElement = (props) => {
 
 
   const select_experiment = (experiment) => {
-    select_experiment(experiment.title, experiment.version)
+    load_experiment(experiment.title, experiment.version)
     const dialog_target = document.getElementById("browser")
     dialog_target.close()
   }

@@ -17,6 +17,10 @@ def volume_map(machine: Machine,
         machine.goto_well(wellid)
         machine.dispense(volume, reagent=reagent)
 
+@methods.register_method
+def await_manual_continue(machine: Machine, action_prompt: str):
+    machine.stall_for_confirm(action_prompt)
+
 
 @methods.register_method
 def constant(machine: Machine,

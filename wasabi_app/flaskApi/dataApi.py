@@ -111,18 +111,91 @@ def experiment_dump():
 
 # this is sort of cursed that this is using post instead of get but im lazy
 @bp.route('/get_pump_map', methods=["POST"])
-def get_current_reagents():
+def get_current_pump_map():
     db = get_db()
-    reagents_by_id = {}
+    reagnets_by_pumpid = {}
     dump = db.execute("""
                       SELECT pumpID, reagent
                       FROM pumpMap
                       """).fetchall()
     for row in dump:
         rowdict = dict(row)
-        reagents_by_id[rowdict["pumpID"]] = rowdict["reagent"]
+        reagnets_by_pumpid[rowdict["pumpID"]] = rowdict["reagent"]
     close_db()
-    return jsonify({"data": reagents_by_id})
+    return jsonify({"data": reagnets_by_pumpid})
+
+
+@bp.route('/add_reagent', methods=["POST"])
+def add_reagent():
+    db = get_db()
+    data = request.get_json()
+    metadata = data["metadata"]
+    name = data["name"]
+    db.execute("""
+               INSERT INTO reagentLib (name, metadata)
+               VALUES (?, ?)
+               """,
+               (name, json.dumps(metadata)))
+    db.commit()
+    close_db()
+    return jsonify('success')
+
+
+@bp.route('/modify_reagent', methods=["POST"])
+def modify_reagent():
+    data = request.get_json()
+    metadata = data["metadata"]
+    name = data["name"]
+    db = get_db()
+    db.execute("""
+               UPDATE experiments
+               SET metadata = ?
+               WHERE (name = ?)
+               """, (json.dumps(metadata), name))
+    db.commit()
+    close_db()
+    return jsonify('success')
+
+
+@bp.route('/delete_reagent', methods=["POST"])
+def delete_reagent():
+    data = request.get_json()
+    db = get_db()
+    db.execute("""
+               DELETE FROM reagentLib
+               WHERE name = ?
+               """, (
+        data["name"],))
+    db.commit()
+    close_db()
+    return jsonify({"data": f"deleted {data['name']}"})
+
+
+@bp.route('/get_reagent', methods=["POST"])
+def get_reagent():
+    data = request.get_json()
+    name = data["name"]
+    db = get_db()
+    value = db.execute("""
+                      SELECT metadata
+                      FROM reagentLib
+                      WHERE name = ?
+                      """, (name,)).fetchone()
+    if value is None:
+        return jsonify({"failure": True})
+    close_db()
+    return jsonify({"data": json.loads(dict(value)["metadata"])})
+
+
+@bp.route('/dump_reagents', methods=["POST"])
+def dump_reagents():
+    db = get_db()
+    dump = db.execute("""
+                       SELECT * FROM reagentLib
+                       """).fetchall()
+    dump_dict = {k: v for k, v in dict(dump).items() if k is not None}
+    print(dump_dict)
+    return jsonify({"data": dump_dict})
 
 
 @bp.route('/get_authors', methods=["POST"])
@@ -136,7 +209,6 @@ def get_authors():
     close_db()
     for row in dump:
         rowdict = dict(row)
-        print(f"appending author to return: {rowdict}")
         authors.append(rowdict["name"])
     print(f"returning authors: {authors}")
     close_db()
@@ -156,5 +228,3 @@ def new_author():
     db.commit()
     close_db()
     return jsonify('success')
-
-
