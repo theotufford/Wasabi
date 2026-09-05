@@ -18,7 +18,7 @@ def volume_map(machine: Machine,
         machine.dispense(volume, reagent=reagent)
 
 @methods.register_method
-def await_manual_continue(machine: Machine, action_prompt: str):
+def await_manual_continue(machine: Machine, action_prompt: str = "no prompt given"):
     machine.stall_for_confirm(action_prompt)
 
 

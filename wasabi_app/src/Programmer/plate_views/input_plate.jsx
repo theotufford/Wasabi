@@ -62,7 +62,6 @@ function InputPlate(props) {
 
   const cascade_sheet_input = (initial_well_element, value) => {
     const parsed_volume_matrix = parse_sheet_paste(value)
-
     const width = parsed_volume_matrix[0].length
     const height = parsed_volume_matrix.length
     const initial = alph_to_coords(initial_well_element.id)
@@ -112,11 +111,13 @@ function InputPlate(props) {
 
   const handle_well_input = (event) => {
     const input_val = event.target.value
+    console.log("got input: ", input_val)
     if (input_val.includes(" ") || input_val.includes("\n")) {
       cascade_sheet_input(event.target, input_val)
       return
     }
     const value = parseFloat(input_val) || 0
+    console.log("value parsed:", value)
     selected_wellids.current.forEach((id) => {
       update_volume_map(id, value)
     })
@@ -142,8 +143,6 @@ function InputPlate(props) {
                   <div id={element.id} className="unselected input-cell">
                     <input
                       className='well-input'
-                      inputMode='numeric'
-                      step="any"
                       defaultValue={element.volume || null}
                       key={element.volume}
                       id={element.id}

@@ -289,7 +289,7 @@ class Machine:
 
     def stall_for_confirm(self, confirm_prompt_message):
         if not self.in_simulation:
-            input("confirm_prompt_message")
+            input(f"{confirm_prompt_message}")
 
     def goto_well(self, wellid: str):
 

@@ -1,9 +1,9 @@
 {
   "machine": {
     "machineDimensions": {
-      "hand": 120,
-      "spacing": 85,
-      "arm": 85,
+      "hand": 103,
+      "spacing": 70,
+      "arm": 60,
       "tool_offset": 10,
       "z_screw_pitch": 4
 
