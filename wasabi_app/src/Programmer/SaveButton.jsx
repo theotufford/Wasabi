@@ -18,9 +18,14 @@ const SaveButton = (props) => {
     autoSave.current = false
     save()
     set_experiment(prev => ({ ...prev, version: prev.version + 1 }))
+    // TODO make sure experiment browser updates? maybe do an event emission system
   }
 
-  useEffect(() => { //save on change 
+
+  // for implicit saveas
+  const titleref = useRef(experiment.title)
+
+  useEffect(() => { //autosave on change 
     autoSave.current = true
     save()
   }, [experiment])

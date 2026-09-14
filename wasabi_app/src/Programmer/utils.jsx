@@ -35,8 +35,18 @@ export function make_plate_matrix(rows, columns, well_generator_callback) {
       plate_matrix[y] = plate_matrix[y] ?? []
       plate_matrix[y] = [...plate_matrix[y], well_generator_callback(x, y)]
     })
+
   return plate_matrix
 }
+
+export function get_id_set(rows, columns) {
+  const out = new Set()
+  for_2d(0,0, columns, rows, (x,y) => {
+    out.add(coords_to_alph(x,y))
+  })
+  return out
+}
+
 
 export function get_int_array(n) {
   return Array.from({ length: n }, (_, i) => i)

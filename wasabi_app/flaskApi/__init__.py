@@ -1,4 +1,5 @@
 from . import db
+import json
 from .machine import machine_state
 from .methods import methods
 from . import dataApi
@@ -24,14 +25,13 @@ except OSError:
 app.register_blueprint(dataApi.bp)
 
 # import the database into the app
+db.init_app(app)
 
-machine = machine_state.Machine("./public/machine_config.json", methods)
+with app.app_context():
+    machine = machine_state.Machine(
+        "./public/machine_config.json", methods)
+
 methods.output_methods_outline()
 ctlAPI = controlApi.machine_aware_bp_factory(machine)
 
 app.register_blueprint(ctlAPI, url_prefix="/control")
-
-db.init_app(app)
-
-if "__name__" == "__main__":
-    app.run(host='0.0.0.0', port=5000)

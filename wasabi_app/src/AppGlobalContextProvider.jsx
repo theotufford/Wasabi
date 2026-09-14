@@ -44,9 +44,35 @@ export const AppGlobalContextProvider = ({ children }) => {
       })
   }
 
+
   const update_keystate = (new_keystate) => {
     keystate.current = new_keystate
   }
+
+
+  const mouse_state = useRef(0)
+  const mousedown_handler = (event) => {
+    mouse_state.current = 1
+    console.log("down")
+  }
+  const mouseup_handler = (event) => {
+    mouse_state.current = 0
+    console.log("up")
+  }
+
+  useEffect(() => {
+
+    window.addEventListener('mousedown', mousedown_handler);
+    window.addEventListener('mouseup', mouseup_handler);
+
+    return () => {
+      window.removeEventListener('mousedown', mousedown_handler);
+      window.removeEventListener('mouseup', mouseup_handler);
+    };
+  }, [])
+
+
+
 
   return (
     <AppGlobalContext value={{
@@ -55,6 +81,7 @@ export const AppGlobalContextProvider = ({ children }) => {
       load_experiment: load_experiment,
       keystate: keystate,
       set_keybind_function_map: set_keybind_function_map,
+      mouse_state: mouse_state
     }}>
       <Keybound_Container function_map={keybind_function_map} update_keystate={update_keystate}>
         {children}

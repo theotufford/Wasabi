@@ -48,10 +48,9 @@ function Pump_block(props) {
   }
 
   function Pump_reagent_swapper(props) {
-    const [reagent_selected, set_reagent_selected] = useState(props.reagent)
     return (
       <dialog id={id}>
-        <form action={() => commit(reagent_selected)}>
+        <form action={() => commit(selected_reagent)}>
           <p>current: {props.reagent}</p>
           needed for current experiment:
           <ul>
@@ -61,9 +60,7 @@ function Pump_block(props) {
               })
             }
           </ul>
-          <Reagent_Selector select_reagent={(new_reagent) => set_reagent_selected(new_reagent)} />
           <div>
-            <button commandfor={id} type="submit" command="close" >confirm and commit physical change</button>
           </div>
         </form>
       </dialog >
@@ -77,16 +74,16 @@ function Pump_block(props) {
   } else {
     content = (<> pump {id} has '{reagent}', not used in loaded experiment </>)
   }
+  const [selected_reagent, set_selected_reagent] = useState(props.reagent)
 
   return (
     <div>
       {content}
-      <button command="show-modal" commandfor={id}>change</button>
       <button onClick={send_buzz}>buzz motor</button>
       <form onSubmit={pump_action}>
         <input name="volume" type="number" placeholder="pump volume ul" /> <button type="submit">o</button>
       </form>
-      <Pump_reagent_swapper />
+      <Reagent_Selector selected_reagent={selected_reagent} select_reagent={(new_reagent) => set_selected_reagent(new_reagent)} />
     </div>
   )
 }

@@ -55,7 +55,7 @@ const BrowserElement = (props) => {
   }
 
   return (
-    <dialog id="browser">
+    <dialog key={props.key} id="browser">
       <ul style={{ listStyleType: 'none' }}>
         {visible_experiments.map(exp => (
           <li key={exp.title} className='searchListItem' onClick={() => select_experiment(exp)}> {exp.title} {exp.version} </li>

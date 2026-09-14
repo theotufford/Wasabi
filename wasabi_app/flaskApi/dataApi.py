@@ -113,16 +113,16 @@ def experiment_dump():
 @bp.route('/get_pump_map', methods=["POST"])
 def get_current_pump_map():
     db = get_db()
-    reagnets_by_pumpid = {}
+    reagents_by_pumpid = {}
     dump = db.execute("""
                       SELECT pumpID, reagent
                       FROM pumpMap
                       """).fetchall()
     for row in dump:
         rowdict = dict(row)
-        reagnets_by_pumpid[rowdict["pumpID"]] = rowdict["reagent"]
+        reagents_by_pumpid[rowdict["pumpID"]] = rowdict["reagent"]
     close_db()
-    return jsonify({"data": reagnets_by_pumpid})
+    return jsonify({"data": reagents_by_pumpid})
 
 
 @bp.route('/add_reagent', methods=["POST"])

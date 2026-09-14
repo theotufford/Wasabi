@@ -46,6 +46,7 @@
 
 .units-span {
   position: absolute;
+  user-select: none;
   background-color: var(--bg-raised);
   color: var(--text-faint);
   right: 0px;
@@ -71,5 +72,6 @@ table {
 
 
 .row_label {
+  user-select: none;
   width: 40px;
 }

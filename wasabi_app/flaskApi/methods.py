@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import Flask, jsonify, Blueprint, request, session
 from typing import Literal
 from .machine.machine_state import Machine, MethodLibrary
@@ -5,6 +6,32 @@ from .machine.kinematics import Vec2d, dot_product
 from .machine.utils import alph_to_vec, get_linear_well_array_height, get_linear_well_array_width, xy_to_alph
 
 methods = MethodLibrary()
+
+
+@methods.register_method
+def endless_all_pumps(machine: Machine, volume: float):
+    init_time = datetime.now().strftime('%Y-%m-%d_%H-%M')
+    volumes = [0, 0, 0]
+    while True:
+        with open(f"logs/endless_all_pumps_{init_time}.txt", "a") as f:
+            for id in range(0, 3):
+                machine.dispense(volume=volume, id=id)
+                volumes[id] += volume
+            timestamp_str = datetime.now().strftime('%Y-%m-%\t%H:%M:%S')
+            f.write(f"volumes at {timestamp_str}: {volumes}\n")
+
+
+@methods.register_method
+def endless_dispense(machine: Machine, volume: float, pumpID: int):
+    init_time = datetime.now().strftime('%Y-%m-%d_%H-%M')
+    with open(f"logs/endless_{init_time}.txt", "w") as f:
+        net_volume = 0
+        while True:
+            machine.dispense(volume=volume, id=pumpID)
+            net_volume += volume
+            timestamp_str = datetime.now().strftime('%H:%M:%S')
+            f.write(f"volume at {timestamp_str}: {net_volume}\n")
+
 
 @methods.register_method
 def volume_map(machine: Machine,
@@ -16,6 +43,7 @@ def volume_map(machine: Machine,
             continue
         machine.goto_well(wellid)
         machine.dispense(volume, reagent=reagent)
+
 
 @methods.register_method
 def await_manual_continue(machine: Machine, action_prompt: str = "no prompt given"):

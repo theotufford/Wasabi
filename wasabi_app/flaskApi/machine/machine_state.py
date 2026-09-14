@@ -11,14 +11,17 @@ from typing import Self
 import RPi.GPIO as pio
 from .kinematics import solve_5bar_FK, solve_5bar_IK, MachinePosition, Vec2d, make_pos
 from . import serialcoms as serlib
-from .utils import alph_to_vec
+from .utils import alph_to_vec, vec_to_alph
 
 
 class Reagent_Mix:
-    def __init__(self):
-        self.contents = {}
+    def __init__(self, contents={}, is_reservoir=False):
+        self.contents = contents
+        self.is_reservoir = False
 
     def get_total_volume(self):
+        if self.is_reservoir:
+            return 1
         total_volume = 0
         for reagent in self.contents:
             held_volume = self.contents[reagent]
@@ -26,15 +29,13 @@ class Reagent_Mix:
         return total_volume
 
     def release_volume(self, target_volume):
-        # total_volume = self.get_total_volume()
         released_volume = Reagent_Mix()
         released_volume.contents = self.contents
-        return released_volume
-
         v_total = self.get_total_volume()
         for reagent in self.contents:
             volume = (self.contents[reagent] / v_total) * target_volume
-            self.contents[reagent] -= volume
+            if not self.is_reservoir:
+                self.contents[reagent] -= volume
             released_volume.contents[reagent] = volume
 
         return released_volume
@@ -42,54 +43,81 @@ class Reagent_Mix:
     def __repr__(self):
         return f"{self.contents}"
 
-    def gain_reagent(self, volume, reagent):
+    def gain_reagent(self, reagent, volume=0,  reservoir=False):
+        if self.is_reservoir:
+            return ValueError("attempting to add reagent to mix that is reservoir with indeterminate volume")
+        self.empty = False
+        self.is_reservoir = reservoir
+        if reservoir:
+            self.contents[reagent] = 1
+            return
         if not self.contents.get(reagent):
             self.contents[reagent] = 0
         self.contents[reagent] += volume
-        self.empty = False
 
     def gain_mixed_volume(self, liquid: Self):
+        if self.is_reservoir:
+            return ValueError("attempting to add reagent to mix that is reservoir with indeterminate volume")
         for reagent in liquid.contents:
             volume = liquid.contents[reagent]
-            self.gain_reagent(volume, reagent)
+            self.gain_reagent(reagent, volume)
 
 
-class Well():
-    def __init__(self, relative_position: Vec2d):
+class Well:
+    def __init__(self, settings, relative_position: Vec2d, contents={}):
         self.relative_position = relative_position
         self.absolute_position: MachinePosition()
-        self.liquid = Reagent_Mix()
+        self.liquid = Reagent_Mix(contents)
+        self.major_diameter = settings["major_diameter"]
+        self.minor_diameter = settings["minor_diameter"]
+        self.depth = settings["well_depth"]
 
     def release_aspirate(self, volume) -> Reagent_Mix:
         return self.liquid.release_volume(volume)
 
     def gain_liquid(self, liquid: Reagent_Mix):
+        if liquid is None:
+            return
         return self.liquid.gain_mixed_volume(liquid)
 
 
 class Plate:
     def __init__(self, settings: dict):
+        self.settings = settings
         self.rows = settings["rows"]
         self.columns = settings["columns"]
         self.spacing = settings["spacing"]
-        self.by_alph: dict[str, Well] = self.make_clear_plate()
+        self.wells: list[Well] = self.make_clear_plate()
 
     def make_clear_plate(self):
-        by_alph = {}
+        wells = []
         for row_y in range(0, self.rows):
-            alph = string.ascii_uppercase[row_y]
             for col_x in range(0, self.columns):
-                by_alph[f"{alph}{
-                    col_x + 1}"] = Well(self.spacing * Vec2d(col_x, row_y))
-        return by_alph
+                new_well = Well(self.settings, self.spacing *
+                                Vec2d(col_x, row_y))
+                wells.append(new_well)
+        return wells
+
+    def by_alph(self, alph):
+        for well in self.wells:
+            col_row_vec = well.relative_position / self.spacing
+            wellid = vec_to_alph(col_row_vec)
+            if alph == wellid:
+                return well
+
+    def by_relative_position(self, vec: Vec2d):
+        for well in self.wells:
+            dist_to_center = (vec - well.relative_position).get_length()
+            if dist_to_center < self.spacing / 2:
+                return well
 
     def reset_plate(self):
         self.by_alph = self.make_clear_plate()
 
     def get_well_vol_dict(self):
         out = {}
-        for alph in self.by_alph:
-            well = self.by_alph[alph]
+        for alph in self.by_alph():
+            well = self.by_alph(alph)
             out[alph] = well.liquid.contents
         return out
 
@@ -99,21 +127,23 @@ class Plate:
 
 class Machine:
     def __init__(self, settings_path, method_library):
+        self.settings_path = settings_path
+        mach = self.settings()["machine"]
         self.current_position = MachinePosition()
         self.home_offset = MachinePosition()
+        self.aspiration_depth_offset = 0
         self.methods: MethodLibrary = method_library
         self.methods.machine = self
         self.motors_enabled = True
         self.abs_plate_map = {}
         self.error = None
         self.position_known = False
-        self.settings_path = settings_path
         self.in_simulation = False
         self.impure_method_flag = False
         self.coms: serlib.ComsChannel
-        self.waste_well = Well(Vec2d(0, 0))
+        self.waste_well = Well(
+            self.settings()["plates"]["150ml_waste_beaker"], Vec2d(0, 0))
         self.current_well = self.waste_well
-        mach = self.settings()["machine"]
         spr = mach["motors"]["common_settings"]["kinematic_steps_per_revolution"]
         pitch = mach["machineDimensions"]["z_screw_pitch"]
         self.a_steps_per_rad = spr / (2 * math.pi)
@@ -125,8 +155,9 @@ class Machine:
         for id in range(0, len(pumps)):
             line_contents = Reagent_Mix()
             line_contents.gain_reagent(
-                999999999999999, "whatever is in this pump")
+                f"{self.get_reagent(id)}", reservoir=True)
             self.pump_line_contents[id] = [line_contents]
+        print(f"pump line: {self.pump_line_contents}")
 
         self.plate = Plate(self.settings()["plates"]["standard 96"])
         self.hw_init()
@@ -276,34 +307,34 @@ class Machine:
         return given_pos
 
     def goto_pos(self, pos: MachinePosition) -> None:
-        print(f"going to position: {pos}")
         if not self.position_known:
-            print("trying to move absolutely without being homed!")
             return
         if not self.in_simulation:
             pos = self.get_pos_IK(pos)
             steps = self.to_steps(pos)
             self.coms.send_move_steps(**steps)
             self.current_position = pos
-        self.current_well = self.waste_well
+        relative_position_2dVec = (
+            self.current_position - self.home_offset).get_vec()
+        self.current_well = self.plate.by_relative_position(
+            relative_position_2dVec)
 
     def stall_for_confirm(self, confirm_prompt_message):
         if not self.in_simulation:
             input(f"{confirm_prompt_message}")
 
     def goto_well(self, wellid: str):
-
         if wellid == "waste":
             target_pos = self.waste_well.absolute_position
             if target_pos is None:
                 raise ValueError("position of waste well is unknown!")
             self.goto_pos(target_pos)
+            self.current_well = self.waste_well
             return
 
-        target_well = self.plate.by_alph[wellid]
+        target_well = self.plate.by_alph(wellid)
         target_pos = self.home_offset + target_well.relative_position
         self.goto_pos(target_pos)
-        self.current_well = self.plate.by_alph[wellid]
 
     def get_reagent(self, id):
         db = get_db()
@@ -361,8 +392,8 @@ class Machine:
             id = self.get_pump_id(reagent)
         held_volume = self.pump_line_contents[id][-1]
         output_liquid = held_volume.release_volume(volume)
-        # if held_volume.get_total_volume() == 0:
-        #     self.pump_line_contents.pop()
+        if held_volume.get_total_volume() == 0:
+            self.pump_line_contents.pop()
 
         self.current_well.gain_liquid(output_liquid)
 
@@ -370,15 +401,19 @@ class Machine:
             self.send_pump_action(volume, id)
 
     def aspirate(self, volume, id):
+        self.impure_method_flag = True
         if volume == 0:
             return
+        if volume > 0:
+            raise ValueError("trying to aspirate positive volume?")
         pump_line = self.pump_line_contents[id]
-        aspirated_liquid = self.current_well.release_aspirate(volume)
-        pump_line.append(aspirated_liquid)
+        reagent_contents = Reagent_Mix()
+        if self.current_position.z <= self.home_offset.z:
+            reagent_contents = Reagent_Mix(contents={"air": abs(volume)})
+            pump_line.append(reagent_contents)
+
         if not self.in_simulation:
-            self.send_pump_action(volume, id)
-        else:
-            self.impure_method_flag = True
+            self.send_pump_action(-volume, id)
 
 
 class MethodLibrary:

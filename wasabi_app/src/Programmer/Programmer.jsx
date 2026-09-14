@@ -6,7 +6,6 @@ import SaveButton from './SaveButton.jsx';
 import './css/Programmer.css'
 import { control_call } from '@src/backendConfig.jsx';
 import { AppGlobalContext, default_form } from '@src/AppGlobalContext.jsx';
-
 function Programmer(props) {
 
   const { experiment, set_experiment } = useContext(AppGlobalContext)
@@ -14,6 +13,9 @@ function Programmer(props) {
   const modify_experiment = (key, value) => {
     set_experiment(previous_value => ({ ...previous_value, [key]: value }))
   }
+
+  const title_ref = useRef(experiment.title)
+
   const setTitle = (value) => {
     modify_experiment("title", value)
   }

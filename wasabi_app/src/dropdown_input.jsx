@@ -6,7 +6,7 @@ import "./Dropdown_Search.css"
 
 function filter_options_with_input(options, input) {
   if (!input) {
-    return options.slice(0,3)
+    return options.slice(0, 3)
   }
   const inp = input.toLowerCase()
   const new_valid_options = options.filter((option_val) => {
@@ -21,12 +21,13 @@ function filter_options_with_input(options, input) {
 export default function Dropdown_Search({
   select_option_source = [],
   defaultValue = undefined,
+  autoFocus = false,
   placeholder = "",
   onSelect,
   children,
 }) {
   const [input_value, set_input_value] = useState(defaultValue)
-  const [valid_options, set_valid_options] = useState(select_option_source.slice(0,3))
+  const [valid_options, set_valid_options] = useState(select_option_source.slice(0, 3))
   const [dropdown_visibility, set_dropdown_visibility] = useState("hidden")
 
   const handle_option_select = (event) => {
@@ -44,11 +45,11 @@ export default function Dropdown_Search({
       placeholder={placeholder}
       value={input_value}
       onInput={(event) => { set_input_value(event.target.value) }}
+      autoFocus={autoFocus}
       onFocus={() => { set_dropdown_visibility("") }}
     />
     <div className={dropdown_visibility}>
       <div className="dropdown_options_container">
-        top 3 options:
         {valid_options.map((valid_option) => (
           <button className="dropdown_option" onClick={handle_option_select} value={valid_option}>{valid_option}</button>
         ))}

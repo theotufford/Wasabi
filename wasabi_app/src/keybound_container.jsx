@@ -4,9 +4,8 @@ import { useState } from "react"
 
 function Keybound_Container({ children, function_map, update_keystate }) {
   const function_library = useRef({})
-
   useEffect(() => {
-    if (!function_map) { return }
+    function_library.current = {}
     for (const [keybind, function_bind] of function_map) {
       const strKey = keybind.toSorted().toString()
       function_library.current[strKey] = function_bind
@@ -49,7 +48,6 @@ function Keybound_Container({ children, function_map, update_keystate }) {
       window.removeEventListener('keyup', keyup_handler);
     };
   }, [])
-
 
   useEffect(() => {
     update_keystate(active_keys)

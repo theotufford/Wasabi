@@ -169,6 +169,20 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         db.commit()
         close_db()
 
+    @bp.route('/purge_pumps', methods=["POST"])
+    def purge_pump():
+        data = request.get_json()
+        id = data["id"]
+        direction = data["direction"]
+        line_volume = machine.settings(
+        )["motors"]["pumps"][id]["line_volume_uL"]
+        if direction == "forward":
+            machine.goto_well("waste")
+            machine.dispense(volume=line_volume, id=id)
+        else:
+            machine.aspirate()
+        db_update_pumps("empty", id)
+
     @bp.route('/update_reagent', methods=["POST"])
     def update_pump_map():
         data = request.get_json()

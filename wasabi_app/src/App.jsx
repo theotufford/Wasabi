@@ -29,8 +29,9 @@ function App() {
             </Link>
         }
         </nav>
-        <BrowserElement navigate_callback={navigate} />
-        <button command="show-modal" commandfor="browser" id="main-select-experiment">open different experiment</button>
+        <BrowserElement  navigate_callback={navigate} />
+        <button command="show-modal" commandfor="browser" className="nav-bar-button">open different experiment</button>
+        <button onClick={make_new_experiment} className="nav-bar-button">new experiment</button>
       </div>
       <Routes>
         <Route path='/' element={<Controller />} />

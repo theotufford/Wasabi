@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useContext } from 'react'
 import { apiCall, control_call, dataStream } from '@src/backendConfig.jsx'
-import Pump_block from './pump_interface.jsx'
+import Pump_row from './pump_interface.jsx'
 import TestButton from '@src/browserFrame.jsx'
 import { Reagent_Selector } from '../Reagent_Selector.jsx'
 import "./controller.css"
@@ -108,9 +108,6 @@ function Controller(props) {
 
   return (
     <div className='controller'>
-      <div>
-        current experiment: {title_text}
-      </div>
       <div className='jogger'>
         <div className='xy_jog'>
           <label for="xyjog">X/Y jog increment: </label>
@@ -143,14 +140,22 @@ function Controller(props) {
         <button onClick={() => go_to_well("waste")}>go to waste well</button>
       </div>
       <div className='pump_bay'>
-        {reagents_needed.length > 0 && (
-          <ul>
-            {reagents_needed.map(name => (<li>{name}</li>))}
-          </ul>)}
+        <div className='reagents_needed_container'>
+          {reagents_needed.length > 0 ?
+            <div className='needed_list_container'>
+              <ul>
+                {reagents_needed.map(name => (<li>{name}</li>))}
+              </ul>
+            </div>
+            : <div>
+              All reagents for experiment are loaded
+            </div>
+          }
+        </div>
         {
           Object.keys(pump_array).map((id) => (
             <div>
-              <Pump_block
+              <Pump_row
                 key={id} id={id}
                 reagent={pump_array[id]}
                 reagents={reagents}

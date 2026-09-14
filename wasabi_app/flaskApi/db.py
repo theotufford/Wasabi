@@ -6,11 +6,12 @@ from flask import current_app, g
 
 DATABASE = "wbiDB.db"
 
+
 def get_db() -> sqlite3.Connection:
     db = getattr(g, '_database', None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
-        db.row_factory = sqlite3.Row  # Allows dictionary-like access to rows
+        db.row_factory = sqlite3.Row
     return db
 
 

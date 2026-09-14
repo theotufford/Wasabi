@@ -7,13 +7,22 @@ import { apiCall, add_new_reagent, delete_reagent as db_delete_reagent, modify_r
 
 class Reagent_lib {
   constructor(initialization_callback, previous_lib = undefined) {
+    console.log("given lib: ", previous_lib)
     this.lib = new Object(previous_lib)
     this.initialization_callback = initialization_callback
     if (!previous_lib) {
-      apiCall({
-        route: "dump_reagents"
-      }).then((resp) => { this.lib = resp.data })
-        .then(() => (initialization_callback(this)));
+      if (!this.cached_lib) {
+        apiCall({
+          route: "dump_reagents"
+        }).then((resp) => {
+          this.lib = resp.data
+          this.cache_current_lib()
+        }).then(() => (initialization_callback(this)));
+
+      } else {
+        this.lib = this.cached_lib
+        initialization_callback(this)
+      }
     } else {
       initialization_callback(this)
     }
@@ -24,9 +33,24 @@ class Reagent_lib {
     }
     return Object.keys(this.lib)
   }
+
+  cache_current_lib() {
+    if (this.lib == undefined) {
+      return
+    }
+    localStorage.setItem("reagent_lib", JSON.stringify(this.lib))
+  }
+  get cached_lib() {
+    const cache_result = localStorage.getItem("reagent_lib")
+    if (cache_result === "undefined" || cache_result === undefined) {
+      return undefined
+    }
+    return JSON.parse(cache_result)
+  }
   new_reagent(reagent_name, meta = {}) {
     add_new_reagent(reagent_name, meta)
     this.lib[reagent_name] = meta
+    this.cache_current_lib()
     this.update_state()
   }
   delete_reagent(reagent_name) {
@@ -60,21 +84,40 @@ function New_Reagent_Modal({ select_reagent, lib_obj }) {
 }
 
 
-export function Reagent_Selector({ selected_reagent, select_reagent }) {
+export function Reagent_Selector({ selected_reagent, select_reagent, enable_creation = true }) {
+
   const [reagent_lib_state, set_reagent_lib_state] = useState()
+  const [view_state, set_view_state] = useState("display_reagent")
 
   useEffect(() => {
     new Reagent_lib(set_reagent_lib_state)
   }, [])
 
-  return <>
-    <Dropdown_Search
-      placeholder="input reagent name"
-      select_option_source={reagent_lib_state?.names}
-      defaultValue={selected_reagent}
-      onSelect={(event) => select_reagent(event.target.value)}>
-      <button command="show-modal" commandfor='new-reagent-input-modal'>input new reagent</button>
-    </Dropdown_Search>
-    <New_Reagent_Modal select_reagent={select_reagent} lib_obj={reagent_lib_state} />
-  </>
+  if (view_state === "dropdown") {
+    return <div>
+      <Dropdown_Search
+        autoFocus={true}
+        placeholder="input reagent name"
+        select_option_source={reagent_lib_state?.names}
+        defaultValue={selected_reagent}
+        onSelect={(event) => {
+          select_reagent(event.target.value)
+          set_view_state("display_reagent")
+        }}>
+        {enable_creation ?
+          <button command="show-modal" commandfor='new-reagent-input-modal'>input new reagent</button>
+          : <></>}
+      </Dropdown_Search>
+      {enable_creation ?
+        <New_Reagent_Modal select_reagent={select_reagent} lib_obj={reagent_lib_state} />
+        : <></>
+      }
+    </div>
+  }
+  if (view_state === "display_reagent") {
+    return <div>
+      {selected_reagent}
+      <button onClick={() => {set_view_state("dropdown")}}>change reagent</button>
+    </div>
+  }
 }

@@ -61,7 +61,7 @@ function InstructionForm(props) {
           pick {props.name}:
           <select defaultValue={current_value} onBlur={mod_function}>
             {props.args.map((option_name) => {
-              const filtered_opt_name = option_name.replaceAll("_", " ")
+              const filtered_opt_name = option_name?.replaceAll("_", " ")
               return (
                 <option value={option_name}>{filtered_opt_name}</option>
               )

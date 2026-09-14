@@ -13,6 +13,10 @@ def alph_to_vec(alph):
     return Vec2d(x, y)
 
 
+def vec_to_alph(vec):
+    return xy_to_alph(vec.x, vec.y)
+
+
 def xy_to_alph(x, y):
     alph = chr(y + ord('A'))
     return f"{alph}{x + 1}"
