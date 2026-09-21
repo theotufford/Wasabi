@@ -94,6 +94,43 @@ class MachinePosition:
             new.z = other["z"] + self.z
             new.fksolved = True
             return new
+        elif isinstance(other, MachinePosition):
+            new = MachinePosition()
+            new.set_vec(self.get_vec() + other.get_vec())
+            new.z = self.z
+            new.fksolved = True
+            return new
+        else:
+            return NotImplemented
+
+    def __sub__(self, other):
+        if isinstance(other, Vec2d):
+            new = MachinePosition()
+            new.set_vec(self.get_vec() - other)
+            new.z = self.z
+            new.fksolved = True
+            return new
+        elif isinstance(other, list):
+            new = MachinePosition()
+            new.x = self.x - other[0]
+            new.y = self.y - other[1]
+            new.z = self.z - other[2]
+            new.fksolved = True
+            print(f"add result: {new}")
+            return new
+        elif isinstance(other, dict):
+            new = MachinePosition()
+            new.x = self.x - other["x"]
+            new.y = self.y - other["y"]
+            new.z = self.z - other["z"]
+            new.fksolved = True
+            return new
+        elif isinstance(other, MachinePosition):
+            new = MachinePosition()
+            new.set_vec(self.get_vec() - other.get_vec())
+            new.z = self.z
+            new.fksolved = True
+            return new
         else:
             return NotImplemented
 

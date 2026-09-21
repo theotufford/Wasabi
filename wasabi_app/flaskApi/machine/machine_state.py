@@ -367,19 +367,21 @@ class Machine:
         accel = pump_settings["ang_accel_rad"]
 
         droplet_retract_volume = pump_settings["droplet_vol_ul"]
+        overshoot_volume = pump_settings["overshoot_offset_ul"]
         asp_speed = pump_settings["aspiration_ang_v"]
 
         ul_per_rev = ul_per_rad * 2 * math.pi / compensation_factor
         steps_per_ul = spr / ul_per_rev
 
         total_steps = math.floor(volume * steps_per_ul)
-        retract_steps = math.floor(droplet_retract_volume * steps_per_ul)
 
         is_aspiration = volume < 0
 
         if not is_aspiration:
+            retract_steps = math.floor(droplet_retract_volume * steps_per_ul)
+            overshoot_steps = math.floor(overshoot_volume * steps_per_ul)
             self.coms.send_pump_action_steps(
-                id, speed, accel, total_steps + retract_steps)
+                id, speed, accel, total_steps + retract_steps + overshoot_steps)
             self.coms.send_pump_action_steps(
                 id, asp_speed, accel, -retract_steps)
         else:

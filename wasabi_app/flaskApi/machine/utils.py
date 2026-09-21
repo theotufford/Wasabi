@@ -14,7 +14,7 @@ def alph_to_vec(alph):
 
 
 def vec_to_alph(vec):
-    return xy_to_alph(vec.x, vec.y)
+    return xy_to_alph(round(vec.x), round(vec.x))
 
 
 def xy_to_alph(x, y):

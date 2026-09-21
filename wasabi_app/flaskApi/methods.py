@@ -9,15 +9,21 @@ methods = MethodLibrary()
 
 
 @methods.register_method
+def purge(machine: Machine, volume: float, pump_id: int):
+    machine.goto_well("waste")
+    machine.dispense(volume, id=pump_id)
+
+
+@methods.register_method
 def endless_all_pumps(machine: Machine, volume: float):
     init_time = datetime.now().strftime('%Y-%m-%d_%H-%M')
     volumes = [0, 0, 0]
     while True:
         with open(f"logs/endless_all_pumps_{init_time}.txt", "a") as f:
-            for id in range(0, 3):
+            for id in range(0, 2):
                 machine.dispense(volume=volume, id=id)
                 volumes[id] += volume
-            timestamp_str = datetime.now().strftime('%Y-%m-%\t%H:%M:%S')
+            timestamp_str = datetime.now().strftime('%Y-%m-%d\t%H:%M:%S')
             f.write(f"volumes at {timestamp_str}: {volumes}\n")
 
 

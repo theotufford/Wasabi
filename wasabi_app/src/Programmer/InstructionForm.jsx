@@ -96,6 +96,8 @@ function InstructionForm(props) {
     }
     const tmp = structuredClone(experiment.forms)
     tmp[experiment.selected_id].is_selected = false
+    console.log("exp ", experiment)
+    console.log("this id", this_form)
     tmp[this_form.id].is_selected = true
     set_experiment((prev) => ({ ...prev, selected_id: [this_form.id], forms: tmp }))
   }
