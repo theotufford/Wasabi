@@ -53,7 +53,7 @@
           "ang_accel_rad": 1600,
           "ul_per_rad": 1.8,
           "aspiration_ang_v": 3,
-          "compensation_factor": 0.9785906968,
+          "compensation_factor": 0.992083026,
           "line_volume_uL": 875,
           "droplet_vol_ul": 1,
           "overshoot_offset_ul": 0
