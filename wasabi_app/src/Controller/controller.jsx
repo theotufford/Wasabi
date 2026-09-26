@@ -58,6 +58,9 @@ function Controller(props) {
   const send_set_home_offset = () => {
     control_call({ route: "set_home_offset" })
   }
+  const send_set_br = () => {
+    control_call({ route: "set_bottom_right" })
+  }
   const send_set_waste_position = () => {
     control_call({ route: "set_waste_position" })
   }
@@ -130,14 +133,22 @@ function Controller(props) {
             if (isNaN(val)) { return }
             jogIncrement.current = ([jogIncrement.current[0], val])
           }} />
-          <button onClick={() => jog(0, 0, jogIncrement.current[1])} >+z</button>
-          <button onClick={() => jog(0, 0, -jogIncrement.current[1])} >-z</button>
+          <button onClick={() => jog(0, 0, jogIncrement.current[1])} >-z</button>
+          <button onClick={() => jog(0, 0, -jogIncrement.current[1])} >+z</button>
         </div>
         <button onClick={send_home}>home</button>
+        <button onClick={send_set_br}>set bottom right well position</button>
         <button onClick={send_set_home_offset}>set A1</button>
         <button onClick={() => go_to_well("A1")}>go A1</button>
         <button onClick={send_set_waste_position}>set waste position</button>
         <button onClick={() => go_to_well("waste")}>go to waste well</button>
+        <div>
+          <button onClick={() => go_to_well("A12")}>go A12</button>
+          <button onClick={() => go_to_well("B1")}>go B1</button>
+          <button onClick={() => go_to_well("B12")}>go B12</button>
+          <button onClick={() => go_to_well("H1")}>go H1</button>
+          <button onClick={() => go_to_well("H12")}>go H12</button>
+        </div>
       </div>
       <div className='pump_bay'>
         <div className='reagents_needed_container'>

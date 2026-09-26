@@ -1,4 +1,3 @@
-#!./.venv/bin/python
 import asyncio
 import serial
 import math
@@ -8,8 +7,8 @@ import time
 import json
 import struct
 from .kinematics import Vec2d, solve_5bar_FK, solve_5bar_IK
-
-pio.setmode(pio.BCM)
+from queue import Queue
+from typing import Literal
 
 
 def int_vec_to_bytes(intgr_arr: list[int]) -> bytearray:
@@ -19,77 +18,55 @@ def int_vec_to_bytes(intgr_arr: list[int]) -> bytearray:
     return outData
 
 
+# state enum
+BUSY = 0
+LISTENING = 1
+
+
 TIMEOUT_S = 999
 
 COMS_START_BYTE = b"\xf8"
-EMPTY = 0
-WAKE = 1
-CONFIRM = 2
-MESSAGE = 3
-ERROR = 4
-RE_REQUEST = 5
-NEW_PUMP = 6
-A_MOTOR = 7
-B_MOTOR = 8
-Z_MOTOR = 9
-MACHINE_PIN_DEFINITIONS = 10
-MOVE = 11
-PUMP_ACTION = 12
-ENABLE_PUMPS = 13
-DISABLE_PUMPS = 14
-ENABLE_MOTORS = 15
-DISABLE_MOTORS = 16
-HOME = 17
-INITIAL_POSITION = 18
-BUZZ = 19
+STATE = 0
+MESSAGE = 1
+SETTINGS = 2
+MOVE = 3
+HOME = 4
+BUZZ = 5
 
 COMS_INV = [
-    "EMPTY",
-    "WAKE",
-    "CONFIRM",
-    "MESSAGE",
-    "ERROR",
-    "RE_REQUEST",
-    "NEW_PUMP",
-    "A_MOTOR",
-    "B_MOTOR",
-    "Z_MOTOR",
-    "MACHINE_PIN_DEFINITIONS",
-    "MOVE",
-    "PUMP_ACTION",
-    "ENABLE_PUMPS",
-    "DISABLE_PUMPS",
-    "ENABLE_MOTORS",
-    "DISABLE_MOTORS",
-    "HOME",
-    "INITIAL_POSITION",
-    "BUZZ"
+    "STATE ",
+    "MESSAGE ",
+    "SETTINGS ",
+    "MOVE ",
+    "HOME ",
+    "BUZZ ",
 ]
 
 
 # abstracts the encode - decode process
-
 class Packet:
-    def __init__(self, code, datalen, data: bytearray):
+    def __init__(self, code, datatype, datalen, data: bytearray):
         if datalen > 256:
             raise ValueError("packet data too large!")
         self.code = code
         self.datalen = datalen
+        if datatype == int:
+            self.datatype_id = 0
+        elif datatype == float:
+            self.datatype_id = 1
+        elif datatype is None:
+            self.datatype_id = 2
+        else:
+            return NotImplemented
         self.data = data
         self.checksum = 0
 
-    def __repr__(self):
-        return f"""
-            {COMS_INV[self.code]}
-            data: {self.data}
-            calculated checksum: {self.calculate_checksum()}
-            rx checksum:         {self.checksum}
-        """
     # packet structure is strictly ordered by byte:
     # 0: start byte
     # 1: coms code
-    # 2: data length
-    # 3 to n + 3: data
+    # 2: data type
+    # 3: data length
+    # 4 to n + 3: data
     # n+4 to n+8: checksum
 
     def calculate_checksum(self) -> bytearray:
@@ -100,6 +77,7 @@ class Packet:
     def make_header(self) -> bytearray:
         header = bytearray(COMS_START_BYTE)
         header += self.code.to_bytes(1)
+        header += self.datatype_id.to_bytes(1)
         header += self.datalen.to_bytes(1)
         return header
 
@@ -117,41 +95,37 @@ class Packet:
 
 def parse_header(header: bytearray) -> Packet:
     coms_code = int(header[1])
-    datalen = int(header[2])
-    new_packet = Packet(coms_code, datalen, b"")
+    datatype = int(header[2])
+    datalen = int(header[3])
+    new_packet = Packet(coms_code, datatype, datalen, b"")
     return new_packet
 
 
-def make_new_packet(code, data: bytearray) -> Packet:
-    return Packet(code=code, datalen=len(data), data=data)
+def make_new_packet(code, datatype, data: bytearray) -> Packet:
+    return Packet(code=code, datatype=datatype, datalen=len(data), data=data)
+
+
+def state_packet(state: Literal[BUSY, LISTENING]):
+
+    return make_new_packet(STATE, int,)
 
 
 class ComsChannel:
 
     def __init__(self):
-        self.errcount = 0
-        self.most_recent_rx: Packet
-        self.most_recent_tx: Packet
+        self.picostate: Literal[BUSY, LISTENING]
+        self.rxQueue: Queue[Packet] = Queue(maxsize=10)
+        self.txQueue()
         # initialize serial contact
         self.ser = serial.Serial("/dev/ttyS0", 115200, timeout=TIMEOUT_S)
-
         self.startup_handshake()
 
+    def comsloop(self):
+        pass
+
     def startup_handshake(self):
-        while True:
-            asyncio.run(self.get_packet())
-            code = self.most_recent_rx.code
-            if code == WAKE:
-                print("wake rxd")
-                self.send_code(CONFIRM)
-                continue
-            if code == CONFIRM:
-                self.send_code(CONFIRM)
-                print("coms initialized")
-                break
-            raise ValueError(
-                f"was expecting wake or confirm during boot, got: {code}")
-        self.get_confirm()
+        self.send_packet(state_packet(LISTENING))
+        yield
 
     def __del__(self):
         self.ser.close()
@@ -281,6 +255,55 @@ class ComsChannel:
 
     def send_home(self):
         self.send_code(HOME)
+
+
+def get_settings_packet(settings_dict):
+    motors = settings["machine"]["motors"]
+    common_settings = motors["common_settings"]
+    settings = [
+        # a motor settings
+        motors["a"]["stp_pin"],
+        motors["a"]["dir_pin"],
+        motors["a"]["invert_dir"],
+        1600,  # hard coded to max microsteps
+        common_settings["arms_angular_max_velocity"],
+        common_settings["arms_angular_accel"],
+        # b motor settings
+        motors["b"]["stp_pin"],
+        motors["b"]["dir_pin"],
+        motors["b"]["invert_dir"],
+        1600,  # hard coded to max microsteps
+        common_settings["arms_angular_max_velocity"],
+        common_settings["arms_angular_accel"],
+        # z motor settings
+        motors["z"]["stp_pin"],
+        motors["z"]["dir_pin"],
+        motors["z"]["invert_dir"],
+        1600,  # hard coded to max microsteps
+        common_settings["z_max_angular_velocity"],
+        common_settings["z_angular_accel"]
+    ]
+    pump_microsteps = common_settings["pump_steps_per_revoulution"]
+    # send pump motor settings -----------------
+    for pump_conf in motors["pumps"]:
+        settings += [
+            pump_conf["stp_pin"],
+            pump_conf["dir_pin"],
+            pump_conf["invert_dir"],
+            pump_microsteps,
+            pump_conf["ang_v_max"],
+            pump_conf["ang_accel_rad"]
+        ]
+    # send other pico pin settings -------------
+    pinsettings = settings["machine"]["pins"]
+    settings += [
+        pinsettings["motor_enable_pin"],
+        pinsettings["pump_enable_pin"],
+        pinsettings["a_endstop"],
+        pinsettings["b_endstop"],
+        pinsettings["z_endstop"]
+    ]
+    return settings
 
 
 if __name__ == '__main__':

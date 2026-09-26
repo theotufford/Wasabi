@@ -30,12 +30,25 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         if not machine.position_known:
             return home()
         machine.waste_well.absolute_position = machine.current_position
+        return jsonify({"data": "successful waste position set"})
 
     @bp.route('/set_home_offset', methods=['POST'])
     def set_home_offset():
         if not machine.position_known:
             return home()
         machine.home_offset = machine.current_position
+        machine.plate.set_plate_position(machine.home_offset)
+        return jsonify({"data": "successful home offset set"})
+
+    @bp.route('/set_bottom_right', methods=['POST'])
+    def set_br():
+        if not machine.position_known:
+            return jsonify({"data": "need to be homed!"})
+        a1_abs = machine.home_offset
+        br_abs = machine.current_position
+
+        machine.plate.set_plate_position(a1_abs, br_abs)
+        return jsonify({"data": "successful br and angle set"})
 
     @bp.route('/mot_enable', methods=['POST'])
     def mot_enable():

@@ -9,7 +9,7 @@ import inspect
 import json
 from typing import Self
 import RPi.GPIO as pio
-from .kinematics import solve_5bar_FK, solve_5bar_IK, MachinePosition, Vec2d, make_pos
+from .kinematics import solve_5bar_FK, solve_5bar_IK, MachinePosition, Vec2d, make_pos, vec2d_rotate_rads
 from . import serialcoms as serlib
 from .utils import alph_to_vec, vec_to_alph
 
@@ -64,6 +64,7 @@ class Reagent_Mix:
 
 
 class Well:
+    # RELATIVE POSITION SHOULD BE IMMUTABLE
     def __init__(self, settings, relative_position: Vec2d, contents={}):
         self.relative_position = relative_position
         self.absolute_position: MachinePosition()
@@ -81,22 +82,54 @@ class Well:
         return self.liquid.gain_mixed_volume(liquid)
 
 
+class Machine:
+    pass
+
+
 class Plate:
-    def __init__(self, settings: dict):
+    def __init__(self, settings: dict, a1: Vec2d = Vec2d(0, 0), bottom_right_vector: Vec2d | None = None):
         self.settings = settings
         self.rows = settings["rows"]
         self.columns = settings["columns"]
         self.spacing = settings["spacing"]
-        self.wells: list[Well] = self.make_clear_plate()
+        self.a1 = a1
+        self.br = bottom_right_vector
+        self.plate_rotation = 0
+        if bottom_right_vector is None:
+            self.br = Vec2d(self.rows, self.columns) * self.spacing
+        else:
+            corner_angle = math.atan(self.rows/self.columns)
+            corner_vector = bottom_right_vector - a1
+            measured_corner_angle = math.atan(corner_vector.y, corner_vector.x)
+            self.plate_rotation = measured_corner_angle - corner_angle
 
-    def make_clear_plate(self):
-        wells = []
+        self.wells = []
         for row_y in range(0, self.rows):
             for col_x in range(0, self.columns):
                 new_well = Well(self.settings, self.spacing *
                                 Vec2d(col_x, row_y))
-                wells.append(new_well)
-        return wells
+                new_well.absolute_position = self.a1 + vec2d_rotate_rads(
+                    new_well.relative_position, self.plate_rotation)
+                self.wells.append(new_well)
+
+    def clear_contents(self):
+        for well in self.wells:
+            well.liquid = Reagent_Mix()
+        return self.wells
+
+    def set_plate_position(self, a1: Vec2d, br: Vec2d | None = None):
+        self.a1 = a1
+        if br is None:
+            self.br = Vec2d(self.rows, self.columns) * self.spacing
+        br = self.br
+        relative_corner_angle = math.atan(self.rows/self.columns)
+        corner_vector = br - a1
+        measured_corner_angle = math.atan(corner_vector.y / corner_vector.x)
+        self.plate_rotation = measured_corner_angle - relative_corner_angle
+        print(f"{br=}, {a1=}, {self.plate_rotation=}")
+        for wellobject in self.wells:
+            wellobject.absolute_position = a1 + vec2d_rotate_rads(
+                wellobject.relative_position, self.plate_rotation)
 
     def by_alph(self, alph):
         for well in self.wells:
@@ -105,20 +138,17 @@ class Plate:
             if alph == wellid:
                 return well
 
-    def by_relative_position(self, vec: Vec2d):
+    def by_position(self, vec: Vec2d):
         for well in self.wells:
-            dist_to_center = (vec - well.relative_position).get_length()
+            dist_to_center = (vec - well.absolute_position).get_vec().get_length()
             if dist_to_center < self.spacing / 2:
                 return well
 
-    def reset_plate(self):
-        self.by_alph = self.make_clear_plate()
-
     def get_well_vol_dict(self):
         out = {}
-        for alph in self.by_alph():
-            well = self.by_alph(alph)
-            out[alph] = well.liquid.contents
+        for wellobj in self.wells:
+            alph = vec_to_alph(wellobj.relative_position)
+            out[alph] = wellobj.liquid.contents
         return out
 
     def __repr__(self):
@@ -314,10 +344,8 @@ class Machine:
             steps = self.to_steps(pos)
             self.coms.send_move_steps(**steps)
             self.current_position = pos
-        relative_position_2dVec = (
-            self.current_position - self.home_offset).get_vec()
-        self.current_well = self.plate.by_relative_position(
-            relative_position_2dVec)
+            self.current_well = self.plate.by_position(
+                self.current_position)
 
     def stall_for_confirm(self, confirm_prompt_message):
         if not self.in_simulation:
@@ -333,7 +361,8 @@ class Machine:
             return
 
         target_well = self.plate.by_alph(wellid)
-        target_pos = self.home_offset + target_well.relative_position
+        target_pos = target_well.absolute_position
+        print(f"going to well at target position: {target_pos}")
         self.goto_pos(target_pos)
 
     def get_reagent(self, id):
@@ -442,9 +471,9 @@ class MethodLibrary:
             reagent = form.get("reagent")
             if reagent not in seen_reagents:
                 seen_reagents.append(reagent)
-                reagent_line = self.machine.pump_line_contents[pump_id][0] = Reagent_Mix(
-                )
-                reagent_line.gain_reagent(999999999999999, reagent)
+                reagent_line = Reagent_Mix()
+                reagent_line.gain_reagent(reagent, reservoir=True)
+                self.machine.pump_line_contents[id] = [reagent_line]
                 pump_id += 1
             name = form["method"]
             print(f"pump lines configured: {self.machine.pump_line_contents}")

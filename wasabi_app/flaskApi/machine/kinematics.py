@@ -2,23 +2,31 @@ import json
 import math
 
 
-class Vec2d:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+class Vector:
+    def __init__(self, elements: list[float]):
+        self.dimension = len(elements)
+        self.elements = elements
 
     def __add__(self, other):
-        if isinstance(other, Vec2d):
-            return Vec2d(self.x + other.x, self.y + other.y)
+        if isinstance(other, Vector):
+            if self.dimension == other.dimension:
+                return self.__class__(
+                    [self.elements[i] + other.elements[i]
+                     for i in range(0, self.dimension)]
+                )
+        return NotImplemented
 
     def __mul__(self, scalar):
         if isinstance(scalar, (int, float)):
-            return Vec2d(self.x * scalar, self.y * scalar)
+            return self.__class__([element * scalar for element in self.elements])
         else:
             return NotImplemented
 
     def get_length(self):
-        return math.sqrt(self.x ** 2 + self.y ** 2)
+        axis_sqsum = 0
+        for element in self.elements:
+            axis_sqsum += element ** 2
+        return math.sqrt(axis_sqsum)
 
     def __rmul__(self, scalar):
         return self.__mul__(scalar)
@@ -27,119 +35,64 @@ class Vec2d:
         return self.__mul__(1/scalar)
 
     def __sub__(self, other):
-        if isinstance(other, Vec2d):
+        if isinstance(other, Vector):
             return self + (-1 * other)
 
     def __repr__(self):
-        return f"vec2d: x:{self.x}, y:{self.y}"
-
-    def dot_prod(self, other) -> float:
-        if not isinstance(other, Vec2d):
-            return NotImplemented
-        return self.x * other.x + self.y * other.y
+        return f"cartesian vector elements: {self.elements}"
 
     def normalize(self):
         return self / self.get_length()
 
 
-def dot_product(vec1, vec2) -> float:
-    if not isinstance(vec1, Vec2d):
-        return ValueError
-    if not isinstance(vec2, Vec2d):
-        return ValueError
-    return vec1.x * vec2.x + vec1.y * vec2.y
+def dot_product(vec1: Vector, vec2: Vector) -> float:
+    if vec1.dimension != vec2.dimension:
+        raise ValueError(
+            f"trying to take dot product of vectors without common dimension: {vec1}, {vec2}")
+    out = 0
+    for i in range(0, vec1.dimension):
+        out += vec1.elements[i] * vec2.elements[i]
+
+    return out
 
 
-class MachinePosition:
-    def __init__(self):
-        self.iksolved = False
-        self.fksolved = False
-        self.x = 0
-        self.y = 0
-        self.z = 0
-        self.alpha = 0
-        self.beta = 0
+class Vec2d(Vector):
+    def __init__(self, axes):
+        self.x = axes[0]
+        self.y = axes[1]
+        super().__init__(axes)
 
     def __repr__(self):
-        return f"""{self.x}, {self.y}, {self.z}
-                   {math.degrees(self.alpha)},{math.degrees(self.beta)}
-                   """
-
-    def get_vec(self) -> Vec2d:
-        return Vec2d(self.x, self.y)
-
-    def set_vec(self, target: Vec2d) -> None:
-        self.x = target.x
-        self.y = target.y
-
-    def __add__(self, other):
-        if isinstance(other, Vec2d):
-            new = MachinePosition()
-            new.set_vec(self.get_vec() + other)
-            new.z = self.z
-            new.fksolved = True
-            return new
-        elif isinstance(other, list):
-            new = MachinePosition()
-            new.x = other[0] + self.x
-            new.y = other[1] + self.y
-            new.z = other[2] + self.z
-            new.fksolved = True
-            print(f"add result: {new}")
-            return new
-        elif isinstance(other, dict):
-            new = MachinePosition()
-            new.x = other["x"] + self.x
-            new.y = other["y"] + self.y
-            new.z = other["z"] + self.z
-            new.fksolved = True
-            return new
-        elif isinstance(other, MachinePosition):
-            new = MachinePosition()
-            new.set_vec(self.get_vec() + other.get_vec())
-            new.z = self.z
-            new.fksolved = True
-            return new
-        else:
-            return NotImplemented
-
-    def __sub__(self, other):
-        if isinstance(other, Vec2d):
-            new = MachinePosition()
-            new.set_vec(self.get_vec() - other)
-            new.z = self.z
-            new.fksolved = True
-            return new
-        elif isinstance(other, list):
-            new = MachinePosition()
-            new.x = self.x - other[0]
-            new.y = self.y - other[1]
-            new.z = self.z - other[2]
-            new.fksolved = True
-            print(f"add result: {new}")
-            return new
-        elif isinstance(other, dict):
-            new = MachinePosition()
-            new.x = self.x - other["x"]
-            new.y = self.y - other["y"]
-            new.z = self.z - other["z"]
-            new.fksolved = True
-            return new
-        elif isinstance(other, MachinePosition):
-            new = MachinePosition()
-            new.set_vec(self.get_vec() - other.get_vec())
-            new.z = self.z
-            new.fksolved = True
-            return new
-        else:
-            return NotImplemented
+        return f"a 2d vector with elements: {self.x=}, {self.y=}"
 
 
-def make_pos(end_pt: Vec2d, z) -> MachinePosition:
-    out = MachinePosition()
-    out.set_vec(end_pt)
-    out.z = z
-    return out
+class Vec2d_Ang(Vector):
+    def __init__(self, axes):
+        self.a = axes[0]
+        self.b = axes[1]
+        super().__init__(axes)
+
+    def __repr__(self):
+        return f"a 2d vector with elements: {self.x=}, {self.y=}"
+
+
+def vec2d_rotate_rads(initial_vector, radians) -> Vec2d:
+    rotation_matrix_row_1 = Vec2d(math.cos(radians), math.sin(radians))
+    rotation_matrix_row_2 = Vec2d(-math.sin(radians), math.cos(radians))
+    output_vec = Vec2d(dot_product(initial_vector, rotation_matrix_row_1),
+                       dot_product(initial_vector, rotation_matrix_row_2))
+    return output_vec
+
+
+class Vec3d(Vector):
+    def __init__(self, axes):
+        self.x = axes[0]
+        self.y = axes[1]
+        self.z = axes[2]
+        super().__init__(axes)
+
+    def __repr__(self):
+        return f"a 3d vector with elements: {self.x=}, {self.y=}, {self.z=}"
 
 
 def vec_from_angle_length(angle, length) -> Vec2d:
@@ -158,7 +111,7 @@ def inv_law_of_cosines(hypot, opposite, adjacent):
     return theta
 
 
-def solve_5bar_IK(settings: dict, target_x: float, target_y: float) -> dict:
+def solve_5bar_IK(settings: dict, target_x: float, target_y: float) -> Vec2d_Ang:
 
     target = Vec2d(-target_x, target_y)
 
@@ -202,10 +155,10 @@ def solve_5bar_IK(settings: dict, target_x: float, target_y: float) -> dict:
     print(f"solved IK - target_pos: {target}, alpha: {
           (180 / math.pi) * alpha_final}, {(180 / math.pi) * beta_final}")
 
-    return {"alpha": alpha_final, "beta": beta_final}
+    return Vec2d_Ang(alpha_final, beta_final)
 
 
-def solve_5bar_FK(settings: dict, alpha: float, beta: float) -> dict:
+def solve_5bar_FK(settings: dict, alpha: float, beta: float) -> Vec2d:
 
     machine_conf = settings["machine"]
     dimensions = machine_conf["machineDimensions"]
@@ -233,4 +186,4 @@ def solve_5bar_FK(settings: dict, alpha: float, beta: float) -> dict:
 
     end_point = joint_position + tool_offset_vector
 
-    return {"x": -end_point.x, "y": end_point.y}
+    return end_point
