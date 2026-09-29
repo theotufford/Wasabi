@@ -116,13 +116,16 @@ class Machine:
 
     def from_steps(self, a, b, z) -> Kinematic_State:
         given_pos = Kinematic_State(
-            Vec3d([a / self.a_steps_per_rad,
-                   ])
+            Vec3d([
+                0,
+                0,
+                z / self.z_steps_per_rad
+            ]),
+            Vec2d_Ang(
+                a / self.a_steps_per_rad,
+                b / self.b_steps_per_rad
+            )
         )
-        given_pos.alpha =
-        given_pos.beta = b / self.b_steps_per_rad
-        given_pos.z = z / self.z_steps_per_mm
-        given_pos.iksolved = True
         given_pos = self.get_pos_FK(given_pos)
         return given_pos
 
