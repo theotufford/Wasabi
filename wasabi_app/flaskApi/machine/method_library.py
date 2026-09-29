@@ -1,4 +1,6 @@
-from machine_class import Machine
+from machine import Machine
+from containers import Plate
+import copy
 
 class MethodLibrary:
     def __init__(self):

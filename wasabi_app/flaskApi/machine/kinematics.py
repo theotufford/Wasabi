@@ -73,7 +73,7 @@ class Vec2d_Ang(Vector):
         super().__init__(axes)
 
     def __repr__(self):
-        return f"a 2d vector with elements: {self.x=}, {self.y=}"
+        return f"a 2d vector with elements: {self.a=}, {self.b=}"
 
 
 def vec2d_rotate_rads(initial_vector, radians) -> Vec2d:
@@ -111,9 +111,9 @@ def inv_law_of_cosines(hypot, opposite, adjacent):
     return theta
 
 
-def solve_5bar_IK(settings: dict, target_x: float, target_y: float) -> Vec2d_Ang:
+def solve_5bar_IK(settings: dict, target: Vec3d) -> Vec2d_Ang:
 
-    target = Vec2d(-target_x, target_y)
+    target = Vec2d([-target.x, target.y])
 
     machine_conf = settings["machine"]
     dimensions = machine_conf["machineDimensions"]
@@ -158,7 +158,7 @@ def solve_5bar_IK(settings: dict, target_x: float, target_y: float) -> Vec2d_Ang
     return Vec2d_Ang(alpha_final, beta_final)
 
 
-def solve_5bar_FK(settings: dict, alpha: float, beta: float) -> Vec2d:
+def solve_5bar_FK(settings: dict, given: Vec2d_Ang) -> Vec2d:
 
     machine_conf = settings["machine"]
     dimensions = machine_conf["machineDimensions"]
@@ -166,6 +166,9 @@ def solve_5bar_FK(settings: dict, alpha: float, beta: float) -> Vec2d:
     hand_length = dimensions["hand"]
     spacing = dimensions["spacing"]
     tool_offset = dimensions["tool_offset"]
+
+    alpha = given.a
+    beta = given.b
 
     alpha = 3 * math.pi / 2 - alpha
     beta = beta - math.pi / 2

@@ -53,14 +53,8 @@ class Reagent_Mix:
 
 
 class Well:
-    def __init__(self, plate_settings, index_vector: Vec2d, contents):
-        self.index_vector = index_vector
-        self.alph = vec_to_alph(index_vector)
-        self.absolute_position: Vec2d()
-        self.liquid = Reagent_Mix(contents)
-        self.major_diameter = plate_settings["major_diameter"]
-        self.minor_diameter = plate_settings["minor_diameter"]
-        self.depth = plate_settings["well_depth"]
+    def __init__(self, plate_settings, contents):
+        self.contents = Reagent_Mix(contents)
 
     def release_aspirate(self, volume) -> Reagent_Mix:
         return self.liquid.release_volume(volume)
