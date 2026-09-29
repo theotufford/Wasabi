@@ -59,6 +59,18 @@
           "droplet_vol_ul": 2
         },
         {
+          "stp_pin": 2,
+          "dir_pin": 3,
+          "invert_dir": 0,
+          "ang_v_max": 100,
+          "ang_accel_rad": 1600,
+          "ul_per_rad": 1.8,
+          "aspiration_ang_v": 5,
+          "compensation_factor": 1.059827942,
+          "line_volume_uL": 875,
+          "droplet_vol_ul": 2
+        },
+        {
           "stp_pin": 12,
           "dir_pin": 13,
           "invert_dir": 0,
@@ -66,26 +78,14 @@
           "ang_accel_rad": 1600,
           "ul_per_rad": 1.8,
           "aspiration_ang_v": 5,
-          "compensation_factor": 0.9943,
-          "line_volume_uL": 875,
-          "droplet_vol_ul": 2
-        },
-        {
-          "stp_pin": 18,
-          "dir_pin": 19,
-          "invert_dir": 0,
-          "ang_v_max": 100,
-          "ang_accel_rad": 1600,
-          "ul_per_rad": 1.8,
-          "aspiration_ang_v": 5,
-          "compensation_factor": 0.9943,
+          "compensation_factor": 0.962000962,
           "line_volume_uL": 875,
           "droplet_vol_ul": 2
 
         },
         {
-          "stp_pin": 2,
-          "dir_pin": 3,
+          "stp_pin": 18,
+          "dir_pin": 19,
           "invert_dir": 0,
           "ang_v_max": 8,
           "ang_accel_rad": 12,
