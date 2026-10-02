@@ -1,20 +1,21 @@
 import struct
 import zlib
 import codex
+from typing import Literal
 
 
 class Packet:
     def __init__(self, code, datatype, datalen, data: bytearray):
-        if datalen > 256:
+        if datalen > 255:
             raise ValueError("packet data too large!")
         self.code = code
         self.datalen = datalen
         if datatype == int:
-            self.datatype_id = 0
+            self.datatype_id = codex.INT
         elif datatype == float:
-            self.datatype_id = 1
+            self.datatype_id = codex.FLOAT
         elif datatype is None:
-            self.datatype_id = 2
+            self.datatype_id = codex.NONE
         else:
             return NotImplemented
         self.data = data
@@ -25,13 +26,8 @@ class Packet:
     # 1: coms code
     # 2: data type
     # 3: data length
-    # 4 to n + 3: data
-    # n+4 to n+8: checksum
-
-    def calculate_checksum(self) -> bytearray:
-        message_bytes = self.make_header()
-        message_bytes += self.data
-        return zlib.crc32(message_bytes).to_bytes(4, byteorder='little')
+    # 4 to n + 4: data
+    # n+5 to n+9: checksum
 
     def make_header(self) -> bytearray:
         header = bytearray(codex.COMS_START_BYTE)
@@ -39,6 +35,11 @@ class Packet:
         header += self.datatype_id.to_bytes(1)
         header += self.datalen.to_bytes(1)
         return header
+
+    def calculate_checksum(self) -> bytearray:
+        message_bytes = self.make_header()
+        message_bytes += self.data
+        return zlib.crc32(message_bytes).to_bytes(4, byteorder='little')
 
     def get_full_bytes(self) -> bytearray:
         out_bytes = self.make_header()
@@ -52,16 +53,19 @@ class Packet:
         return argvec
 
 
-def parse_header(header: bytearray) -> Packet:
+def parse_header(header: bytearray) -> tuple:
     coms_code = int(header[1])
-    datatype = int(header[2])
+    datatype = codex.types_by_code[int(header[2])]
     datalen = int(header[3])
-    new_packet = Packet(coms_code, datatype, datalen, b"")
-    return new_packet
+    return (coms_code, datatype, datalen)
 
 
 def make_new_packet(code, datatype, data: bytearray) -> Packet:
     return Packet(code=code, datatype=datatype, datalen=len(data), data=data)
+
+
+def state_packet(state: Literal[codex.BUSY, codex.LISTENING]):
+    return make_new_packet(codex.STATE, int)
 
 
 def get_settings_packet(settings_dict):

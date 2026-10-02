@@ -6,6 +6,12 @@ MOVE = 3
 HOME = 4
 BUZZ = 5
 
+INT = 0
+FLOAT = 1
+NONE = 2
+
+types_by_code = [int, float, None]
+
 COMS_INV = [
     "STATE ",
     "MESSAGE ",

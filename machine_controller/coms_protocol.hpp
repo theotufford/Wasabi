@@ -3,7 +3,10 @@
 #include <cstdint>
 #include <cstring>
 #include <dma_uart.hpp>
+#include <functional>
+#include <map>
 #include <string>
+#include <variant>
 #include <vector>
 
 using namespace std; // TODO dont do this
@@ -14,49 +17,72 @@ using namespace std; // TODO dont do this
 
 void blink(int count);
 
-enum : uint8_t {
-  EMPTY,
-  WAKE,
-  CONFIRM,
-  MESSAGE,
-  ERROR,
-  RE_REQUEST,
-  NEW_PUMP,
-  A_MOTOR,
-  B_MOTOR,
-  Z_MOTOR,
-  MACHINE_PIN_DEFINITIONS,
-  MOVE,
-  PUMP_ACTION,
-  ENABLE_PUMPS,
-  DISABLE_PUMPS,
-  ENABLE_MOTORS,
-  DISABLE_MOTORS,
-  HOME,
-  INITIAL_POSITION,
-  BUZZ
+enum : uint8_t { STATE, MESSAGE, SETTINGS, MOVE, HOME, BUZZ, WAKE };
+
+enum : uint8_t { BUSY, LISTENING };
+
+enum : uint8_t { INT_ID, FLOAT_ID, NONETYPE_ID };
+
+//  Constructs and writes out packet, also calculates checksum
+//  packet structure is strictly ordered by byte:
+//  0: start byte
+//  1: coms code
+//  2: data type
+//  3-4: data length
+//  5 to n + 5: data
+//  n+6 to n+10: checksum
+
+class Packet {
+public:
+  uint8_t coms_code;
+  uint8_t datatype_id;
+  uint16_t datalen;
+  uint8_t *data;
+  uint32_t checksum;
+  void populate_header_bytearray(uint8_t *target);
+  void populate_output_data_bytearray(uint8_t *target);
+  uint32_t calculate_checksum();
+  vector<float> get_float_argvec();
+  vector<int> get_int_argvec();
+  Packet(uint8_t code, uint8_t datatype_id, uint16_t datalen, uint8_t *data,
+         uint32_t checksum);
+};
+
+class ComsInstance;
+
+class LoopContext {
+public:
+  vector<string> executed_functions;
+  Packet *most_recent_packet;
+  bool has_been_executed(string name);
+  ComsInstance *coms_ctx;
+  LoopContext(ComsInstance *coms_instance_ctx, Packet &received_packet);
+};
+
+class Response_Callback {
+public:
+  string name;
+  function<bool(LoopContext)> condition;
+  function<void(LoopContext)> callback;
+  Response_Callback(string name, function<bool(LoopContext)> condition,
+                    function<void(LoopContext)> callback);
 };
 
 class ComsInstance : public DmaUart {
+private:
+  map<string, Response_Callback> response_tree;
+
 public:
-  // data sending functions
+  uint8_t partner_state;
+  int tx_write_index;
+  int tx_read_index;
+  vector<Packet> tx_queue;
+  void queue_send(Packet to_send);
+  void transmit_next();
   void handle_rereq();
-  void send_packet(const uint8_t code, const uint8_t *data,
-                   const uint8_t length);
-  void send_code(const uint8_t code);
-  void send_int(const uint8_t code, const int data);
-  void
-  send_vector(const uint8_t code,
-              const vector<int> data); // write and send entire vector at once
-  void send_string(string toWrite);
-  uint64_t read_time_limit_us;
-  uint get_packet(); // main blocking rx read function, gets state/checksum
-  // enums in a structure interpret this vector for
-  // use by that structure (eg for motor indexing)
-  vector<int> argumentVector;
-  uint8_t coms_rx_code;
-  uint8_t most_recent_tx[MAX_PACKET_SIZE];
-  uint16_t most_recent_tx_size;
-  void reflect_argvec();
+  variant<Packet, int>
+  listen_for_packet(); // main rx read function, gets state/checksum
+  void add_response(Response_Callback callback);
+  void main_loop();
   ComsInstance(uart_inst_t *uart, uint baudrate);
 };

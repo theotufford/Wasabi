@@ -1,11 +1,17 @@
 #include "coms_defs.h"
 #include <coms_protocol.hpp>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <dma_uart.hpp>
+#include <filesystem>
 #include <hardware/gpio.h>
+#include <iostream>
 #include <pico/time.h>
+#include <type_traits>
+#include <variant>
 #include <vector>
 
 using namespace std; // TODO dont do this
@@ -20,164 +26,190 @@ void blink(int count) {
   }
 }
 
-// I know there is a hardware way to do this but I think generally
-// packets are small enough that speed shouldnt matter that much
-static uint32_t calc_crc32r(uint8_t *bytp, uint32_t length) {
-  uint32_t crc = CRC32_INIT;
-  while (length--) {
-    uint32_t byte32 = (uint32_t)*bytp++;
-    for (uint8_t bit = 8; bit; bit--, byte32 >>= 1) {
-      crc = (crc >> 1) ^ (((crc ^ byte32) & 1ul) ? REVERSED_STD_POLY : 0ul);
-    }
+// // I know there is a hardware way to do this but I think generally
+// // packets are small enough that speed shouldnt matter that much
+// static uint32_t calc_crc32r(uint8_t *bytp, uint32_t length) {
+//   uint32_t crc = CRC32_INIT;
+//   while (length--) {
+//     uint32_t byte32 = (uint32_t)*bytp++;
+//     for (uint8_t bit = 8; bit; bit--, byte32 >>= 1) {
+//       crc = (crc >> 1) ^ (((crc ^ byte32) & 1ul) ? REVERSED_STD_POLY : 0ul);
+//     }
+//   }
+//   return crc ^ ((uint32_t)-1l);
+// }
+//
+// bool verify_checksum() {
+//   uint32_t message_length = packet[LENGTH_INDEX];
+//   uint32_t calculated_crc = calc_crc32r(packet, message_length +
+//   HEADER_SIZE); uint32_t given_crc; memcpy(&given_crc, &packet[HEADER_SIZE +
+//   message_length], 4);
+//
+//   if (CRC_DISABLED) {
+//     return true;
+//   }
+//
+//   if (calculated_crc == given_crc) {
+//     return true;
+//   }
+//   return false;
+// }
+//
+
+Response_Callback::Response_Callback(string name,
+                                     bool (*condition)(LoopContext),
+                                     void (*callback)(LoopContext)) {}
+
+LoopContext::LoopContext(ComsInstance *coms_instance_ctx,
+                         Packet &received_packet)
+    : coms_ctx(coms_instance_ctx), most_recent_packet(&received_packet) {}
+
+bool LoopContext::has_been_executed(string name) {}
+
+Packet::Packet(uint8_t code, uint8_t datatype_id, uint16_t datalen,
+               uint8_t *data, uint32_t checksum = 0) {}
+
+// TODO
+uint32_t Packet::calculate_checksum() { return 0; }
+
+void Packet::populate_header_bytearray(uint8_t *target) {
+  target[0] = COMS_START_BYTE;
+  target[1] = coms_code;
+  target[2] = datatype_id;
+  memcpy(&datalen, target + 3, 2);
+}
+void Packet::populate_output_data_bytearray(
+    uint8_t *target //  must be uint8_t array of size HEADER_SIZE + datalen +
+                    //  CHECKSUM_SIZE_BYTES
+) {
+  uint8_t *body_ptr = target + HEADER_SIZE;
+  uint8_t *checksum_ptr = body_ptr + datalen;
+  populate_header_bytearray(target);
+  checksum = calculate_checksum();
+  memcpy(data, body_ptr, datalen);
+  memcpy(&checksum, checksum_ptr, CHECKSUM_SIZE_BYTES);
+}
+vector<float> Packet::get_float_argvec() {
+  vector<float> output;
+  for (int i = 0; i < datalen; i += sizeof(float)) {
+    uint8_t *num_ind = data + i;
+    float tmp;
+    memcpy(num_ind, &tmp, sizeof(float));
+    output.push_back(tmp);
   }
-  return crc ^ ((uint32_t)-1l);
+  return output;
 }
-
-bool verify_checksum(uint8_t *packet) {
-  uint32_t message_length = packet[LENGTH_INDEX];
-  uint32_t calculated_crc = calc_crc32r(packet, message_length + HEADER_SIZE);
-  uint32_t given_crc;
-  memcpy(&given_crc, &packet[HEADER_SIZE + message_length], 4);
-
-  if (CRC_DISABLED) {
-    return true;
+vector<int> Packet::get_int_argvec() {
+  vector<int> output;
+  for (int i = 0; i < datalen; i += sizeof(int)) {
+    uint8_t *num_ind = data + i;
+    int tmp;
+    memcpy(num_ind, &tmp, sizeof(int));
+    output.push_back(tmp);
   }
-
-  if (calculated_crc == given_crc) {
-    return true;
-  }
-  return false;
+  return output;
 }
-
-//  Constructs and writes out packet, also calculates checksum
-//  packet structure is strictly ordered by byte:
-//  0: start byte
-//  1: coms code
-//  2: data length
-//  3 to n + 3: data
-//  n+4 to n+8: checksum
-void ComsInstance::send_packet(const uint8_t code, const uint8_t *body,
-                               const uint8_t body_size) {
-
-  uint16_t total_size = HEADER_SIZE + body_size + CHECKSUM_SIZE_BYTES;
-  uint32_t message_size = HEADER_SIZE + body_size;
-
-  uint8_t packet[total_size];
-  uint8_t *body_ptr = packet + HEADER_SIZE;
-  uint8_t *checksum_ptr = packet + HEADER_SIZE + body_size;
-
-  packet[0] = COMS_START_BYTE;
-  packet[1] = code;
-  packet[2] = body_size;
-
-  memcpy(body_ptr, body, body_size);
-
-  uint32_t calculated_checksum = calc_crc32r(packet, message_size);
-
-  memcpy(checksum_ptr, &calculated_checksum, CHECKSUM_SIZE_BYTES);
-
-  write_and_flush(packet, total_size);
-
-  memcpy(most_recent_tx, packet, total_size);
-  most_recent_tx_size = total_size;
+void ComsInstance::transmit_next() {
+  Packet next_packet = tx_queue[tx_read_index];
+  tx_read_index = (tx_read_index + 1) % TX_HISTORY_LEN;
+  uint32_t calculated_checksum = 0; // TODO currently stubbed
+  int total_length = next_packet.datalen + CHECKSUM_SIZE_BYTES + HEADER_SIZE;
+  uint8_t output_Data[total_length];
+  next_packet.populate_output_data_bytearray(output_Data);
+  write_and_flush(output_Data, next_packet.datalen);
+  partner_state = BUSY;
 }
+variant<Packet, int> ComsInstance::listen_for_packet() {
+  auto head_packet = tx_queue[tx_write_index];
+  uint8_t header_data[HEADER_SIZE];
 
-void ComsInstance::send_code(const uint8_t code) {
-  send_packet(code, nullptr, 0);
-}
-
-void ComsInstance::handle_rereq() {
-  write_and_flush(most_recent_tx, most_recent_tx_size);
-};
-
-void ComsInstance::send_vector(const uint8_t code, const vector<int> int_vec) {
-  int data_len = int_vec.size() * sizeof(int);
-  uint8_t data[data_len];
-  memcpy(data, int_vec.data(), data_len);
-
-  send_packet(code, data, data_len);
-}
-
-void ComsInstance::send_string(string toWrite) {
-  return; // DISABLED FUNCTION FOR DEBUG
-  uint8_t stringlen = static_cast<uint8_t>(toWrite.length());
-  const uint8_t *text_data = reinterpret_cast<const uint8_t *>(toWrite.c_str());
-  send_packet(MESSAGE, text_data, stringlen);
-}
-
-uint ComsInstance::get_packet() {
-  argumentVector.clear();
-  coms_rx_code = EMPTY;
-
-  uint8_t rx_header[HEADER_SIZE];
   absolute_time_t timerStart = get_absolute_time(); // start waiting timer
-
   while (true) {
     uint16_t available = get_available_rx();
     if (available >= HEADER_SIZE) {
-      read(rx_header, HEADER_SIZE);
+      read(header_data, HEADER_SIZE);
       break;
+    }
+    absolute_time_t elapsed_time =
+        absolute_time_diff_us(timerStart, get_absolute_time());
+    if (elapsed_time > READ_TIMEOUT_US) {
+      return 0;
     }
   }
 
-  coms_rx_code = rx_header[CODE_INDEX];
-  uint8_t &len = rx_header[LENGTH_INDEX];
-  uint8_t packet[HEADER_SIZE + len + CHECKSUM_SIZE_BYTES];
-  memcpy(packet, rx_header, HEADER_SIZE);
+  uint8_t coms_rx_code = header_data[CODE_INDEX];
+  uint8_t datatype_id = header_data[TYPE_INDEX];
+  uint16_t len;
+  memcpy(header_data + LENGTH_INDEX, &len, 2);
+  uint8_t packet_data[len];
+  uint32_t checksum;
 
   // reset timer to read body
   timerStart = get_absolute_time();
   while (true) {
     if (get_available_rx() >= len + CHECKSUM_SIZE_BYTES) {
+
+      read(packet_data, len);
+
       uint8_t tmp[CHECKSUM_SIZE_BYTES];
-      read(packet + HEADER_SIZE, len + CHECKSUM_SIZE_BYTES);
+      read(tmp, CHECKSUM_SIZE_BYTES);
+      memcpy(tmp, &checksum, CHECKSUM_SIZE_BYTES);
       break;
     }
-
     absolute_time_t elapsed_time =
         absolute_time_diff_us(timerStart, get_absolute_time());
-    if (elapsed_time > read_time_limit_us) {
-      send_string("timeout body");
-      return 1;
+    if (elapsed_time > READ_TIMEOUT_US) {
+      return -1;
     }
   }
 
-  if (!verify_checksum(packet)) {
-    send_code(RE_REQUEST);
-    uint result = get_packet();
-  }
+  auto got_packet =
+      Packet(coms_rx_code, datatype_id, len, packet_data, checksum);
 
-  int body_index = 0;
-  int tmp = 0;
-  uint8_t byte_buffer[4];
+  // if (!verify_checksum(packet)) {
+  //   queue_send(state_packet(RE_REQUEST));
+  //   return -2;
+  // }
 
-  uint8_t *data_ptr = packet + HEADER_SIZE;
-  for (int body_index = 0; body_index < len; body_index += 4) {
-    memcpy(&tmp, data_ptr + body_index, 4);
-    argumentVector.push_back(tmp);
-  }
-
-  return 0;
+  return got_packet;
 }
 
+Packet float_vec_packet(vector<float> data) {}
+Packet int_vec_packet(vector<int> data) {}
+Packet state_packet(uint8_t state) { Packet(STATE, NONETYPE_ID, 1, &state); }
+
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
-    : DmaUart(uart, baudrate), read_time_limit_us(100 * 1000) {
-  // handshake:
-  // send wake
-  // wait for CONFIRM
-  // send CONFIRM
-  // wait for final ack
-  // continue
-  send_code(WAKE);
-  uint handshake_index = 0;
-  while (handshake_index < 2) { // break after second confirm
-    uint messageFound = get_packet();
-    sleep_ms(20);
-    if (coms_rx_code == CONFIRM) {
-      send_code(CONFIRM);
-      handshake_index++;
+    : DmaUart(uart, baudrate), partner_state(BUSY), tx_write_index(0),
+      tx_read_index(0) {
+  auto partner_state_updater = Response_Callback(
+      "partner_state_updater",
+      [](LoopContext ctx) -> bool {
+        return ctx.most_recent_packet->coms_code == STATE;
+      },
+      [](LoopContext ctx) -> void {
+        ctx.coms_ctx->partner_state = ctx.most_recent_packet->data[0];
+      });
+}
+
+void ComsInstance::main_loop() {
+  // dump the transmission queue
+  if (partner_state == LISTENING) {
+    queue_send(state_packet(LISTENING));
+    while (tx_read_index != tx_write_index) {
+      transmit_next();
+    }
+    partner_state = BUSY;
+  }
+  // once tx is dumped, if pi3b is working, listen
+  variant<Packet, int> listen_response = listen_for_packet();
+  if (holds_alternative<Packet>(listen_response)) {
+    Packet &got_packet = get<Packet>(listen_response);
+    auto current_ctx = LoopContext(this, got_packet);
+    for (const auto &[name, response_obj] : response_tree) {
+      if (response_obj.condition(current_ctx)) {
+        response_obj.callback(current_ctx);
+        current_ctx.executed_functions.push_back(response_obj.name);
+      }
     }
   }
-  // handshake confirmation blink
-  blink(1);
 }
