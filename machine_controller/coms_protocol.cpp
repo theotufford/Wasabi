@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <hardware/gpio.h>
 #include <iostream>
+#include <motors.hpp>
 #include <pico/time.h>
 #include <type_traits>
 #include <variant>
@@ -57,8 +58,9 @@ void blink(int count) {
 //
 
 Response_Callback::Response_Callback(string name,
-                                     bool (*condition)(LoopContext),
-                                     void (*callback)(LoopContext)) {}
+                                     function<bool(LoopContext)> condition,
+                                     function<void(LoopContext)> callback)
+    : condition(condition), callback(callback), name(name) {}
 
 LoopContext::LoopContext(ComsInstance *coms_instance_ctx,
                          Packet &received_packet)
@@ -78,6 +80,7 @@ void Packet::populate_header_bytearray(uint8_t *target) {
   target[2] = datatype_id;
   memcpy(&datalen, target + 3, 2);
 }
+
 void Packet::populate_output_data_bytearray(
     uint8_t *target //  must be uint8_t array of size HEADER_SIZE + datalen +
                     //  CHECKSUM_SIZE_BYTES
@@ -89,6 +92,7 @@ void Packet::populate_output_data_bytearray(
   memcpy(data, body_ptr, datalen);
   memcpy(&checksum, checksum_ptr, CHECKSUM_SIZE_BYTES);
 }
+
 vector<float> Packet::get_float_argvec() {
   vector<float> output;
   for (int i = 0; i < datalen; i += sizeof(float)) {
@@ -99,6 +103,7 @@ vector<float> Packet::get_float_argvec() {
   }
   return output;
 }
+
 vector<int> Packet::get_int_argvec() {
   vector<int> output;
   for (int i = 0; i < datalen; i += sizeof(int)) {
@@ -173,14 +178,59 @@ variant<Packet, int> ComsInstance::listen_for_packet() {
 
   return got_packet;
 }
+template <typename T> Packet packet_from_vec(uint8_t code, vector<T> data) {
+  size_t vec_data_size = data.size() * sizeof(data[0]);
+  uint8_t *vec_data_ptr = (uint8_t *)malloc(vec_data_size);
+  if constexpr (is_same_v<T, int>) {
+    Packet(code, INT_ID, vec_data_size, vec_data_ptr);
+  } else if constexpr (is_same_v<T, float>) {
+    Packet(code, FLOAT_ID, vec_data_size, vec_data_ptr);
+  }
+}
 
-Packet float_vec_packet(vector<float> data) {}
-Packet int_vec_packet(vector<int> data) {}
+// remove padding
+#pragma pack(push, 1)
+struct MoveData {
+  uint8_t mot_id;
+  uint8_t profile_id;
+  uint8_t movetype;
+  int step_target;
+  float vmax;
+  float accel;
+};
+#pragma pack(pop)
+
+enum { ABSOLUTE, RELATIVE };
+
+vector<MoveEntity> parse_move_packet(Packet packet, Motor **motors_byid) {
+  // move packet structure:
+  // for n motors we have:
+  vector<MoveEntity> output;
+  for (int i = 0; i < packet.datalen; i += sizeof(MoveData)) {
+    uint8_t *raw_data = packet.data + i;
+    MoveData tmp_mdata;
+    memcpy(&tmp_mdata, raw_data, sizeof(MoveData));
+    Motor *motor = motors_byid[tmp_mdata.mot_id];
+    int step_distance = tmp_mdata.step_target;
+
+    if (tmp_mdata.movetype == ABSOLUTE) {
+      step_distance = step_distance - motor->static_position_state;
+    }
+
+    output.push_back(MoveEntity(tmp_mdata.profile_id, tmp_mdata.vmax,
+                                tmp_mdata.accel, step_distance, motor));
+  }
+  return output;
+}
+
+Packet::~Packet() { free(data); }
 Packet state_packet(uint8_t state) { Packet(STATE, NONETYPE_ID, 1, &state); }
 
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
     : DmaUart(uart, baudrate), partner_state(BUSY), tx_write_index(0),
       tx_read_index(0) {
+
+  // default response callbacks
   auto partner_state_updater = Response_Callback(
       "partner_state_updater",
       [](LoopContext ctx) -> bool {

@@ -38,6 +38,9 @@ int main() {
     Z_lim,
   };
 
+
+
+
   // configuration loop that exits once everything is configured
   while (true) {
     uint messageFound = coms.get_packet(); // blocking read
@@ -134,9 +137,9 @@ int main() {
 
       for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
         Motor &axis = *axis_motors[axis_ind];
-        axis.live_abs_pos = 0;
-        axis.move_delta = coms.argumentVector[axis_ind] - axis.current_position;
-        if (axis.move_delta == 0) {
+        axis.live_steps_moved = 0;
+        axis.live_steps_moved = coms.argumentVector[axis_ind] - axis.static_position_state;
+        if (axis.live_steps_moved == 0) {
           continue;
         }
         axis.move_precalc();
@@ -156,7 +159,7 @@ int main() {
         if (!moved[axis_ind])
           continue;
         Motor &axis = *axis_motors[axis_ind];
-        while (axis.live_abs_pos != abs(axis.move_delta)) {
+        while (axis.live_steps_moved != abs(axis.live_steps_moved)) {
           tight_loop_contents();
         }
       }
@@ -191,16 +194,16 @@ int main() {
 
       for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
         Motor &axis = *axis_motors[axis_ind];
-        axis.live_abs_pos = 0;
+        axis.live_steps_moved = 0;
       }
 
       Motor &amot = *axis_motors[0];
       Motor &bmot = *axis_motors[1];
       Motor &zmot = *axis_motors[2];
 
-      amot.live_abs_pos = 0;
-      bmot.live_abs_pos = 0;
-      zmot.live_abs_pos = 0;
+      amot.live_steps_moved = 0;
+      bmot.live_steps_moved = 0;
+      zmot.live_steps_moved = 0;
       amot.set_dir(1);
       bmot.set_dir(-1);
       zmot.set_dir(-1);
@@ -213,8 +216,8 @@ int main() {
       while (true) {
         bool z_triggered = !gpio_get(pins[Z_lim]);
         if (z_triggered) {
-          initial_position[2] = zmot.live_abs_pos;
-          zmot.current_position = 0;
+          initial_position[2] = zmot.live_steps_moved;
+          zmot.static_position_state = 0;
           break;
         }
         zmot.step();
@@ -227,14 +230,14 @@ int main() {
 
         if (a_triggered) {
           int homing_switch_step_pos = ceil(amot.stp_per_rev * 250. / 360.);
-          initial_position[0] = homing_switch_step_pos - amot.live_abs_pos;
-          amot.current_position = homing_switch_step_pos;
+          initial_position[0] = homing_switch_step_pos - amot.live_steps_moved;
+          amot.static_position_state = homing_switch_step_pos;
         } else {
           amot.step();
         }
         if (b_triggered) {
-          initial_position[1] = bmot.live_abs_pos;
-          bmot.current_position = 0;
+          initial_position[1] = bmot.live_steps_moved;
+          bmot.static_position_state = 0;
         } else {
           bmot.step();
         }

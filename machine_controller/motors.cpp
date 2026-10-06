@@ -1,30 +1,29 @@
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <csignal>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <dma_uart.hpp>
 #include <exception>
 #include <hardware/gpio.h>
+#include <hardware/irq.h>
 #include <hardware/timer.h>
 #include <motors.hpp>
 #include <pico/time.h>
+#include <sys/unistd.h>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 using namespace std;
-
-void Motor::move_isr(uint alarm_num) {
-  Motor *mot = Motor::async_bay.at(alarm_num);
-  int init_move = mot->move_callback();
-}
 
 Motor::Motor(const vector<int> &argumentVector)
     : step_pin(argumentVector[step_pin_arg]),
       dir_pin_inverted(argumentVector[invert_dir_arg]),
       dir_pin(argumentVector[dir_pin_arg]),
-      stp_per_rev(argumentVector[stp_per_rev_arg]),
-      vMax(argumentVector[ang_v_max_arg]),
-      ang_accel(argumentVector[ang_accel_arg]), live_abs_pos(0), move_delta(0),
-      current_position(0), direction(1) {
+      stp_per_rev(argumentVector[stp_per_rev_arg]) {
   gpio_init(dir_pin);
   gpio_init(step_pin);
   gpio_set_dir(step_pin, GPIO_OUT);
@@ -41,7 +40,7 @@ void Motor::buzz() {
   if (amp_steps < 0) {
     amp_steps = 1;
   }
-  move_delta = 1;
+  live_steps_moved = 1;
   for (int cycle_count = 0; cycle_count < 50; cycle_count++) {
     for (int stpcnt = 0; stpcnt < amp_steps; stpcnt++) {
       step();
@@ -49,15 +48,6 @@ void Motor::buzz() {
     }
     set_dir(-direction);
   }
-}
-
-void Motor::update_dir() {
-  direction = move_delta / abs(move_delta);
-  bool bin_dir = direction > 0;
-  if (dir_pin_inverted) {
-    bin_dir = !bin_dir;
-  }
-  gpio_put(dir_pin, bin_dir);
 }
 
 void Motor::set_dir(int dir) {
@@ -70,87 +60,121 @@ void Motor::set_dir(int dir) {
 }
 
 void Motor::step() {
-  // step logic
   gpio_put(step_pin, 1);
   sleep_us(1);
   gpio_put(step_pin, 0);
-  current_position += direction;
-  live_abs_pos++;
-  // set calculate flag high
+  live_steps_moved++;
 }
 
-void Motor::move_precalc() {
-  ang_targ_dist = TORADS * abs(move_delta); // gets the total distance
-  float v_reached = vMax;
-  // if the max v isnt reached by halfway
-  // we use the highest v reached as the
-  // vmax in our calculations
-  bool short_hop = (ang_targ_dist / 2) < ((float)(vMax * vMax) / ang_accel);
-  if (short_hop && !is_pump) {
-    v_reached = sqrt(ang_targ_dist * ang_accel);
-  }
+MoveEntity::MoveEntity(int profile_id, float angv_max, float ang_accel,
+                       int step_distance, Motor *motor)
+    : profile_id(profile_id), angv_max(angv_max), ang_accel(ang_accel),
+      step_distance(step_distance), motor(motor), calculation_step_index(0) {
+  angular_distance = motor->TORADS * step_distance;
+  float v_reached = angv_max;
+  bool short_hop =
+      (angular_distance / 2) < ((float)(angv_max * angv_max) / ang_accel);
   accel_stop = (v_reached * v_reached) / (2. * ang_accel);
-  constv_stop = (ang_targ_dist - (v_reached * v_reached) / (2 * ang_accel));
-  total_move_time = (ang_targ_dist / v_reached + v_reached / ang_accel);
-  claim_isr();
+  const_stop = (angular_distance - (v_reached * v_reached) / (2 * ang_accel));
+
+  if (profile_id == TRAPEZOIDAL) {
+    total_move_time = (angular_distance / v_reached + v_reached / ang_accel);
+  }
+  if (profile_id == NO_ACCEL) {
+    accel_stop = 0;
+    total_move_time =
+        angular_distance / v_reached + v_reached / (2 * ang_accel);
+  }
+  if (profile_id == NO_DECEL) {
+    const_stop = angular_distance + 1;
+  }
+  if (profile_id == LINEAR) {
+    accel_stop = 0;
+    const_stop = angular_distance + 1;
+  }
+
   return;
 }
 
-void Motor::claim_isr() {
-  alarm_num = hardware_alarm_claim_unused(false);
-  if (alarm_num == -1) {
-    buzz();
-    buzz();
-    buzz();
-  }
-  Motor::async_bay[alarm_num] = this;
-  hardware_alarm_set_callback(alarm_num, (hardware_alarm_callback_t)move_isr);
-}
+uint64_t MoveEntity::find_step_timing() {
 
-int Motor::move_callback() {
-  step();
-  if (live_abs_pos == abs(move_delta)) {
-
-    hardware_alarm_unclaim(alarm_num);
+  if (calculation_step_index == step_distance) {
     return 0;
   }
 
-  double theta = TORADS * (live_abs_pos + 1);
+  double theta = motor->TORADS * (calculation_step_index + 1);
   double stepTiming;
 
   if (theta < accel_stop) {
     stepTiming = sqrt((2 * theta) / ang_accel);
-  } else if (theta < constv_stop || is_pump) {
-    stepTiming = (theta / vMax) + (vMax / (2. * ang_accel));
+  } else if (theta < const_stop) {
+    stepTiming = (theta / angv_max) + (angv_max / (2. * ang_accel));
   } else {
     stepTiming =
-        total_move_time - sqrt((2 * (ang_targ_dist - theta)) / ang_accel);
+        total_move_time - sqrt((2 * (step_distance - theta)) / ang_accel);
   }
 
-  uint64_t next_step_time = (uint64_t)(stepTiming * 1e6f);
-  hardware_alarm_set_target(alarm_num,
-                            delayed_by_us(move_init_time, next_step_time));
-  return 0;
+  uint64_t next_step_time =
+      motor->move_init_time + (uint64_t)(stepTiming * 1e6f);
+  return next_step_time;
 }
 
-void Motor::singular_accel_move(int step_count) {
-  live_abs_pos = 0;
-  move_delta = step_count;
-  move_precalc();
-  update_dir();
-  move_init_time = get_absolute_time();
-  hardware_alarm_force_irq(alarm_num);
-  while (live_abs_pos != abs(move_delta)) {
-    tight_loop_contents();
+#define alarm_count 4
+int available_alarm_index = 0;
+static array<StepAlarmQueue *, alarm_count> step_queues;
+vector<StepAlarmQueue *> to_be_sorted;
+
+StepAlarmQueue::StepAlarmQueue() {
+  alarm_number = hardware_alarm_claim_unused(true);
+  step_queues[alarm_number] = this;
+}
+
+StepAlarmQueue::~StepAlarmQueue() { hardware_alarm_unclaim(alarm_number); }
+
+void StepAlarmQueue::alarm_callback() {
+  MoveEntity *move = circ_queue[read_index];
+  move->motor->step();
+}
+
+static void alarm_isr(int alarm_num) {}
+
+void enqeue_next_step(MoveEntity *move) {
+  uint64_t next_timing = move->find_step_timing();
+  if (next_timing == 0) {
+    return;
+  }
+  StepAlarmQueue &queue = *step_queues[available_alarm_index];
+  do {
+    StepAlarmQueue &queue = *step_queues[available_alarm_index];
+    available_alarm_index = (available_alarm_index + 1) % alarm_count;
+  } while (queue.queue_count == ALARM_QUEUE_LENGTH);
+
+  if (next_timing < queue.next_timing) {
+    queue.read_index =
+        (queue.read_index + ALARM_QUEUE_LENGTH - 1) % ALARM_QUEUE_LENGTH;
+    queue.next_timing = next_timing;
+    queue.circ_queue[queue.read_index] = move;
+    hardware_alarm_set_target(queue.alarm_number, next_timing);
+  } else {
+    queue.circ_queue[queue.write_index] = move;
+    for (int i = queue.write_index;
+         i != (queue.read_index + 1) % ALARM_QUEUE_LENGTH;
+         i = (i + ALARM_QUEUE_LENGTH - 1) % ALARM_QUEUE_LENGTH) {
+      int j = (i + ALARM_QUEUE_LENGTH - 1) % ALARM_QUEUE_LENGTH;
+      MoveEntity *just_added = queue.circ_queue[i];
+      MoveEntity *candidate = queue.circ_queue[j];
+      if (candidate->next_timing > just_added->next_timing) {
+        swap(candidate, just_added);
+      } else {
+        break;
+      }
+    }
+    queue.write_index = (queue.write_index + 1) % ALARM_QUEUE_LENGTH;
   }
 }
-void Motor::singular_linear_move(int step_count) {
-  live_abs_pos = 0;
-  move_delta = step_count;
-  update_dir();
-  uint64_t delay = (uint64_t)( 0.25 * 1e6f/(vMax * TOSTEPS));
-  while (live_abs_pos != abs(move_delta)) {
-    sleep_us(delay);
-    step();
+
+void initiate_move(vector<MoveEntity> moves) {
+  for (auto &move : moves) {
+    enqeue_next_step(&move);
   }
 }

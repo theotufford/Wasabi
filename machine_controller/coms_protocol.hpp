@@ -46,6 +46,7 @@ public:
   vector<int> get_int_argvec();
   Packet(uint8_t code, uint8_t datatype_id, uint16_t datalen, uint8_t *data,
          uint32_t checksum);
+  ~Packet();
 };
 
 class ComsInstance;
