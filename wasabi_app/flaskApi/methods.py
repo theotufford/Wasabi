@@ -81,9 +81,9 @@ def general_gradient(machine: Machine,
     # the reason y is flipped is because we are
     # translating row n as being n units in the +y direction
     well_plate_basis = {
-        "right": Vec2d(1, 0),
-        "down": Vec2d(0, 1),
-        "up": Vec2d(0, -1),
+        "right": Vec2d([1, 0]),
+        "down": Vec2d([0, 1]),
+        "up": Vec2d([0, -1]),
         "left": Vec2d(-1, 0)
     }
 
