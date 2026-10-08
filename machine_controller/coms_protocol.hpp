@@ -5,6 +5,7 @@
 #include <dma_uart.hpp>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <variant>
 #include <vector>
@@ -18,20 +19,13 @@ using namespace std; // TODO dont do this
 void blink(int count);
 
 // coms codes
-enum : uint8_t {
-         STATE,
-         RE_REQUEST,
-         MESSAGE,
-         MOVE,
-         HOME,
-         WAKE
-       };
+enum : uint8_t { STATE, RE_REQUEST, MESSAGE, MOVE, HOME, WAKE };
 
 // coms states
-enum : uint8_t { BUSY, LISTENING };
+enum : uint8_t { BUSY, LISTENING, IDLE };
 
 // coms data type ids
-enum : uint8_t { INT_ID, FLOAT_ID, NONETYPE_ID };
+enum : uint8_t { INT_ID, FLOAT_ID, STRUCT_ID, NONETYPE_ID };
 
 //  Constructs and writes out packet, also calculates checksum
 //  packet structure is strictly ordered by byte:
@@ -47,7 +41,7 @@ public:
   uint8_t coms_code;
   uint8_t datatype_id;
   uint16_t datalen;
-  uint8_t *data;
+  unique_ptr<uint8_t[]> data;
   uint32_t checksum;
   void populate_header_bytearray(uint8_t *target);
   void populate_output_data_bytearray(uint8_t *target);
@@ -65,7 +59,6 @@ class LoopContext {
 public:
   vector<string> executed_functions;
   Packet *most_recent_packet;
-  bool has_been_executed(string name);
   ComsInstance *coms_ctx;
   LoopContext(ComsInstance *coms_instance_ctx, Packet &received_packet);
 };
@@ -85,13 +78,14 @@ private:
 
 public:
   uint8_t partner_state;
+  uint8_t self_state;
   int tx_write_index;
   int tx_read_index;
-  vector<Packet> tx_queue;
-  void queue_send(Packet to_send);
+  Packet *tx_queue[TX_HISTORY_LEN] = {nullptr};
+  void queue_send(Packet *to_send);
   void transmit_next();
   void handle_rereq();
-  variant<Packet, int>
+  variant<Packet *, int>
   listen_for_packet(); // main rx read function, gets state/checksum
   void add_response(Response_Callback callback);
   void main_loop();

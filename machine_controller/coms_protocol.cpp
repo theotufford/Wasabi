@@ -1,4 +1,5 @@
 #include "coms_defs.h"
+#include <algorithm>
 #include <coms_protocol.hpp>
 #include <concepts>
 #include <cstddef>
@@ -9,9 +10,11 @@
 #include <filesystem>
 #include <hardware/gpio.h>
 #include <iostream>
+#include <memory>
 #include <motors.hpp>
 #include <pico/time.h>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -72,19 +75,19 @@ LoopContext::LoopContext(ComsInstance *coms_instance_ctx,
                          Packet &received_packet)
     : coms_ctx(coms_instance_ctx), most_recent_packet(&received_packet) {}
 
-bool LoopContext::has_been_executed(string name) {}
-
 Packet::Packet(uint8_t code, uint8_t datatype_id, uint16_t datalen,
-               uint8_t *data, uint32_t checksum = 0) {}
+               uint8_t *data, uint32_t checksum = CRC32_INIT)
+    : coms_code(code), datatype_id(datatype_id), datalen(datalen),
+      data(unique_ptr<uint8_t[]>(data)), checksum(checksum) {}
 
 // TODO
-uint32_t Packet::calculate_checksum() { return 0; }
+uint32_t Packet::calculate_checksum() { return CRC32_INIT; }
 
 void Packet::populate_header_bytearray(uint8_t *target) {
   target[0] = COMS_START_BYTE;
   target[1] = coms_code;
   target[2] = datatype_id;
-  memcpy(&datalen, target + 3, 2);
+  memcpy(target + 3, &datalen, 2);
 }
 
 void Packet::populate_output_data_bytearray(
@@ -95,16 +98,16 @@ void Packet::populate_output_data_bytearray(
   uint8_t *checksum_ptr = body_ptr + datalen;
   populate_header_bytearray(target);
   checksum = calculate_checksum();
-  memcpy(data, body_ptr, datalen);
-  memcpy(&checksum, checksum_ptr, CHECKSUM_SIZE_BYTES);
+  memcpy(body_ptr, data.get(), datalen);
+  memcpy(checksum_ptr, &checksum, CHECKSUM_SIZE_BYTES);
 }
 
 vector<float> Packet::get_float_argvec() {
   vector<float> output;
   for (int i = 0; i < datalen; i += sizeof(float)) {
-    uint8_t *num_ind = data + i;
+    uint8_t *num_ind = data.get() + i;
     float tmp;
-    memcpy(num_ind, &tmp, sizeof(float));
+    memcpy(&tmp, num_ind, sizeof(float));
     output.push_back(tmp);
   }
   return output;
@@ -113,33 +116,36 @@ vector<float> Packet::get_float_argvec() {
 vector<int> Packet::get_int_argvec() {
   vector<int> output;
   for (int i = 0; i < datalen; i += sizeof(int)) {
-    uint8_t *num_ind = data + i;
+    uint8_t *num_ind = data.get() + i;
     int tmp;
-    memcpy(num_ind, &tmp, sizeof(int));
+    memcpy(&tmp, num_ind, sizeof(int));
     output.push_back(tmp);
   }
   return output;
 }
 void ComsInstance::transmit_next() {
-  Packet next_packet = tx_queue[tx_read_index];
+  Packet &packet = *tx_queue[tx_read_index];
   tx_read_index = (tx_read_index + 1) % TX_HISTORY_LEN;
   uint32_t calculated_checksum = 0; // TODO currently stubbed
-  int total_length = next_packet.datalen + CHECKSUM_SIZE_BYTES + HEADER_SIZE;
+  int total_length = packet.datalen + CHECKSUM_SIZE_BYTES + HEADER_SIZE;
   uint8_t output_Data[total_length];
-  next_packet.populate_output_data_bytearray(output_Data);
-  write_and_flush(output_Data, next_packet.datalen);
+  packet.populate_output_data_bytearray(output_Data);
+  write_and_flush(output_Data, total_length);
   partner_state = BUSY;
 }
-variant<Packet, int> ComsInstance::listen_for_packet() {
+
+variant<Packet *, int> ComsInstance::listen_for_packet() {
   auto head_packet = tx_queue[tx_write_index];
   uint8_t header_data[HEADER_SIZE];
-
   absolute_time_t timerStart = get_absolute_time(); // start waiting timer
   while (true) {
     uint16_t available = get_available_rx();
-    if (available >= HEADER_SIZE) {
-      read(header_data, HEADER_SIZE);
-      break;
+    uint8_t &tmp = header_data[0];
+    if (available > 0 && tmp != COMS_START_BYTE) {
+      read(&tmp, 1);
+    }
+    if (available >= HEADER_SIZE && tmp == COMS_START_BYTE) {
+      read(header_data + 1, HEADER_SIZE - 1);
     }
     absolute_time_t elapsed_time =
         absolute_time_diff_us(timerStart, get_absolute_time());
@@ -152,7 +158,7 @@ variant<Packet, int> ComsInstance::listen_for_packet() {
   uint8_t datatype_id = header_data[TYPE_INDEX];
   uint16_t len;
   memcpy(header_data + LENGTH_INDEX, &len, 2);
-  uint8_t packet_data[len];
+  uint8_t *packet_data = (uint8_t *)malloc(len);
   uint32_t checksum;
 
   // reset timer to read body
@@ -175,7 +181,7 @@ variant<Packet, int> ComsInstance::listen_for_packet() {
   }
 
   auto got_packet =
-      Packet(coms_rx_code, datatype_id, len, packet_data, checksum);
+      new Packet(coms_rx_code, datatype_id, len, packet_data, checksum);
 
   // if (!verify_checksum(packet)) {
   //   queue_send(state_packet(RE_REQUEST));
@@ -184,13 +190,15 @@ variant<Packet, int> ComsInstance::listen_for_packet() {
 
   return got_packet;
 }
-template <typename T> Packet packet_from_vec(uint8_t code, vector<T> data) {
-  size_t vec_data_size = data.size() * sizeof(data[0]);
+template <typename T> Packet *packet_from_vec(uint8_t code, vector<T> vec) {
+  size_t vec_data_size = vec.size() * sizeof(vec[0]);
   uint8_t *vec_data_ptr = (uint8_t *)malloc(vec_data_size);
+  memcpy(vec_data_ptr, vec.data(), vec_data_size);
+
   if constexpr (is_same_v<T, int>) {
-    Packet(code, INT_ID, vec_data_size, vec_data_ptr);
+    return new Packet(code, INT_ID, vec_data_size, vec_data_ptr);
   } else if constexpr (is_same_v<T, float>) {
-    Packet(code, FLOAT_ID, vec_data_size, vec_data_ptr);
+    return new Packet(code, FLOAT_ID, vec_data_size, vec_data_ptr);
   }
 }
 
@@ -208,12 +216,13 @@ struct MoveData {
 
 enum { ABSOLUTE, RELATIVE };
 
-vector<MoveEntity> parse_move_packet(Packet packet, Motor **motors_byid) {
+vector<MoveEntity> parse_move_packet(Packet *movepacket, Motor **motors_byid) {
+  Packet &packet = *movepacket;
   // move packet structure:
   // for n motors we have:
   vector<MoveEntity> output;
   for (int i = 0; i < packet.datalen; i += sizeof(MoveData)) {
-    uint8_t *raw_data = packet.data + i;
+    uint8_t *raw_data = packet.data.get() + i;
     MoveData tmp_mdata;
     memcpy(&tmp_mdata, raw_data, sizeof(MoveData));
     Motor *motor = motors_byid[tmp_mdata.mot_id];
@@ -229,37 +238,45 @@ vector<MoveEntity> parse_move_packet(Packet packet, Motor **motors_byid) {
   return output;
 }
 
-Packet::~Packet() { free(data); }
-Packet state_packet(uint8_t state) { Packet(STATE, NONETYPE_ID, 1, &state); }
+Packet *state_packet(uint8_t state) {
+  return new Packet(STATE, INT_ID, 1, &state);
+}
 
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
     : DmaUart(uart, baudrate), partner_state(BUSY), tx_write_index(0),
       tx_read_index(0) {
-
-  // default response callbacks
   add_response(Response_Callback(
-      "partner_state_updater",
-      [](LoopContext ctx) -> bool {
-        return ctx.most_recent_packet->coms_code == STATE;
-      },
+      "partner_state_updater", code_conditional_func(STATE),
       [](LoopContext ctx) -> void {
         ctx.coms_ctx->partner_state = ctx.most_recent_packet->data[0];
       }));
+}
+void ComsInstance::queue_send(Packet *packet_to_send) {
+  if (tx_queue[tx_write_index] != nullptr) {
+    delete tx_queue[tx_write_index];
+  }
+  tx_queue[tx_write_index] = packet_to_send;
+  tx_write_index = (tx_write_index + 1) % TX_HISTORY_LEN;
 }
 
 void ComsInstance::main_loop() {
   // dump the transmission queue
   if (partner_state == LISTENING) {
-    queue_send(state_packet(LISTENING));
+    if (tx_write_index == tx_read_index) {
+      // partner is listening and we have nothing to say, thus idling
+      queue_send(state_packet(IDLE));
+    } else {
+      queue_send(state_packet(LISTENING));
+    }
     while (tx_read_index != tx_write_index) {
       transmit_next();
     }
     partner_state = BUSY;
   }
   // once tx is dumped, if pi3b is working, listen
-  variant<Packet, int> listen_response = listen_for_packet();
-  if (holds_alternative<Packet>(listen_response)) {
-    Packet &got_packet = get<Packet>(listen_response);
+  variant<Packet *, int> listen_response = listen_for_packet();
+  if (holds_alternative<Packet *>(listen_response)) {
+    Packet &got_packet = *get<Packet *>(listen_response);
     auto current_ctx = LoopContext(this, got_packet);
     for (const auto &[name, response_obj] : response_tree) {
       if (response_obj.condition(current_ctx)) {

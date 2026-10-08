@@ -14,8 +14,8 @@
 #define LENGTH_INDEX 3
 // defs for checksum calculation
 #define REVERSED_STD_POLY 0xEDB88320ul
-#define CRC32_INIT 0ul 
-#define MAX_PACKET_SIZE 512
+#define CRC32_INIT 0xFFFFFFFF
+#define MAX_PACKET_SIZE 1024
 #define CRC_DISABLED true
 #define TX_HISTORY_LEN 10
-#define READ_TIMEOUT_US 3 * 100 * 100 
+#define READ_TIMEOUT_US 5 * 1000 * 1000

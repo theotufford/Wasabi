@@ -30,7 +30,6 @@ public:
   volatile int position_state;
   int direction;
 
-  uint64_t move_init_time;
   double TORADS = (2 * M_PI / stp_per_rev);
   double TOSTEPS = (stp_per_rev / (2 * M_PI));
 
@@ -55,11 +54,14 @@ public:
   float ang_accel;
   double angular_distance;
   int step_distance;
+  double abs_ang_dist;
+  int abs_stp_dist;
   double accel_stop;
   double const_stop;
   double total_move_time;
   uint64_t next_timing;
   int calculation_step_index;
+  uint64_t move_init_time;
   bool is_complete;
   volatile bool hit_limit;
 
@@ -76,7 +78,7 @@ public:
   volatile int write_index = 0;
   volatile int read_index = 0;
   int queue_count = 0;
-  uint64_t next_timing = 0;
+  uint64_t time_target = 0;
 
   array<MoveEntity *, ALARM_QUEUE_LENGTH> circ_queue;
   void enqeue_next_step(MoveEntity *entity);

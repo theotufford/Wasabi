@@ -56,7 +56,7 @@ int main() {
   coms.add_response(Response_Callback(
       "move_handler", code_conditional_func(MOVE),
       [&motors](LoopContext ctx) mutable -> void {
-        await_async_move(parse_move_packet(*ctx.most_recent_packet, motors));
+        await_async_move(parse_move_packet(ctx.most_recent_packet, motors));
       }));
 
   coms.add_response(Response_Callback(
@@ -76,12 +76,12 @@ int main() {
         MoveEntity bmove(NO_DECEL, ab_vmax, ab_accel, -999999, B_motor);
         await_async_move({amove, bmove});
 
-        vector<int> initial_positions = {-Z_motor->position_state,
-                                         -A_motor->position_state,
-                                         -B_motor->position_state};
-        Z_motor->position_state = 0;
+        vector<int> initial_positions = {-A_motor->position_state,
+                                         -B_motor->position_state,
+                                         -Z_motor->position_state};
         A_motor->position_state = 0;
         B_motor->position_state = 0;
+        Z_motor->position_state = 0;
         ctx.coms_ctx->queue_send(packet_from_vec<int>(HOME, initial_positions));
       }));
 
