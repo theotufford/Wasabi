@@ -66,7 +66,7 @@ class Well:
 
 
 class Plate:
-    def __init__(self, settings: dict, a1: Vec2d = Vec2d(0, 0), bottom_right_vector: Vec2d | None = None):
+    def __init__(self, settings: dict, a1: Vec2d = Vec2d([0,0]), bottom_right_vector: Vec2d | None = None):
         self.settings = settings
         self.rows = settings["rows"]
         self.columns = settings["columns"]

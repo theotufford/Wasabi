@@ -10,7 +10,7 @@ import math
 import inspect
 import RPi.GPIO as pio
 from .kinematics import solve_5bar_FK, solve_5bar_IK, Vec2d, Vec3d, Vec2d_Ang
-from . import serialcoms as serlib
+from . import coms as serlib
 
 
 class Machine:
@@ -69,7 +69,7 @@ class Machine:
         self.in_simulation = False
         self.coms: serlib.ComsChannel
         self.waste_well = Well(
-            self.settings()["plates"]["150ml_waste_beaker"], Vec2d(0, 0))
+            self.settings()["plates"]["150ml_waste_beaker"], Vec2d([0,0]))
         self.current_well = self.waste_well
         spr = mach["motors"]["common_settings"]["kinematic_steps_per_revolution"]
         pitch = mach["machineDimensions"]["z_screw_pitch"]
@@ -88,6 +88,41 @@ class Machine:
 
         self.plate = Plate(self.settings()["plates"]["standard 96"])
         self.hw_init()
+
+    def hw_init(self):
+        # reboot the pico
+        pi3b_pins = self.settings()["machine"]["pins"]["on_3b_server_board"]
+        pico_reset_pin = pi3b_pins["pico_reset_pin"]
+        stage_enable_pin = pi3b_pins["stage_enable_pin"]
+        pump_ms1 = pi3b_pins["pump_ms1"]
+        pump_ms2 = pi3b_pins["pump_ms2"]
+
+        motor_settings = self.settings()["machine"]["motors"]
+
+        pio.setup(pico_reset_pin, pio.OUT)
+        pio.setup(stage_enable_pin, pio.OUT)
+        pio.setup(pump_ms1, pio.OUT)
+        pio.setup(pump_ms2, pio.OUT)
+        pio.output(stage_enable_pin, pio.HIGH)
+        pio.output(pico_reset_pin, pio.LOW)
+        time.sleep(0.1)
+        pio.output(pico_reset_pin, pio.HIGH)
+        time.sleep(0.1)
+
+        pump_ms_state_dict = {
+            200: (0, 0),
+            400: (1, 0),
+            800: (0, 1),
+            1600: (1, 1)
+        }
+        pump_stp_per_rev = motor_settings["common_settings"]["pump_steps_per_revolution"]
+
+        pump_ms_pinstate = pump_ms_state_dict[pump_stp_per_rev]
+
+        pio.output(pump_ms1, pump_ms_pinstate[0])
+        pio.output(pump_ms2, pump_ms_pinstate[1])
+
+        self.coms = serlib._coms.ComsChannel(timeout=3, self.settings_path)
 
     def settings(self):
         with open(self.settings_path, "r") as conf:

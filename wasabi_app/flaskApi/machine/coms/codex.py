@@ -1,3 +1,4 @@
+
 COMS_START_BYTE = b"\xf8"
 STATE = 0
 RE_REQUEST = 1
@@ -10,6 +11,11 @@ INT = 0
 FLOAT = 1
 STRUCT = 2
 NONE = 3
+
+TRAPEZOIDAL = 0
+NO_DECEL = 1
+NO_ACCEL = 2
+LINEAR = 3
 
 types_by_code = [
     int,
@@ -29,6 +35,7 @@ COMS_INV = [
 
 BUSY = 0
 LISTENING = 1
+IDLE = 2
 
 A_MOTOR = 0
 B_MOTOR = 1

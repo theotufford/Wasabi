@@ -10,7 +10,7 @@ def alph_to_xy(alph):
 
 def alph_to_vec(alph):
     x, y = alph_to_xy(alph)
-    return Vec2d(x, y)
+    return Vec2d([x,y])
 
 
 def vec_to_alph(vec):

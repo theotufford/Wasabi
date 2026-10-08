@@ -87,7 +87,7 @@ class Machine:
 
 
 class Plate:
-    def __init__(self, settings: dict, a1: Vec2d = Vec2d(0, 0), bottom_right_vector: Vec2d | None = None):
+    def __init__(self, settings: dict, a1: Vec2d = Vec2d([0, 0]), bottom_right_vector: Vec2d | None = None):
         self.settings = settings
         self.rows = settings["rows"]
         self.columns = settings["columns"]
@@ -140,7 +140,8 @@ class Plate:
 
     def by_position(self, vec: Vec2d):
         for well in self.wells:
-            dist_to_center = (vec - well.absolute_position).get_vec().get_length()
+            dist_to_center = (
+                vec - well.absolute_position).get_vec().get_length()
             if dist_to_center < self.spacing / 2:
                 return well
 
@@ -172,7 +173,7 @@ class Machine:
         self.impure_method_flag = False
         self.coms: serlib.ComsChannel
         self.waste_well = Well(
-            self.settings()["plates"]["150ml_waste_beaker"], Vec2d(0, 0))
+            self.settings()["plates"]["150ml_waste_beaker"], Vec2d([0, 0]))
         self.current_well = self.waste_well
         spr = mach["motors"]["common_settings"]["kinematic_steps_per_revolution"]
         pitch = mach["machineDimensions"]["z_screw_pitch"]
