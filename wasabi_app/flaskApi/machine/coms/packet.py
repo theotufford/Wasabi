@@ -1,6 +1,6 @@
 import struct
 import zlib
-from . import pack_codes
+from . import codex
 from typing import Literal
 
 
@@ -8,11 +8,20 @@ def make_uint8_t(val: int):
     return val.to_bytes(byteorder="little", length=1)
 
 
+def make_uint16_t(val: int):
+    return val.to_bytes(byteorder="little", length=2)
+
+
 def make_pico_int(val: int):
     return val.to_bytes(byteorder="little", length=4)
 
 
-HEADER_SIZE = 5
+def parse_uint16_t(databytes: bytearray):
+    return struct.unpack("<H", databytes)[0]
+
+
+def parse_int(databytes: bytearray):
+    return struct.unpack("<i", databytes)[0]
 
 
 class Packet:
@@ -22,13 +31,13 @@ class Packet:
         self.code = code
         self.datalen = datalen
         if datatype == int:
-            self.datatype_id = pack_codes.INT
+            self.datatype_id = codex.INT
         elif datatype == float:
-            self.datatype_id = pack_codes.FLOAT
+            self.datatype_id = codex.FLOAT
         elif datatype is bytearray:
-            self.datatype_id = pack_codes.STRUCT
+            self.datatype_id = codex.STRUCT
         elif datatype is None:
-            self.datatype_id = pack_codes.NONE
+            self.datatype_id = codex.NONE
         else:
             return ValueError(f"got unconfigured datatype: {datatype}")
         self.data = data
@@ -43,10 +52,11 @@ class Packet:
     # n+6 to n+10: checksum
 
     def make_header(self) -> bytearray:
-        header = bytearray(pack_codes.COMS_START_BYTE)
+        header = bytearray()
+        header += codex.COMS_START_BYTE
         header += make_uint8_t(self.code)
         header += make_uint8_t(self.datatype_id)
-        header += make_uint8_t(self.datalen)
+        header += make_uint16_t(self.datalen)
         return header
 
     def calculate_checksum(self) -> bytearray:
@@ -72,9 +82,9 @@ class Packet:
 
 
 def parse_header(header: bytearray) -> tuple:
-    coms_code = int(header[1])
-    datatype = pack_codes.types_by_code[int(header[2])]
-    datalen = int(header[3])
+    coms_code = header[1]
+    datatype = codex.types_by_code[header[2]]
+    datalen = parse_uint16_t(header[3:5])
     return (coms_code, datatype, datalen)
 
 
@@ -87,10 +97,12 @@ def make_int_vec_packet(code, vec: list[int]) -> Packet:
     for entry in vec:
         output_data += make_pico_int(entry)
 
+    return Packet(code, codex.INT, len(output_data), output_data)
 
-def state_packet(state: Literal[pack_codes.BUSY, pack_codes.LISTENING]):
+
+def state_packet(state: Literal[codex.BUSY, codex.LISTENING]):
     state = bytearray(bytes([state]))
-    return make_new_packet(pack_codes.STATE, int, state)
+    return make_new_packet(codex.STATE, int, state)
 
 
 def get_settings_packet(settings_dict):
@@ -130,7 +142,7 @@ def get_settings_packet(settings_dict):
             pump_microsteps
         ]
 
-    return make_int_vec_packet(pack_codes.WAKE, settings)
+    return make_int_vec_packet(codex.WAKE, settings)
 
 
 class MoveEntity:
@@ -162,4 +174,4 @@ def move_packet(moves: list[MoveEntity]) -> Packet:
     output_data = b""
     for move in moves:
         output_data += move.data
-    return Packet(pack_codes.MOVE, bytearray, len(output_data), output_data)
+    return Packet(codex.MOVE, bytearray, len(output_data), output_data)

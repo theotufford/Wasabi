@@ -41,7 +41,7 @@ public:
   uint8_t coms_code;
   uint8_t datatype_id;
   uint16_t datalen;
-  unique_ptr<uint8_t[]> data;
+  uint8_t *data;
   uint32_t checksum;
   void populate_header_bytearray(uint8_t *target);
   void populate_output_data_bytearray(uint8_t *target);
@@ -93,6 +93,4 @@ public:
 };
 
 // motor frame settings codex
-enum { STP_PIN, DIR_PIN, LIM_PIN, INVERSION, STP_PER_REV };
-
-int MOTOR_CONFIG_SIZE = STP_PER_REV + 1;
+enum { STP_PIN, DIR_PIN, LIM_PIN, INVERSION, STP_PER_REV, MOTOR_CONFIG_SIZE };

@@ -73,7 +73,7 @@ MoveEntity::MoveEntity(int profile_id, float angv_max, float ang_accel,
                        int step_distance, Motor *motor)
     : profile_id(profile_id), angv_max(angv_max), ang_accel(ang_accel),
       step_distance(step_distance), motor(motor), calculation_step_index(0),
-      hit_limit(false) {
+      hit_limit(false), is_complete(false) {
   angular_distance = motor->TORADS * step_distance;
   abs_ang_dist = abs(angular_distance);
   abs_stp_dist = abs(step_distance);
@@ -251,10 +251,11 @@ void await_async_move(vector<MoveEntity> moves) {
     mot.set_dir(direction);
   }
   bool all_complete = false;
+  for (auto &move : moves) {
+    move.move_init_time = get_absolute_time();
+  }
   while (!all_complete) {
-    for (auto &move : moves) {
-      move.move_init_time = get_absolute_time();
-    }
+    all_complete = true;
     for (auto &move : moves) {
       if (!move.is_complete) {
         enqeue_next_step(&move);

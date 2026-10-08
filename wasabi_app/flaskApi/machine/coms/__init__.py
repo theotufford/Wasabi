@@ -1,6 +1,7 @@
 import asyncio
 import serial
 import math
+import threading
 import RPi.GPIO as pio
 import zlib
 import time
@@ -16,15 +17,13 @@ def state_dependent_true(state):
 
 class ComsChannel:
     def __init__(self, timeout, settings_path):
-        self.picostate: Literal[codex.BUSY, codex.LISTENING] = codex.BUSY
+        self.picostate: Literal[codex.BUSY,
+                                codex.LISTENING, codex.IDLE] = codex.BUSY
         self.settings_path = settings_path
+        self.queue_size = 60
         self.tx_head = 0
         self.tx_tail = 0
-        self.queue_size = 60
         self.txQueue = [None for i in range(0, self.queue_size)]
-        self.rxQueue = [None for i in range(0, self.queue_size)]
-        self.rx_head = 0
-        self.rx_tail = 0
         self.timeout = timeout
         # initialize serial contact
         self.ser = serial.Serial("/dev/ttyS0", 115200, timeout=timeout)
@@ -61,24 +60,25 @@ class ComsChannel:
         self.txQueue[self.tx_head] = packet
         self.tx_head = (self.tx_head + 1) % self.queue_size
 
-    async def listen(self):
+    async def listen_for_packet(self):
         while True:
-            if self.rx_tail == self.rx_head and self.rx_tail is not None:
-                # rx queue is full!!
-                continue
             header_data: bytearray
+            start = time.perf_counter()
             while True:
-                if self.ser.in_waiting > HEADER_SIZE:
+                current = time.perf_counter()
+                if current - start > self.timeout:
+                    return None
+                if self.ser.in_waiting >= HEADER_SIZE:
                     header_data = self.ser.read(1)
-                    if header_data[0] == codex.COMS_START_BYTE:
+                    if header_data[0] == codex.COMS_START_BYTE[0]:
                         header_data += self.ser.read(HEADER_SIZE - 1)
                         break
                     else:
                         continue
             coms_code, datatype, datalen, = parse_header(header_data)
 
-            start = time.perf_counter()
             serial_data: bytearray
+            start = time.perf_counter()
             while True:
                 if self.ser.in_waiting >= datalen:
                     serial_data = self.ser.read(datalen)
@@ -93,9 +93,7 @@ class ComsChannel:
                         parsed header: {parse_header(header_data)}
                         """)
 
-            self.rxQueue[self.rx_head] = Packet(
-                coms_code, datatype, datalen, serial_data)
-            self.rx_head = (self.rx_head + 1) % self.queue_size
+            return Packet(coms_code, datatype, datalen, serial_data)
 
     def transmit_next(self):
         next_packet = self.txQueue[self.tx_tail]
@@ -103,7 +101,7 @@ class ComsChannel:
         self.ser.write(next_packet.get_full_bytes())
         self.ser.flush()
 
-    async def transmission_handler_loop(self):
+    async def coms_handler_loop(self):
         while True:
             if self.picostate == codex.LISTENING:
                 if self.tx_tail == self.tx_head:
@@ -113,11 +111,13 @@ class ComsChannel:
 
             while self.tx_tail != self.tx_head and self.picostate != codex.BUSY:
                 self.transmit_next()
+                self.picostate = codex.BUSY
 
-            while self.rx_tail != self.rx_head:
+            if self.picostate in [codex.BUSY, codex.IDLE]:
                 called_functions = []
-                current_packet = self.rxQueue[self.rx_tail]
-                self.rx_tail = (self.rx_tail + 1) % self.queue_size
+                current_packet = await self.listen_for_packet()
+                if current_packet is None:
+                    continue
                 for name, condition_callback, action_callback in self.response_tree.values():
                     context = {"self": self, "rxpacket": current_packet,
                                "called_functions": called_functions}
@@ -125,6 +125,7 @@ class ComsChannel:
                     if case:
                         action_callback(context)
                         called_functions.append(name)
+            asyncio.sleep(0)
 
     def __del__(self):
         self.ser.close()

@@ -1,4 +1,3 @@
-
 COMS_START_BYTE = b"\xf8"
 STATE = 0
 RE_REQUEST = 1
@@ -6,23 +5,6 @@ MESSAGE = 2
 MOVE = 3
 HOME = 4
 WAKE = 5
-
-INT = 0
-FLOAT = 1
-STRUCT = 2
-NONE = 3
-
-TRAPEZOIDAL = 0
-NO_DECEL = 1
-NO_ACCEL = 2
-LINEAR = 3
-
-types_by_code = [
-    int,
-    float,
-    bytearray,  # using this like void *
-    None
-]
 
 COMS_INV = [
     "STATE",
@@ -36,6 +18,28 @@ COMS_INV = [
 BUSY = 0
 LISTENING = 1
 IDLE = 2
+
+INT = 0
+FLOAT = 1
+STRUCT = 2
+NONE = 3
+
+types_by_code = [
+    int,
+    float,
+    bytearray,  # using this like void *
+    None
+]
+
+
+# for move packets
+TRAPEZOIDAL = 0
+NO_DECEL = 1
+NO_ACCEL = 2
+LINEAR = 3
+
+ABSOLUTE = 0
+RELATIVE = 1
 
 A_MOTOR = 0
 B_MOTOR = 1
