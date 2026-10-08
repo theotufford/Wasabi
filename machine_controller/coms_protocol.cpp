@@ -62,6 +62,12 @@ Response_Callback::Response_Callback(string name,
                                      function<void(LoopContext)> callback)
     : condition(condition), callback(callback), name(name) {}
 
+function<bool(LoopContext)> code_conditional_func(uint8_t code) {
+  return [code](LoopContext ctx) -> bool {
+    return ctx.most_recent_packet->coms_code == code;
+  };
+};
+
 LoopContext::LoopContext(ComsInstance *coms_instance_ctx,
                          Packet &received_packet)
     : coms_ctx(coms_instance_ctx), most_recent_packet(&received_packet) {}
@@ -214,7 +220,7 @@ vector<MoveEntity> parse_move_packet(Packet packet, Motor **motors_byid) {
     int step_distance = tmp_mdata.step_target;
 
     if (tmp_mdata.movetype == ABSOLUTE) {
-      step_distance = step_distance - motor->static_position_state;
+      step_distance = step_distance - motor->position_state;
     }
 
     output.push_back(MoveEntity(tmp_mdata.profile_id, tmp_mdata.vmax,
@@ -231,14 +237,14 @@ ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
       tx_read_index(0) {
 
   // default response callbacks
-  auto partner_state_updater = Response_Callback(
+  add_response(Response_Callback(
       "partner_state_updater",
       [](LoopContext ctx) -> bool {
         return ctx.most_recent_packet->coms_code == STATE;
       },
       [](LoopContext ctx) -> void {
         ctx.coms_ctx->partner_state = ctx.most_recent_packet->data[0];
-      });
+      }));
 }
 
 void ComsInstance::main_loop() {

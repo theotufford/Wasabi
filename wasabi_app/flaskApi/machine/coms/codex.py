@@ -1,25 +1,39 @@
 COMS_START_BYTE = b"\xf8"
 STATE = 0
-MESSAGE = 1
-SETTINGS = 2
+RE_REQUEST = 1
+MESSAGE = 2
 MOVE = 3
 HOME = 4
-BUZZ = 5
+WAKE = 5
 
 INT = 0
 FLOAT = 1
-NONE = 2
+STRUCT = 2
+NONE = 3
 
-types_by_code = [int, float, None]
+types_by_code = [
+    int,
+    float,
+    bytearray,  # using this like void *
+    None
+]
 
 COMS_INV = [
-    "STATE ",
-    "MESSAGE ",
-    "SETTINGS ",
-    "MOVE ",
-    "HOME ",
-    "BUZZ ",
+    "STATE",
+    "RE_REQUEST",
+    "MESSAGE",
+    "MOVE",
+    "HOME",
+    "WAKE"
 ]
 
 BUSY = 0
 LISTENING = 1
+
+A_MOTOR = 0
+B_MOTOR = 1
+Z_MOTOR = 2
+
+
+def PUMP(num):
+    return num + 3

@@ -17,10 +17,20 @@ using namespace std; // TODO dont do this
 
 void blink(int count);
 
-enum : uint8_t { STATE, MESSAGE, SETTINGS, MOVE, HOME, BUZZ, WAKE };
+// coms codes
+enum : uint8_t {
+         STATE,
+         RE_REQUEST,
+         MESSAGE,
+         MOVE,
+         HOME,
+         WAKE
+       };
 
+// coms states
 enum : uint8_t { BUSY, LISTENING };
 
+// coms data type ids
 enum : uint8_t { INT_ID, FLOAT_ID, NONETYPE_ID };
 
 //  Constructs and writes out packet, also calculates checksum
@@ -87,3 +97,8 @@ public:
   void main_loop();
   ComsInstance(uart_inst_t *uart, uint baudrate);
 };
+
+// motor frame settings codex
+enum { STP_PIN, DIR_PIN, LIM_PIN, INVERSION, STP_PER_REV };
+
+int MOTOR_CONFIG_SIZE = STP_PER_REV + 1;

@@ -25,21 +25,11 @@ public:
   const int dir_pin;
   const int dir_pin_inverted;
   const int stp_per_rev;
-  bool homed;
-  enum {
-    step_pin_arg,
-    dir_pin_arg,
-    invert_dir_arg,
-    stp_per_rev_arg,
-    ang_v_max_arg,
-    ang_accel_arg
-  };
-  int static_position_state;
-  volatile int live_steps_moved;
+  const int lim_pin;
+
+  volatile int position_state;
   int direction;
 
-  int accel_stop;
-  int constv_stop;
   uint64_t move_init_time;
   double TORADS = (2 * M_PI / stp_per_rev);
   double TOSTEPS = (stp_per_rev / (2 * M_PI));
@@ -70,6 +60,8 @@ public:
   double total_move_time;
   uint64_t next_timing;
   int calculation_step_index;
+  bool is_complete;
+  volatile bool hit_limit;
 
   Motor *motor;
 
@@ -81,23 +73,12 @@ public:
 class StepAlarmQueue {
 public:
   int alarm_number;
-  int write_index = 0;
-  int read_index = 0;
+  volatile int write_index = 0;
+  volatile int read_index = 0;
   int queue_count = 0;
   uint64_t next_timing = 0;
 
   array<MoveEntity *, ALARM_QUEUE_LENGTH> circ_queue;
-  void enqeue_next_step(MoveEntity * entity);
+  void enqeue_next_step(MoveEntity *entity);
   void alarm_callback();
-
-  // claim alarm
-  StepAlarmQueue();
-
-  // prevent double claiming of alarm
-  StepAlarmQueue(const StepAlarmQueue&) = delete;
-  StepAlarmQueue& operator=(const StepAlarmQueue&) = delete;
-
-  // unclaim alarm
-  ~StepAlarmQueue();
-
 };

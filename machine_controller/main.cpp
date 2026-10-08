@@ -8,6 +8,7 @@
 #include <hardware/uart.h>
 #include <motors.cpp>
 #include <motors.hpp>
+#include <pico/multicore.h>
 #include <pico/platform/common.h>
 #include <pico/time.h>
 #include <pico/types.h>
@@ -20,238 +21,71 @@
 using namespace std;
 
 int main() {
-  gpio_init(LED_PIN);
-  gpio_set_dir(LED_PIN, GPIO_OUT);
-
-  blink(3);
-
+  multicore_launch_core1(core1_main);
+  bool settings_initialized = false;
+  Motor **motors;
+  Motor *A_motor;
+  Motor *B_motor;
+  Motor *Z_motor;
+  Motor **pumps;
+  int motor_enable_pin;
+  int pump_enable_pin;
+  int pump_count;
   ComsInstance coms = ComsInstance(uart0, 115200);
-  vector<Motor *> axis_motors;
-  vector<Motor *> pumps;
-  vector<int> pins;
 
-  enum pin_indexes {
-    MOT_ENA,
-    PUMP_ENA,
-    A_lim,
-    B_lim,
-    Z_lim,
-  };
+  coms.add_response(Response_Callback(
+      "settings_parse", code_conditional_func(WAKE),
+      [&](LoopContext ctx) mutable -> void {
+        vector<int> settings_vector = ctx.most_recent_packet->get_int_argvec();
+        int motor_count = settings_vector.size() / MOTOR_CONFIG_SIZE;
+        motors = (Motor **)malloc(sizeof(Motor *) * motor_count);
+        for (int i = 0; i < motor_count; i++) {
+          auto frame_start = settings_vector.begin() + i * MOTOR_CONFIG_SIZE;
+          auto frame_end = frame_start + MOTOR_CONFIG_SIZE;
+          vector<int> argvec(frame_start, frame_end);
+          Motor *newmotor = new Motor(argvec);
+          motors[i] = newmotor;
+        }
+        A_motor = motors[0];
+        B_motor = motors[1];
+        Z_motor = motors[2];
+        pumps = motors + 3;
+        settings_initialized = true;
+      }));
 
+  coms.add_response(Response_Callback(
+      "move_handler", code_conditional_func(MOVE),
+      [&motors](LoopContext ctx) mutable -> void {
+        await_async_move(parse_move_packet(*ctx.most_recent_packet, motors));
+      }));
 
+  coms.add_response(Response_Callback(
+      "home", code_conditional_func(HOME),
+      [&](LoopContext ctx) mutable -> void {
+        vector<float> speeds = ctx.most_recent_packet->get_float_argvec();
+        float z_vmax = speeds[0];
+        float z_accel = speeds[1];
+        float ab_vmax = speeds[2];
+        float ab_accel = speeds[3];
+        A_motor->position_state = 0;
+        B_motor->position_state = 0;
+        Z_motor->position_state = 0;
+        MoveEntity zmove(NO_DECEL, z_vmax, z_accel, 999999, Z_motor);
+        await_async_move({zmove});
+        MoveEntity amove(NO_DECEL, ab_vmax, ab_accel, 999999, A_motor);
+        MoveEntity bmove(NO_DECEL, ab_vmax, ab_accel, -999999, B_motor);
+        await_async_move({amove, bmove});
 
+        vector<int> initial_positions = {-Z_motor->position_state,
+                                         -A_motor->position_state,
+                                         -B_motor->position_state};
+        Z_motor->position_state = 0;
+        A_motor->position_state = 0;
+        B_motor->position_state = 0;
+        ctx.coms_ctx->queue_send(packet_from_vec<int>(HOME, initial_positions));
+      }));
 
-  // configuration loop that exits once everything is configured
   while (true) {
-    uint messageFound = coms.get_packet(); // blocking read
-    if (messageFound != 0) {
-      // if read fail try again
-      continue;
-    }
-    // listen for break signal
-    if (coms.coms_rx_code == CONFIRM) {
-      break;
-    }
-
-    if (coms.coms_rx_code > MACHINE_PIN_DEFINITIONS ||
-        coms.coms_rx_code < NEW_PUMP) {
-      continue;
-    }
-
-    if (coms.coms_rx_code == MACHINE_PIN_DEFINITIONS) {
-      pins = coms.argumentVector;
-      continue;
-    }
-
-    coms.send_vector(coms.coms_rx_code, coms.argumentVector);
-
-    auto new_motor = new Motor(coms.argumentVector);
-    if (coms.coms_rx_code == NEW_PUMP) {
-      new_motor->is_pump = true;
-      pumps.push_back(new_motor);
-    } else {
-      new_motor->is_pump = false;
-      axis_motors.push_back(new_motor);
-    }
-    coms.send_code(CONFIRM);
-  }
-
-  // setup the machine pins
-  for (int pin_id : pins) {
-    gpio_init(pin_id);
-  }
-
-  gpio_set_dir(pins[A_lim], GPIO_IN);
-  gpio_set_dir(pins[B_lim], GPIO_IN);
-  gpio_set_dir(pins[Z_lim], GPIO_IN);
-  gpio_set_dir(pins[MOT_ENA], GPIO_OUT);
-  gpio_set_dir(pins[PUMP_ENA], GPIO_OUT);
-
-  gpio_put(pins[MOT_ENA], 1);
-  gpio_put(pins[PUMP_ENA], 1);
-
-  gpio_pull_up(pins[A_lim]);
-  gpio_pull_up(pins[B_lim]);
-  gpio_pull_up(pins[Z_lim]);
-
-  blink(3); // settings initialized blink
-
-  coms.send_code(CONFIRM);
-
-  // main control loop
-  while (true) {
-    uint messageFound = coms.get_packet(); // blocking header read
-    if (messageFound != 0) {
-      continue;
-    }
-    // state machine operated by coms rx code
-    switch (coms.coms_rx_code) {
-    case RE_REQUEST: {
-      break;
-    }
-    case BUZZ: {
-      int pump_id = coms.argumentVector[0];
-      Motor &pump = *pumps[pump_id];
-      pump.buzz();
-      break;
-    }
-    case ENABLE_MOTORS: {
-      gpio_put(pins[MOT_ENA], 1);
-      break;
-    }
-    case DISABLE_MOTORS: {
-      gpio_put(pins[MOT_ENA], 0);
-      break;
-    }
-    case ENABLE_PUMPS: {
-      gpio_put(pins[PUMP_ENA], 1);
-      break;
-    }
-    case DISABLE_PUMPS: {
-      gpio_put(pins[PUMP_ENA], 0);
-      break;
-    }
-    case MOVE: {
-      // prepare moves
-      bool moved[3] = {false, false, false};
-
-      for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
-        Motor &axis = *axis_motors[axis_ind];
-        axis.live_steps_moved = 0;
-        axis.live_steps_moved = coms.argumentVector[axis_ind] - axis.static_position_state;
-        if (axis.live_steps_moved == 0) {
-          continue;
-        }
-        axis.move_precalc();
-        axis.update_dir();
-        moved[axis_ind] = true;
-      }
-
-      for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
-        if (!moved[axis_ind])
-          continue;
-        Motor &axis = *axis_motors[axis_ind];
-        axis.move_init_time = get_absolute_time();
-        hardware_alarm_force_irq(axis.alarm_num);
-      }
-
-      for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
-        if (!moved[axis_ind])
-          continue;
-        Motor &axis = *axis_motors[axis_ind];
-        while (axis.live_steps_moved != abs(axis.live_steps_moved)) {
-          tight_loop_contents();
-        }
-      }
-      break;
-    }
-    case PUMP_ACTION: {
-      int pump_id = coms.argumentVector[0];
-      Motor &pump = *pumps[pump_id];
-      pump.vMax = coms.argumentVector[1];
-      pump.ang_accel = coms.argumentVector[2];
-      int step_count = coms.argumentVector[3];
-      if (step_count == 0) {
-        break;
-      }
-
-      bool is_aspiration = step_count < 0;
-
-      int accel_distance_steps =
-          floor((pump.vMax * pump.vMax) / (2. * pump.ang_accel) * pump.TOSTEPS);
-
-      if (is_aspiration) {
-        pump.singular_linear_move(step_count);
-      } else {
-        pump.singular_accel_move(-accel_distance_steps);
-        step_count += accel_distance_steps;
-        sleep_ms(50);
-        pump.singular_accel_move(step_count);
-      }
-      break;
-    }
-    case HOME: {
-
-      for (int axis_ind = 0; axis_ind < 3; axis_ind++) {
-        Motor &axis = *axis_motors[axis_ind];
-        axis.live_steps_moved = 0;
-      }
-
-      Motor &amot = *axis_motors[0];
-      Motor &bmot = *axis_motors[1];
-      Motor &zmot = *axis_motors[2];
-
-      amot.live_steps_moved = 0;
-      bmot.live_steps_moved = 0;
-      zmot.live_steps_moved = 0;
-      amot.set_dir(1);
-      bmot.set_dir(-1);
-      zmot.set_dir(-1);
-
-      vector<int> initial_position = {0, 0, 0};
-
-      // b and z motor are moving in reverse to home
-      // because their limit switches are at 0
-      // home z first to avoid physical collisions
-      while (true) {
-        bool z_triggered = !gpio_get(pins[Z_lim]);
-        if (z_triggered) {
-          initial_position[2] = zmot.live_steps_moved;
-          zmot.static_position_state = 0;
-          break;
-        }
-        zmot.step();
-        sleep_us(500);
-      }
-
-      while (true) {
-        bool a_triggered = !gpio_get(pins[A_lim]);
-        bool b_triggered = !gpio_get(pins[B_lim]);
-
-        if (a_triggered) {
-          int homing_switch_step_pos = ceil(amot.stp_per_rev * 250. / 360.);
-          initial_position[0] = homing_switch_step_pos - amot.live_steps_moved;
-          amot.static_position_state = homing_switch_step_pos;
-        } else {
-          amot.step();
-        }
-        if (b_triggered) {
-          initial_position[1] = bmot.live_steps_moved;
-          bmot.static_position_state = 0;
-        } else {
-          bmot.step();
-        }
-
-        if (a_triggered && b_triggered) {
-          break;
-        }
-
-        sleep_ms(3);
-      }
-      coms.send_vector(INITIAL_POSITION, initial_position);
-      break;
-    }
-    }
-    coms.send_code(CONFIRM);
+    coms.main_loop();
   }
 }

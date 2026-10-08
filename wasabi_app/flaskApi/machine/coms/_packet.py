@@ -14,6 +14,8 @@ class Packet:
             self.datatype_id = codex.INT
         elif datatype == float:
             self.datatype_id = codex.FLOAT
+        elif datatype is bytearray:
+            self.datatype_id = codex.STRUCT
         elif datatype is None:
             self.datatype_id = codex.NONE
         else:
@@ -71,47 +73,68 @@ def state_packet(state: Literal[codex.BUSY, codex.LISTENING]):
 def get_settings_packet(settings_dict):
     motors = settings_dict["machine"]["motors"]
     common_settings = motors["common_settings"]
+
+    # send common pico pin settings -------------
+    pinsettings = settings_dict["machine"]["pins"]
     settings = [
         # a motor settings
         motors["a"]["stp_pin"],
         motors["a"]["dir_pin"],
+        pinsettings["a_endstop"],
         motors["a"]["invert_dir"],
-        1600,  # hard coded to max microsteps
-        common_settings["arms_angular_max_velocity"],
-        common_settings["arms_angular_accel"],
+        1600,  # board is hard wired to max microsteps
         # b motor settings
         motors["b"]["stp_pin"],
         motors["b"]["dir_pin"],
+        pinsettings["b_endstop"],
         motors["b"]["invert_dir"],
-        1600,  # hard coded to max microsteps
-        common_settings["arms_angular_max_velocity"],
-        common_settings["arms_angular_accel"],
+        1600,
         # z motor settings
         motors["z"]["stp_pin"],
         motors["z"]["dir_pin"],
+        pinsettings["z_endstop"],
         motors["z"]["invert_dir"],
-        1600,  # hard coded to max microsteps
-        common_settings["z_max_angular_velocity"],
-        common_settings["z_angular_accel"]
+        1600,
     ]
     pump_microsteps = common_settings["pump_steps_per_revoulution"]
+
     # send pump motor settings -----------------
     for pump_conf in motors["pumps"]:
         settings += [
             pump_conf["stp_pin"],
             pump_conf["dir_pin"],
+            -1,  # pumps dont have limit switches
             pump_conf["invert_dir"],
-            pump_microsteps,
-            pump_conf["ang_v_max"],
-            pump_conf["ang_accel_rad"]
+            pump_microsteps
         ]
-    # send other pico pin settings -------------
-    pinsettings = settings["machine"]["pins"]
-    settings += [
-        pinsettings["motor_enable_pin"],
-        pinsettings["pump_enable_pin"],
-        pinsettings["a_endstop"],
-        pinsettings["b_endstop"],
-        pinsettings["z_endstop"]
-    ]
     return settings
+
+
+class MoveEntity:
+    def __init__(self,
+                 motid: int,
+                 profile_id: int,
+                 movetype: int,
+                 step_target: int,
+                 vmax: float,
+                 accel: float):
+        self.motid = bytes([motid])
+        self.profile_id = bytes([profile_id])
+        self.movetype = bytes([movetype])
+        self.step_target = step_target
+        self.vmax = vmax
+        self.accel = accel
+
+    @property
+    def data(self):
+        data = bytearray([self.motid, self.profile_id, self.movetype])
+        data += bytearray(struct.pack("<i", self.step_target))
+        data += bytearray(struct.pack("<f", self.vmax))
+        data += bytearray(struct.pack("<f", self.accel))
+
+
+def move_packet(moves: list[MoveEntity]) -> Packet:
+    output_data = b""
+    for move in moves:
+        output_data += move.data
+    return Packet(codex.MOVE, codex.STRUCT, len(output_data), output_data)
