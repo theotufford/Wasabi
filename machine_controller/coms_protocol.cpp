@@ -119,9 +119,9 @@ vector<float> Packet::get_float_argvec() {
 vector<int> Packet::get_int_argvec() {
   vector<int> output;
   for (int i = 0; i < datalen; i += sizeof(int)) {
-    uint8_t *num_ind = data + i;
+    uint8_t *num_ptr = data + i;
     int tmp;
-    memcpy(&tmp, num_ind, sizeof(int));
+    memcpy(&tmp, num_ptr, sizeof(int));
     output.push_back(tmp);
   }
   return output;
@@ -141,8 +141,7 @@ void ComsInstance::transmit_next() {
 }
 
 variant<Packet *, int> ComsInstance::listen_for_packet() {
-  auto head_packet = tx_queue[tx_write_index];
-  uint8_t header_data[HEADER_SIZE];
+  uint8_t header_data[HEADER_SIZE] = {0};
   absolute_time_t timerStart = get_absolute_time(); // start waiting timer
   while (true) {
     absolute_time_t elapsed_time =
@@ -150,11 +149,11 @@ variant<Packet *, int> ComsInstance::listen_for_packet() {
     if (elapsed_time > READ_TIMEOUT_US) {
       return 0;
     }
-
     uint16_t available = get_available_rx();
     uint8_t &tmp = header_data[0];
     if (available > 0 && tmp != COMS_START_BYTE) {
       read(&tmp, 1);
+      tmp = header_data[0];
     }
     if (available >= HEADER_SIZE && tmp == COMS_START_BYTE) {
       read(header_data + 1, HEADER_SIZE - 1);
@@ -193,7 +192,7 @@ variant<Packet *, int> ComsInstance::listen_for_packet() {
   auto got_packet =
       new Packet(coms_rx_code, datatype_id, len, packet_data, checksum);
 
-  // if (!verify_checksum(packet)) {
+  // if (!verify_checksum(got_packet)) {
   //   queue_send(state_packet(RE_REQUEST));
   //   return -2;
   // }
@@ -264,18 +263,21 @@ Packet::~Packet() {
 }
 
 void ComsInstance::add_response(Response_Callback callback) {
-  response_tree.emplace(callback.name, callback);
+  response_tree.emplace(callback.name, callback); // idk if this works lol
 }
 
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
     : DmaUart(uart, baudrate), partner_state(BUSY), tx_write_index(0),
       tx_read_index(0) {
+
   add_response(Response_Callback(
       "partner_state_updater", code_conditional_func(STATE),
       [](LoopContext ctx) -> void {
         ctx.coms_ctx->partner_state = ctx.most_recent_packet->data[0];
       }));
+
   queue_send(state_packet(WAKE));
+
 }
 void ComsInstance::queue_send(Packet *packet_to_send) {
   if (tx_write_index == tx_read_index) {
@@ -302,7 +304,7 @@ void ComsInstance::main_loop() {
     }
     partner_state = BUSY;
   }
-  // once tx is dumped, if pi3b is working, listen
+  // once tx is dumped
   variant<Packet *, int> listen_response = listen_for_packet();
   if (holds_alternative<Packet *>(listen_response)) {
     Packet &got_packet = *get<Packet *>(listen_response);

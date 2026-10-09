@@ -1,6 +1,7 @@
 #include <cmath>
 #include <coms_protocol.cpp>
 #include <coms_protocol.hpp>
+#include <cstddef>
 #include <cstdlib>
 #include <dma_uart.hpp>
 #include <hardware/gpio.h>
@@ -23,11 +24,12 @@ using namespace std;
 int main() {
   multicore_launch_core1(core1_main);
   bool settings_initialized = false;
-  Motor **motors;
-  Motor *A_motor;
-  Motor *B_motor;
-  Motor *Z_motor;
-  Motor **pumps;
+  Motor *motors[24] = {nullptr}; // more motors than are possible physically -
+                                 // lazy solution to stack allocating this
+  Motor **pumps = motors + 3;
+  Motor *A_motor = motors[0];
+  Motor *B_motor = motors[1];
+  Motor *Z_motor = motors[2];
   int motor_enable_pin;
   int pump_enable_pin;
   int pump_count;
@@ -38,7 +40,6 @@ int main() {
       [&](LoopContext ctx) mutable -> void {
         vector<int> settings_vector = ctx.most_recent_packet->get_int_argvec();
         int motor_count = settings_vector.size() / MOTOR_CONFIG_SIZE;
-        motors = (Motor **)malloc(sizeof(Motor *) * motor_count);
         for (int i = 0; i < motor_count; i++) {
           auto frame_start = settings_vector.begin() + i * MOTOR_CONFIG_SIZE;
           auto frame_end = frame_start + MOTOR_CONFIG_SIZE;
@@ -46,10 +47,6 @@ int main() {
           Motor *newmotor = new Motor(argvec);
           motors[i] = newmotor;
         }
-        A_motor = motors[0];
-        B_motor = motors[1];
-        Z_motor = motors[2];
-        pumps = motors + 3;
         settings_initialized = true;
       }));
 
