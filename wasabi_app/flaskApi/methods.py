@@ -6,6 +6,7 @@ from .machine.utils import alph_to_vec, get_linear_well_array_height, get_linear
 
 methods = MethodLibrary()
 
+
 @methods.register_method
 def volume_map(machine: Machine,
                volume_map: dict,
@@ -16,6 +17,22 @@ def volume_map(machine: Machine,
             continue
         machine.goto_well(wellid)
         machine.dispense(volume, reagent=reagent)
+
+
+@methods.register_method
+def pumpcal_volume_map(machine: Machine,
+                       volume_map: dict,
+                       pumpid: int,
+                       ):
+    for wellid in volume_map:
+        volume = volume_map[wellid]
+        if volume == 0:
+            continue
+        machine.goto_well(wellid)
+        machine.dispense(volume, id=pumpid)
+        machine.goto_pos(machine.current_position + [-20, 0, -5])
+        machine.stall_for_confirm("secure lid")
+
 
 @methods.register_method
 def await_manual_continue(machine: Machine, action_prompt: str):

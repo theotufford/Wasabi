@@ -53,10 +53,10 @@
           "ang_v_max": 100,
           "ang_accel_rad": 1600,
           "ul_per_rad": 1.8,
-          "aspiration_ang_v": 3,
+          "aspiration_ang_v": 4,
           "compensation_factor": 0.992083026,
           "line_volume_uL": 875,
-          "droplet_vol_ul": 2
+          "droplet_vol_ul": 2 
         },
         {
           "stp_pin": 2,
@@ -111,9 +111,9 @@
   },
   "plates": {
     "standard 96": {
-      "rows": 8,
-      "columns": 12,
-      "spacing": 9
+      "rows": 4,
+      "columns": 5,
+      "spacing":16
     },
     "standard 6": {
       "rows": 2,
