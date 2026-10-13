@@ -1,7 +1,7 @@
 import math
 from typing import Self
 from utils import vec_to_alph, alph_to_vec
-from kinematics import Vec2d, Vec3d,  vec2d_rotate_rads
+from .kinematics import Vec2d, Vec3d,  vec2d_rotate_rads
 
 
 class Reagent_Mix:

@@ -1,7 +1,7 @@
-from .kinematics import Vec2d
 import typing
-from ..db import get_db
 import string
+from .kinematics import Vec2d
+from ..db import get_db
 
 
 def alph_to_xy(alphnum: str):

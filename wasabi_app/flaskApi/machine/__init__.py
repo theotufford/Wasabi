@@ -1,18 +1,19 @@
-from containers import Plate, Reagent_Mix, Well
-from method_library_class import MethodLibrary
+import typing
 import copy
 import json
 import time
 import asyncio
-from ..db import get_db
 import math
 import inspect
 import RPi.GPIO as pio
+
+from .containers import Plate, Reagent_Mix, Well
+from .method_library_class import MethodLibrary
+from ..db import get_db
 from .kinematics import solve_5bar_FK, solve_5bar_IK, Vec2d, Vec3d, Vec2d_Ang
 from . import coms as slib
 from .coms import packet
 from .coms import codex
-import typing
 from utils import liq_handling_data
 
 

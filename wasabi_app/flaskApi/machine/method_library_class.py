@@ -1,9 +1,9 @@
-from machine import Machine
-from containers import Plate, Reagent_Mix
-import inspect
-from typing import Literal
 import json
 import copy
+import inspect
+from typing import Literal
+from .machine import Machine
+from .containers import Plate, Reagent_Mix
 
 
 class MethodLibrary:
