@@ -276,11 +276,11 @@ ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
         ctx.coms_ctx->partner_state = ctx.most_recent_packet->data[0];
       }));
 
-  queue_send(state_packet(WAKE));
+  queue_send(code_packet(WAKE));
 
 }
 void ComsInstance::queue_send(Packet *packet_to_send) {
-  if (tx_write_index == tx_read_index) {
+  if (tx_write_index == tx_read_index && tx_queue[tx_write_index] != nullptr) {
     return;
   }
   if (tx_queue[tx_write_index] != nullptr) {
@@ -315,5 +315,6 @@ void ComsInstance::main_loop() {
         current_ctx.executed_functions.push_back(response_obj.name);
       }
     }
+    delete &got_packet;
   }
 }

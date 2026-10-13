@@ -11,8 +11,16 @@ pico_sdk_init()
 
 include_directories(./)
 add_executable(machineController dma_uart.cpp main.cpp)
-target_link_libraries(machineController pico_stdlib hardware_gpio hardware_clocks
-                      hardware_dma hardware_uart hardware_irq)
+target_link_libraries(
+  machineController
+  pico_stdlib
+  hardware_gpio
+  hardware_clocks
+  hardware_dma
+  hardware_uart
+  hardware_irq
+  pico_multicore
+)
 
 # Create map/bin/hex/uf2 files
 pico_add_extra_outputs(machineController)

@@ -1,10 +1,10 @@
 COMS_START_BYTE = b"\xf8"
 STATE = 0
 RE_REQUEST = 1
-MESSAGE = 2
-MOVE = 3
-HOME = 4
-WAKE = 5
+MOVE = 2
+HOME = 3
+WAKE = 4
+BUZZ = 5
 
 COMS_INV = [
     "STATE",
@@ -12,7 +12,8 @@ COMS_INV = [
     "MESSAGE",
     "MOVE",
     "HOME",
-    "WAKE"
+    "WAKE",
+    "BUZZ"
 ]
 
 BUSY = 0

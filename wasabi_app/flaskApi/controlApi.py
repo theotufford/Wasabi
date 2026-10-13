@@ -1,71 +1,55 @@
 from flask import Flask, jsonify, Blueprint, request, session, Response
 import asyncio
 from .db import get_db, close_db
-import threading
 import time
 import json
-from .machine.serialcoms import ComsChannel, INITIAL_POSITION, ENABLE_MOTORS, DISABLE_MOTORS, ENABLE_PUMPS, DISABLE_PUMPS
-from .machine.machine_state import Machine, Reagent_Mix, Well
-from .machine import kinematics as kine
+from .machine.coms import codex
+from .machine.coms.packet import code_packet, state_packet
+from .machine import Machine, Kinematic_State, Vec3d
 
 
 def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     bp = Blueprint('machine_aware_bp', __name__, url_prefix='/control')
 
     @bp.route('/home', methods=['POST'])
-    def home():
+    async def home():
         coms = machine.coms
-        coms.send_home()
-        while coms.most_recent_rx.code != INITIAL_POSITION:
-            asyncio.run(coms.get_packet())
-        initial_position_steps = coms.most_recent_rx.get_int_argvec()
-        machine.coms.send_move_steps(*initial_position_steps)
-        machine.current_position = machine.from_steps(*initial_position_steps)
-        machine.home_offset = machine.current_position
-        machine.position_known = True
+        coms.send_packet(code_packet(codex.HOME))
+        await machine.got_home.wait()
         return jsonify({"data": "successful home"})
 
-    @bp.route('/set_waste_position', methods=['POST'])
-    def set_waste_position():
+    found_corner = asyncio.Event()
+
+    @bp.route('/work_offset_finder', methods=['POST'])
+    async def work_offset_finder():
         if not machine.position_known:
-            return home()
-        machine.waste_well.absolute_position = machine.current_position
+            await home()
+        machine.goto_well("A1")
+        await found_corner.wait()
+        top_left = machine.current_position.position
+        found_corner.clear()
+
+        br_id = machine.plate.rows
+        machine.goto_well(br_id)
+
+        await found_corner.wait()
+        bottom_right = machine.current_position.position
+        found_corner.clear()
+
+        machine.plate.set_plate_position(top_left, bottom_right)
+
+    @bp.route('/work_offset_finder/found', methods=['POST'])
+    def found_corner_resp():
+        found_corner.set()
+
+    @bp.route('/set_named_position', methods=['POST'])
+    async def set_named_position():
+        name = request.get_json()["name"]
+        if not machine.position_known:
+            await home()
+
+        machine.named_positions[name] = machine.current_position
         return jsonify({"data": "successful waste position set"})
-
-    @bp.route('/set_home_offset', methods=['POST'])
-    def set_home_offset():
-        if not machine.position_known:
-            return home()
-        machine.home_offset = machine.current_position
-        machine.plate.set_plate_position(machine.home_offset)
-        return jsonify({"data": "successful home offset set"})
-
-    @bp.route('/set_bottom_right', methods=['POST'])
-    def set_br():
-        if not machine.position_known:
-            return jsonify({"data": "need to be homed!"})
-        a1_abs = machine.home_offset
-        br_abs = machine.current_position
-
-        machine.plate.set_plate_position(a1_abs, br_abs)
-        return jsonify({"data": "successful br and angle set"})
-
-    @bp.route('/mot_enable', methods=['POST'])
-    def mot_enable():
-        coms = machine.coms
-        data = request.get_json()
-        target = data["target"]
-        value = data["value"]
-        code = None
-        if target == "motors":
-            code = ENABLE_MOTORS if value == "enable" else DISABLE_MOTORS
-            machine.position_known = False
-        if target == "pumps":
-            code = ENABLE_PUMPS if value == "enable" else DISABLE_PUMPS
-        coms.send_code(code)
-        coms.await_confirm()
-
-        return jsonify({"data": {"target": target, "status": value}})
 
     @bp.route('/pump_action', methods=['POST'])
     def pump_action():
@@ -73,7 +57,7 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         volume_ul = float(data["volume"])
         id = int(data["id"])
         if volume_ul > 0:
-            machine.dispense(volume=volume_ul, id=id)
+            machine.handle_liquids(volume=volume_ul, id=id)
         else:
             machine.aspirate(volume=volume_ul, id=id)
         return jsonify({"data": "successful pump action"})
@@ -82,12 +66,17 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     def move():
         data = request.get_json()
 
+        if data["move_context"] == "named":
+            target = data["target_name"]
+            machine.goto_named(target)
+            return jsonify({"data": "went to well"})
+
         if data["move_context"] == "well":
             wellid = data["well_target"]
             machine.goto_well(wellid)
             return jsonify({"data": "went to well"})
 
-        absolute_target: kine.MachinePosition
+        absolute_target: Kinematic_State
 
         if data["move_context"] == "jog":
             delta = list(data["delta"])
@@ -96,6 +85,7 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         if data["move_context"] == "relative":
             relative_target = list(data["target"])
             absolute_target = machine.home_offset + relative_target
+
         if data["move_context"] == "absolute":
             relative_target = list(data["target"])
             absolute_target = relative_target
@@ -107,14 +97,13 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     def buzz_pump():
         data = request.get_json()
         id = data["id"]
-        machine.coms.send_buzz(id)
+        machine.coms.send_packet(code_packet(codex.BUZZ))
         return jsonify({"data": f"buzzed id:{id}"})
 
     @bp.route('/run_experiment', methods=['POST'])
     def handle_experiment_run():
         data = request.get_json()
         experiment = data["experiment"]
-        machine.plate.reset_plate()
         machine.methods.run_experiment(experiment)
         return jsonify({"data": "successful run!"})
 
@@ -191,7 +180,7 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         )["motors"]["pumps"][id]["line_volume_uL"]
         if direction == "forward":
             machine.goto_well("waste")
-            machine.dispense(volume=line_volume, id=id)
+            machine.handle_liquids(volume=line_volume, id=id)
         else:
             machine.aspirate()
         db_update_pumps("empty", id)

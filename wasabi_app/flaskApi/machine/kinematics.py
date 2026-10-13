@@ -3,29 +3,29 @@ import math
 
 
 class Vector:
-    def __init__(self, elements: list[float]):
-        self.dimension = len(elements)
-        self.elements = elements
+    def __init__(self, axes: list[float]):
+        self.dimension = len(axes)
+        self.axes = axes
 
     def __add__(self, other):
         if isinstance(other, Vector):
             if self.dimension == other.dimension:
                 return self.__class__(
-                    [self.elements[i] + other.elements[i]
+                    [self.axes[i] + other.axes[i]
                      for i in range(0, self.dimension)]
                 )
         return NotImplemented
 
     def __mul__(self, scalar):
         if isinstance(scalar, (int, float)):
-            return self.__class__([element * scalar for element in self.elements])
+            return self.__class__([axis * scalar for axis in self.axes])
         else:
             return NotImplemented
 
     def get_length(self):
         axis_sqsum = 0
-        for element in self.elements:
-            axis_sqsum += element ** 2
+        for axis in self.axes:
+            axis_sqsum += axis ** 2
         return math.sqrt(axis_sqsum)
 
     def __rmul__(self, scalar):
@@ -39,7 +39,7 @@ class Vector:
             return self + (-1 * other)
 
     def __repr__(self):
-        return f"cartesian vector elements: {self.elements}"
+        return f"cartesian vector axes: {self.axes}"
 
     def normalize(self):
         return self / self.get_length()
@@ -51,7 +51,7 @@ def dot_product(vec1: Vector, vec2: Vector) -> float:
             f"trying to take dot product of vectors without common dimension: {vec1}, {vec2}")
     out = 0
     for i in range(0, vec1.dimension):
-        out += vec1.elements[i] * vec2.elements[i]
+        out += vec1.axes[i] * vec2.axes[i]
 
     return out
 
@@ -63,43 +63,43 @@ class Vec2d(Vector):
         super().__init__(axes)
 
     def __repr__(self):
-        return f"a 2d vector with elements: {self.x=}, {self.y=}"
+        return f"a 2d vector with axes: {self.x=}, {self.y=}"
 
 
 class Vec2d_Ang(Vector):
     def __init__(self, axes):
-        self.a = axes[0]
-        self.b = axes[1]
         super().__init__(axes)
+        self.a = self.axes[0]
+        self.b = self.axes[1]
 
     def __repr__(self):
-        return f"a 2d vector with elements: {self.a=}, {self.b=}"
+        return f"a 2d vector with axes: {self.a=}, {self.b=}"
 
 
 def vec2d_rotate_rads(initial_vector, radians) -> Vec2d:
-    rotation_matrix_row_1 = Vec2d(math.cos(radians), math.sin(radians))
-    rotation_matrix_row_2 = Vec2d(-math.sin(radians), math.cos(radians))
-    output_vec = Vec2d(dot_product(initial_vector, rotation_matrix_row_1),
-                       dot_product(initial_vector, rotation_matrix_row_2))
+    rotation_matrix_row_1 = Vec2d([math.cos(radians), math.sin(radians)])
+    rotation_matrix_row_2 = Vec2d([-math.sin(radians), math.cos(radians)])
+    output_vec = Vec2d([dot_product(initial_vector, rotation_matrix_row_1),
+                        dot_product(initial_vector, rotation_matrix_row_2)])
     return output_vec
 
 
 class Vec3d(Vector):
     def __init__(self, axes):
-        self.x = axes[0]
-        self.y = axes[1]
-        self.z = axes[2]
         super().__init__(axes)
+        self.x = self.axes[0]
+        self.y = self.axes[1]
+        self.z = self.axes[2]
 
     def __repr__(self):
-        return f"a 3d vector with elements: {self.x=}, {self.y=}, {self.z=}"
+        return f"a 3d vector with axes: {self.x=}, {self.y=}, {self.z=}"
 
 
 def vec_from_angle_length(angle, length) -> Vec2d:
     unit_x = math.cos(angle)
     unit_y = math.sin(angle)
 
-    return length * Vec2d(unit_x, unit_y)
+    return length * Vec2d([unit_x, unit_y])
 
 
 def inv_law_of_cosines(hypot, opposite, adjacent):
@@ -136,7 +136,7 @@ def solve_5bar_IK(settings: dict, target: Vec3d) -> Vec2d_Ang:
 
     # print(f"{joint=}")
 
-    b_mot_to_joint = Vec2d(spacing, 0) - joint
+    b_mot_to_joint = Vec2d([spacing, 0]) - joint
 
     # beta 1 gets flipped because we are going counter clockwise and atan2
     # registers that technically our b motor to joint line is in the first
@@ -173,14 +173,14 @@ def solve_5bar_FK(settings: dict, given: Vec2d_Ang) -> Vec2d:
     alpha = 3 * math.pi / 2 - alpha
     beta = beta - math.pi / 2
     wrist_A = vec_from_angle_length(alpha, arm_length)
-    wrist_B = vec_from_angle_length(beta, arm_length) + Vec2d(spacing, 0)
+    wrist_B = vec_from_angle_length(beta, arm_length) + Vec2d([spacing, 0])
     midpoint = (wrist_A + wrist_B)/2
     wrist_to_wrist = wrist_B - wrist_A
     midpoint_to_joint_length = math.sqrt(
         hand_length ** 2 - ((wrist_to_wrist.get_length()/2) ** 2))
     wrist_to_wrist_unit_vec = wrist_to_wrist.normalize()
     midpoint_to_hand_joint = midpoint_to_joint_length * \
-        Vec2d(-wrist_to_wrist_unit_vec.y, abs(wrist_to_wrist_unit_vec.x))
+        Vec2d([-wrist_to_wrist_unit_vec.y, abs(wrist_to_wrist_unit_vec.x)])
 
     joint_position = midpoint + midpoint_to_hand_joint
 

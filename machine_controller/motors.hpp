@@ -63,6 +63,7 @@ public:
   int calculation_step_index;
   uint64_t move_init_time;
   bool is_complete;
+  bool homing;
   volatile bool hit_limit;
 
   Motor *motor;

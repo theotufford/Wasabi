@@ -1,6 +1,7 @@
 import math
 from typing import Self
-from utils import Vec2d, vec_to_alph, vec2d_rotate_rads
+from utils import vec_to_alph, alph_to_vec
+from kinematics import Vec2d, Vec3d,  vec2d_rotate_rads
 
 
 class Reagent_Mix:
@@ -53,7 +54,7 @@ class Reagent_Mix:
 
 
 class Well:
-    def __init__(self, plate_settings, contents):
+    def __init__(self, contents={}):
         self.contents = Reagent_Mix(contents)
 
     def release_aspirate(self, volume) -> Reagent_Mix:
@@ -66,29 +67,26 @@ class Well:
 
 
 class Plate:
-    def __init__(self, settings: dict, a1: Vec2d = Vec2d([0,0]), bottom_right_vector: Vec2d | None = None):
+    def __init__(self, settings: dict, top_left_abs: Vec2d = Vec2d([0, 0]), bottom_right_abs: Vec2d | None = None):
         self.settings = settings
         self.rows = settings["rows"]
         self.columns = settings["columns"]
         self.spacing = settings["spacing"]
-        self.a1 = a1
-        self.br = bottom_right_vector
+        self.top_left = top_left_abs
+        self.br = bottom_right_abs
         self.plate_rotation = 0
-        if bottom_right_vector is None:
-            self.br = Vec2d(self.rows, self.columns) * self.spacing
+        if bottom_right_abs is None:
+            self.br = Vec2d([self.rows, self.columns]) * self.spacing
         else:
             corner_angle = math.atan(self.rows/self.columns)
-            corner_vector = bottom_right_vector - a1
+            corner_vector = bottom_right_abs - top_left_abs
             measured_corner_angle = math.atan(corner_vector.y, corner_vector.x)
             self.plate_rotation = measured_corner_angle - corner_angle
 
         self.wells = []
         for row_y in range(0, self.rows):
             for col_x in range(0, self.columns):
-                new_well = Well(self.settings, self.spacing *
-                                                Vec2d(col_x, row_y))
-                new_well.absolute_position = self.a1 + vec2d_rotate_rads(
-                    new_well.relative_position, self.plate_rotation)
+                new_well = Well()
                 self.wells.append(new_well)
 
     def clear_contents(self):
@@ -96,33 +94,25 @@ class Plate:
             well.liquid = Reagent_Mix()
         return self.wells
 
-    def set_plate_position(self, a1: Vec2d, br: Vec2d | None = None):
-        self.a1 = a1
+    def get_well_abs_position(self, wellid):
+        relative_position_vec = alph_to_vec(wellid) * self.spacing
+        abs_position = self.top_left + \
+            vec2d_rotate_rads(relative_position_vec, self.plate_rotation)
+
+    def set_plate_position(self, a1: Vec3d, br: Vec3d | None = None):
+        self.top_left = a1
         if br is None:
-            self.br = Vec2d(self.rows, self.columns) * self.spacing
+            self.br = Vec3d([self.rows, self.columns, 0]) * self.spacing
         br = self.br
         relative_corner_angle = math.atan(self.rows/self.columns)
         corner_vector = br - a1
         measured_corner_angle = math.atan(corner_vector.y / corner_vector.x)
         self.plate_rotation = measured_corner_angle - relative_corner_angle
-        print(f"{br=}, {a1=}, {self.plate_rotation=}")
-        for wellobject in self.wells:
-            wellobject.absolute_position = a1 + vec2d_rotate_rads(
-                wellobject.relative_position, self.plate_rotation)
 
-    def by_alph(self, alph):
-        for well in self.wells:
-            col_row_vec = well.relative_position / self.spacing
-            wellid = vec_to_alph(col_row_vec)
-            if alph == wellid:
-                return well
-
-    def by_position(self, vec: Vec2d):
-        for well in self.wells:
-            dist_to_center = (
-                vec - well.absolute_position).get_vec().get_length()
-            if dist_to_center < self.spacing / 2:
-                return well
+    def by_alph(self, alph) -> Well:
+        col, row = alph_to_vec(alph)
+        ind = col + ((row - 1) * self.columns)
+        return self.wells[ind]
 
     def get_well_vol_dict(self):
         out = {}

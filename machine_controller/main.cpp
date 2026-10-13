@@ -9,7 +9,7 @@
 #include <hardware/uart.h>
 #include <motors.cpp>
 #include <motors.hpp>
-#include <pico/multicore.h>
+#include "pico/multicore.h"
 #include <pico/platform/common.h>
 #include <pico/time.h>
 #include <pico/types.h>
@@ -68,9 +68,14 @@ int main() {
         B_motor->position_state = 0;
         Z_motor->position_state = 0;
         MoveEntity zmove(NO_DECEL, z_vmax, z_accel, 999999, Z_motor);
+        zmove.homing = true;
         await_async_move({zmove});
+
         MoveEntity amove(NO_DECEL, ab_vmax, ab_accel, 999999, A_motor);
         MoveEntity bmove(NO_DECEL, ab_vmax, ab_accel, -999999, B_motor);
+        amove.homing = true;
+        bmove.homing = true;
+
         await_async_move({amove, bmove});
 
         vector<int> initial_positions = {-A_motor->position_state,

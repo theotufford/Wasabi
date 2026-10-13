@@ -1,6 +1,7 @@
 #include "coms_protocol.hpp"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -73,7 +74,7 @@ MoveEntity::MoveEntity(int profile_id, float angv_max, float ang_accel,
                        int step_distance, Motor *motor)
     : profile_id(profile_id), angv_max(angv_max), ang_accel(ang_accel),
       step_distance(step_distance), motor(motor), calculation_step_index(0),
-      hit_limit(false), is_complete(false) {
+      hit_limit(false), is_complete(false), homing(false) {
   angular_distance = motor->TORADS * step_distance;
   abs_ang_dist = abs(angular_distance);
   abs_stp_dist = abs(step_distance);
@@ -142,17 +143,18 @@ uint64_t MoveEntity::find_step_timing() {
 // behold... the sorted step queue torus
 #define alarm_count 4
 static array<StepAlarmQueue *, alarm_count> step_queues;
-static int alarm_write_index = 0;
+static atomic_int alarm_write_index = {0};
 static volatile int currently_in_isr = -1;
 
 void alarm_isr(uint alarm_num) {
   currently_in_isr = alarm_num;
   hw_clear_bits(&timer_hw->intr, 1u << alarm_num);
   StepAlarmQueue &queue = *step_queues[alarm_num];
-  int lim_pin = queue.circ_queue[queue.read_index]->motor->lim_pin;
-  if (lim_pin > 0) {
+  MoveEntity *current_move = queue.circ_queue[queue.read_index];
+  int lim_pin = current_move->motor->lim_pin;
+  if (lim_pin > 0 && current_move->homing == true) {
     if (gpio_get(lim_pin)) {
-      queue.circ_queue[queue.read_index]->hit_limit = true;
+      current_move->hit_limit = true;
     }
   }
   queue.alarm_callback();
@@ -259,9 +261,8 @@ void await_async_move(vector<MoveEntity> moves) {
     for (auto &move : moves) {
       if (!move.is_complete) {
         enqeue_next_step(&move);
-      } else {
-        all_complete = move.is_complete && all_complete;
       }
+      all_complete = move.is_complete && all_complete;
     }
   }
 }

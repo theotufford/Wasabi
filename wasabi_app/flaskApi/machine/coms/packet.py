@@ -25,7 +25,7 @@ def parse_int(databytes: bytearray):
 
 
 class Packet:
-    def __init__(self, code, datatype, datalen, data: bytearray):
+    def __init__(self, code, datatype, datalen, data: bytearray, checksum=0):
         if datalen > 1024:
             raise ValueError("packet data too large!")
         self.code = code
@@ -100,9 +100,14 @@ def make_int_vec_packet(code, vec: list[int]) -> Packet:
     return Packet(code, codex.INT, len(output_data), output_data)
 
 
+def code_packet(code: int):
+    code = bytearray(bytes([code]))
+    return make_new_packet(code, codex.NONE, b"")
+
+
 def state_packet(state: Literal[codex.BUSY, codex.LISTENING]):
     state = bytearray(bytes([state]))
-    return make_new_packet(codex.STATE, int, state)
+    return make_new_packet(codex.STATE, codex.INT, state)
 
 
 def get_settings_packet(settings_dict):
