@@ -32,6 +32,8 @@ export const default_form = {
 
 
 export const empty_experiment = {
+  id : 0,
+  author: "anonymous",
   title: "",
   version: 0,
   plateDimensions: { rows: 8, columns: 12 },

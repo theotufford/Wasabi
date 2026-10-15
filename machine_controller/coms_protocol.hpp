@@ -19,10 +19,10 @@ using namespace std; // TODO dont do this
 void blink(int count);
 
 // coms codes
-enum : uint8_t { STATE, RE_REQUEST, MESSAGE, MOVE, HOME, WAKE };
+enum : uint8_t { STATE, RE_REQUEST, MOVE, HOME, WAKE, BUZZ, MESSAGE };
 
 // coms states
-enum : uint8_t { BUSY, LISTENING, IDLE };
+enum : uint8_t { STATE_BUSY, STATE_LISTENING, STATE_IDLE };
 
 // coms data type ids
 enum : uint8_t { INT_ID, FLOAT_ID, STRUCT_ID, NONETYPE_ID };
@@ -89,6 +89,7 @@ public:
   listen_for_packet(); // main rx read function, gets state/checksum
   void add_response(Response_Callback callback);
   void main_loop();
+  int queue_count;
   ComsInstance(uart_inst_t *uart, uint baudrate);
 };
 

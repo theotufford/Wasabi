@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -15,7 +16,12 @@
 #include <tuple>
 #include <vector>
 
-#define ALARM_QUEUE_LENGTH 4
+// hardware defined, do not modify, must be uint8t for bitmask to work
+#define ALARM_COUNT  4
+
+// arbitrary but must be power of 2
+static constexpr int ALARM_QUEUE_LENGTH = 1 << 4;
+static constexpr int AQ_MASK = ALARM_QUEUE_LENGTH - 1;
 
 using namespace std;
 
@@ -40,7 +46,7 @@ public:
   void step();
   void set_dir(int dir);
 
-  void buzz();
+  void buzz(int cycles);
 
   Motor(const vector<int> &argumentVector);
 };
@@ -59,29 +65,34 @@ public:
   double accel_stop;
   double const_stop;
   double total_move_time;
-  uint64_t next_timing;
   int calculation_step_index;
-  uint64_t move_init_time;
+  uint32_t move_init_time;
   bool is_complete;
   bool homing;
   volatile bool hit_limit;
+
+  uint32_t next_timing;
 
   Motor *motor;
 
   MoveEntity(int profile_id, float angv_max, float ang_accel_max,
              int step_distance, Motor *mtr);
-  uint64_t find_step_timing();
+  uint32_t find_step_timing();
 };
 
+struct Step_Event {
+  uint32_t time;
+  MoveEntity * move;
+};
 class StepAlarmQueue {
 public:
   int alarm_number;
   volatile int write_index = 0;
   volatile int read_index = 0;
-  int queue_count = 0;
-  uint64_t time_target = 0;
+  atomic<int> queue_count = 0;
+  uint32_t time_target = 0;
 
-  array<MoveEntity *, ALARM_QUEUE_LENGTH> circ_queue;
+  array<Step_Event, ALARM_QUEUE_LENGTH> circ_queue;
   void enqeue_next_step(MoveEntity *entity);
   void alarm_callback();
 };

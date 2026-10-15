@@ -28,21 +28,22 @@ export function map_2d(
 }
 
 
-export function make_plate_matrix(rows, columns, well_generator_callback) {
+export function make_plate_matrix(rows, columns, Well_constructor, value_map) {
   const plate_matrix = []
   for_2d(0, 0, columns, rows,
     (x, y) => {
+      const id = coords_to_alph(x, y)
+      const value = value_map?.[id]
       plate_matrix[y] = plate_matrix[y] ?? []
-      plate_matrix[y] = [...plate_matrix[y], well_generator_callback(x, y)]
+      plate_matrix[y] = [...plate_matrix[y], (props) => Well_constructor({ ...props, id: id, value: value })]
     })
-
   return plate_matrix
 }
 
 export function get_id_set(rows, columns) {
   const out = new Set()
-  for_2d(0,0, columns, rows, (x,y) => {
-    out.add(coords_to_alph(x,y))
+  for_2d(0, 0, columns, rows, (x, y) => {
+    out.add(coords_to_alph(x, y))
   })
   return out
 }
@@ -55,6 +56,7 @@ export function get_int_array(n) {
 export function coords_to_alph(x, y) {
   return `${alph[y]}${x + 1}`
 }
+
 export function alph_to_coords(str) {
   const x = parseInt(str.slice(1), 10) - 1
   const y = alph.indexOf(str[0])
@@ -117,7 +119,6 @@ export function alph_sort(well_array) {
     const coord2 = alph_to_coords(alph2)
     if (coord1.y > coord2.y) return 1
     if (coord1.y < coord2.y) return -1
-
     // implicit else y1 = y2
     if (coord1.x > coord2.x) return 1
     else return -1

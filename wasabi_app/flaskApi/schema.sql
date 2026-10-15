@@ -20,7 +20,7 @@ CREATE TABLE pumpMap (
 );
 
 CREATE TABLE experiments (
-  title TEXT,
+  ID TEXT,
   created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   version INT DEFAULT 0,
   pastRunData TEXT,

@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
-
 project(machineController C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -21,6 +20,11 @@ target_link_libraries(
   hardware_irq
   pico_multicore
 )
+
+target_compile_definitions(machineController PRIVATE
+    PICO_TIME_DEFAULT_ALARM_POOL_DISABLED=1
+)
+
 
 # Create map/bin/hex/uf2 files
 pico_add_extra_outputs(machineController)

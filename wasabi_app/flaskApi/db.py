@@ -63,10 +63,6 @@ def init_db():
         for id in range(0, count):
             print(f"pump to create: {id}  ")
             pumpUpdate(id=id, reagent="not-configured")
-        db.execute("""
-                   INSERT INTO experiments (title, version)
-                   VALUES (?,?)
-                   """, ("autoSave", 0))
         db.commit()
     close_db()
 
