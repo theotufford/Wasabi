@@ -24,14 +24,10 @@ export const AppGlobalContextProvider = ({ children }) => {
     localStorage.setItem("experiment", JSON.stringify(experiment))
   }, [experiment])
 
-  const load_experiment = async (title, version) => {
-    // if search params are default it sets the experiment to be empty
-    if (title == "") {
-      return
-    }
+  const load_experiment = async (id, version) => {
     await apiCall({
       route: "fetchExperiment",
-      body: { title: title, version: version }
+      body: { id: id, version: version }
     })
       .then(fetched_experiment => {
         if (fetched_experiment?.failure == true) {

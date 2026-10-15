@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <dma_uart.hpp>
+#include <execution>
 #include <filesystem>
 #include <hardware/gpio.h>
 #include <iostream>
@@ -127,17 +128,21 @@ vector<int> Packet::get_int_argvec() {
   return output;
 }
 void ComsInstance::transmit_next() {
-  if (tx_write_index == tx_read_index || tx_queue[tx_read_index] == nullptr) {
+  if (queue_count == 0) {
     return;
   }
   Packet &packet = *tx_queue[tx_read_index];
+
+  if (packet.coms_code == STATE)
+    self_state = packet.data[0];
+
   tx_read_index = (tx_read_index + 1) % TX_HISTORY_LEN;
   uint32_t calculated_checksum = 0; // TODO currently stubbed
-  int total_length = packet.datalen + CHECKSUM_SIZE_BYTES + HEADER_SIZE;
+  int total_length = HEADER_SIZE + packet.datalen + CHECKSUM_SIZE_BYTES;
   uint8_t output_Data[total_length];
   packet.populate_output_data_bytearray(output_Data);
   write_and_flush(output_Data, total_length);
-  partner_state = BUSY;
+  queue_count--;
 }
 
 variant<Packet *, int> ComsInstance::listen_for_packet() {
@@ -267,8 +272,8 @@ void ComsInstance::add_response(Response_Callback callback) {
 }
 
 ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
-    : DmaUart(uart, baudrate), partner_state(BUSY), tx_write_index(0),
-      tx_read_index(0) {
+    : DmaUart(uart, baudrate), partner_state(STATE_LISTENING),
+      tx_write_index(0), tx_read_index(0), queue_count(0) {
 
   add_response(Response_Callback(
       "partner_state_updater", code_conditional_func(STATE),
@@ -277,10 +282,9 @@ ComsInstance::ComsInstance(uart_inst_t *uart, uint baudrate)
       }));
 
   queue_send(code_packet(WAKE));
-
 }
 void ComsInstance::queue_send(Packet *packet_to_send) {
-  if (tx_write_index == tx_read_index && tx_queue[tx_write_index] != nullptr) {
+  if (queue_count == TX_HISTORY_LEN) {
     return;
   }
   if (tx_queue[tx_write_index] != nullptr) {
@@ -288,33 +292,34 @@ void ComsInstance::queue_send(Packet *packet_to_send) {
   }
   tx_queue[tx_write_index] = packet_to_send;
   tx_write_index = (tx_write_index + 1) % TX_HISTORY_LEN;
+  queue_count++;
 }
 
 void ComsInstance::main_loop() {
   // dump the transmission queue
-  if (partner_state == LISTENING) {
-    if (tx_write_index == tx_read_index) {
-      // partner is listening and we have nothing to say, thus idling
-      queue_send(state_packet(IDLE));
+  if (partner_state != STATE_BUSY) {
+    if (queue_count == 0  && self_state != STATE_IDLE) {
+      queue_send(state_packet(STATE_IDLE));
     } else {
-      queue_send(state_packet(LISTENING));
+      queue_send(state_packet(STATE_LISTENING));
     }
-    while (tx_read_index != tx_write_index) {
+    while (queue_count != 0) {
+      partner_state = STATE_BUSY;
       transmit_next();
     }
-    partner_state = BUSY;
   }
   // once tx is dumped
   variant<Packet *, int> listen_response = listen_for_packet();
-  if (holds_alternative<Packet *>(listen_response)) {
-    Packet &got_packet = *get<Packet *>(listen_response);
-    auto current_ctx = LoopContext(this, got_packet);
+  bool packet_received = holds_alternative<Packet *>(listen_response);
+  if (packet_received) {
+    Packet &pack = *get<Packet *>(listen_response);
+    auto current_ctx = LoopContext(this, pack);
     for (const auto &[name, response_obj] : response_tree) {
       if (response_obj.condition(current_ctx)) {
         response_obj.callback(current_ctx);
         current_ctx.executed_functions.push_back(response_obj.name);
       }
     }
-    delete &got_packet;
+    delete &pack;
   }
 }

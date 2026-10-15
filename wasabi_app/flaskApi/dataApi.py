@@ -11,17 +11,17 @@ def getExperiment(data):
         resp = db.execute(
             """
                           SELECT * FROM experiments
-                          WHERE title = ?
+                          WHERE ID = ?
                           AND version = ?
-                          """, (data['title'], data['version'],)).fetchone()
+                          """, (data['id'], data['version'],)).fetchone()
     else:  # if no version is given the highest versioned instance is returned
         resp = db.execute(
             """
                 SELECT * FROM experiments
-                WHERE title = ?
+                WHERE ID = ?
                 ORDER BY version DESC
                 LIMIT 1
-                """, (data['title'],)).fetchone()
+                """, (data['id'],)).fetchone()
 
     close_db()
     return resp
@@ -36,14 +36,14 @@ def deleteExperiment():
     db = get_db()
     db.execute("""
                DELETE FROM experiments
-               WHERE title = ?
+               WHERE ID = ?
                AND version = ?
                """, (
-        data['title'],
+        data['id'],
         data['version']))
     db.commit()
     close_db()
-    return jsonify({"data": f"deleted {data['title']} v{data['version']} "})
+    return jsonify({"data": f"deleted {data['id']} v{data['version']} "})
 
 
 @bp.route('/fetchExperiment', methods=["POST"])
@@ -64,49 +64,54 @@ def saveExperiment():
     print(f"saving {data}")
     db = get_db()
     autoSave = data["autosave"]
-    title = data["title"]
-    version = data["version"]
+    id = data["id"]
+    version = int(data["version"])
+
     experimentJson = json.dumps(data)
-    dbFetch = getExperiment({"title": title})
+    dbFetch = getExperiment({"id": id})
     selected = {}
+
     if dbFetch is not None:
         selected = dict(dbFetch)
     if selected.get('data') == experimentJson:  # duplicate protection
         print('trying to save duplicate, aborting')
         return jsonify('trying to save a perfect duplicate')
+
     if not autoSave:
         db.execute("""
                    INSERT INTO experiments
-                   (data, title, version)
+                   (data, id, version)
                    VALUES (?, ?, ?)
                    """,
-                   (experimentJson, title, version))
+                   (experimentJson, id, version + 1))
         db.commit()
         close_db()
         return jsonify({"version": version})
+
     db.execute("""
                UPDATE experiments
                SET data = ?
-               WHERE (title = ?)
-               """, (experimentJson, "autosave"))
+               WHERE (id = ?) AND (version = ?)
+               """, (experimentJson, id, version))
     db.commit()
     close_db()
+
     return jsonify({"status": 1})
 
 
 @bp.route('/experiment_dump', methods=["POST"])
 def experiment_dump():
     db = get_db()
-    title_version_array = []
+    db_row_outputs = []
     dump = db.execute("""
-               SELECT title, version
+               SELECT *
                FROM experiments
                ORDER BY created
                """).fetchall()
     for row in dump:
-        title_version_array.append(dict(row))
+        db_row_outputs.append(dict(row))
     close_db()
-    return jsonify({"data": title_version_array})
+    return jsonify({"data": db_row_outputs})
 
 
 # this is sort of cursed that this is using post instead of get but im lazy
