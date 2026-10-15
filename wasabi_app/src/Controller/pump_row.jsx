@@ -77,14 +77,18 @@ function Pump_block(props) {
   const [selected_reagent, set_selected_reagent] = useState(props.reagent)
 
   return (
-    <div>
-      {content}
-      <button onClick={send_buzz}>buzz motor</button>
-      <form onSubmit={pump_action}>
-        <input name="volume" type="number" placeholder="pump volume ul" /> <button type="submit">o</button>
-      </form>
-      <Reagent_Selector selected_reagent={selected_reagent} select_reagent={(new_reagent) => set_selected_reagent(new_reagent)} />
-    </div>
+    <tr>
+      <td>{id}</td>
+      <td><button onClick={send_buzz}>buzz motor</button></td>
+      <td>
+        <Reagent_Selector selected_reagent={selected_reagent} select_reagent={(new_reagent) => set_selected_reagent(new_reagent)} />
+      </td>
+      <td>
+        <form onSubmit={pump_action}>
+          <input name="volume" type="number" placeholder="pump volume ul" /> <button type="submit">o</button>
+        </form>
+      </td>
+    </tr>
   )
 }
 

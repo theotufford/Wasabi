@@ -9,21 +9,20 @@ const BrowserElement = (props) => {
   const [visible_experiments, set_visible_experiments] = useState([])
 
   const filter_older_versions = (experimentlist) => {
-    let titles = experimentlist.map(exp => exp.title)
-    const unique_titles = [... new Set(titles)]
-    const highest_versioned_of_name = []
-    unique_titles.forEach(title => {
-      const instances = experimentlist.filter(exp => exp.title == title)
+    let ids = experimentlist.map(exp => exp.id)
+    const unique_ids = [... new Set(ids)]
+    const highest_versioned_of_id = []
+    unique_ids.forEach(id => {
+      const instances = experimentlist.filter(exp => exp.id == id)
       let highest_inst = instances[0]
       instances.forEach(inst => {
         if (inst.version > highest_inst.version) {
           highest_inst = inst
         }
       })
-      highest_versioned_of_name.push(highest_inst)
+      highest_versioned_of_id.push(highest_inst)
     })
-    console.log(highest_versioned_of_name)
-    return highest_versioned_of_name
+    return highest_versioned_of_id
 
   }
 
@@ -32,9 +31,11 @@ const BrowserElement = (props) => {
     apiCall({ route: "experiment_dump" })
       .then(apiResponse => apiResponse.data)
       .then(data => data.forEach((experiment) => {
-        tempList.push(experiment)
+        const {data, ...db_meta} = experiment 
+        tempList.push({...JSON.parse(data), ...db_meta})
       }))
       .then(() => {
+        console.log("got exp list: ", tempList)
         set_visible_experiments(filter_older_versions(tempList))
       })
   }
@@ -45,7 +46,7 @@ const BrowserElement = (props) => {
 
 
   const select_experiment = (experiment) => {
-    load_experiment(experiment.title, experiment.version)
+    load_experiment(experiment.id, experiment.version)
     const dialog_target = document.getElementById("browser")
     dialog_target.close()
   }
@@ -58,7 +59,7 @@ const BrowserElement = (props) => {
     <dialog key={props.key} id="browser">
       <ul style={{ listStyleType: 'none' }}>
         {visible_experiments.map(exp => (
-          <li key={exp.title} className='searchListItem' onClick={() => select_experiment(exp)}> {exp.title} {exp.version} </li>
+          <li key={exp.id} className='searchListItem' onClick={() => select_experiment(exp)}> {exp.title} {exp.version} </li>
         ))}
       </ul>
       <input onInput={handle_search} />

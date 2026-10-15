@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useContext } from 'react'
 import { apiCall, control_call, dataStream } from '@src/backendConfig.jsx'
-import Pump_row from './pump_interface.jsx'
+import Pump_row from './pump_row.jsx'
 import TestButton from '@src/browserFrame.jsx'
 import { Reagent_Selector } from '../Reagent_Selector.jsx'
+import Jogger from './manual_control_interface.jsx'
 import "./controller.css"
 import { AppGlobalContext } from '@src/AppGlobalContext.jsx'
 
@@ -49,21 +50,6 @@ function Controller(props) {
   }, [pump_array, experiment])
 
 
-  let title_text = "no experiment loaded"
-  if (experiment.title != "") title_text = experiment.title;
-
-  const send_home = () => {
-    control_call({ route: "home" })
-  }
-  const send_set_home_offset = () => {
-    control_call({ route: "set_home_offset" })
-  }
-  const send_set_br = () => {
-    control_call({ route: "set_bottom_right" })
-  }
-  const send_set_waste_position = () => {
-    control_call({ route: "set_waste_position" })
-  }
 
   const send_run_experiment = () => {
     control_call({
@@ -74,82 +60,9 @@ function Controller(props) {
     })
   }
 
-  // x/y and z respectively
-  const jogIncrement = useRef([0, 0])
-  const move_target = useRef([0, 0, 0])
-
-  const jog = (delta_x, delta_y, delta_z) => {
-    control_call({
-      route: "move",
-      body: {
-        move_context: "jog",
-        delta: [delta_x, delta_y, delta_z]
-      }
-    })
-  }
-
-
-  const go_to_well = (wellid) => {
-    control_call({
-      route: "move",
-      body: {
-        move_context: "well",
-        well_target: wellid
-      }
-    })
-  }
-
-  const go_to_pos = (move_type) => {
-    control_call({
-      route: "move",
-      body: {
-        move_context: move_type,
-        target: move_target
-      }
-    })
-  }
-
   return (
     <div className='controller'>
-      <div className='jogger'>
-        <div className='xy_jog'>
-          <label for="xyjog">X/Y jog increment: </label>
-          <input name='xyjog' type="number" onChange={(e) => {
-            const val = e.target.valueAsNumber
-            if (isNaN(val)) { return }
-            jogIncrement.current = ([val, jogIncrement.current[1]])
-          }} />
-          <div className='xy_control_buttons'>
-            <button onClick={() => jog(jogIncrement.current[0], 0, 0)} >+x</button>
-            <button onClick={() => jog(-jogIncrement.current[0], 0, 0)} >-x</button>
-            <button onClick={() => jog(0, jogIncrement.current[0], 0)} >+y</button>
-            <button onClick={() => jog(0, -jogIncrement.current[0], 0)} >-y</button>
-          </div>
-        </div>
-        <div className='z_jog'>
-          <label for="zjog">z jog increment: </label>
-          <input name='zjog' type="number" onChange={(e) => {
-            const val = e.target.valueAsNumber
-            if (isNaN(val)) { return }
-            jogIncrement.current = ([jogIncrement.current[0], val])
-          }} />
-          <button onClick={() => jog(0, 0, jogIncrement.current[1])} >-z</button>
-          <button onClick={() => jog(0, 0, -jogIncrement.current[1])} >+z</button>
-        </div>
-        <button onClick={send_home}>home</button>
-        <button onClick={send_set_br}>set bottom right well position</button>
-        <button onClick={send_set_home_offset}>set A1</button>
-        <button onClick={() => go_to_well("A1")}>go A1</button>
-        <button onClick={send_set_waste_position}>set waste position</button>
-        <button onClick={() => go_to_well("waste")}>go to waste well</button>
-        <div>
-          <button onClick={() => go_to_well("A12")}>go A12</button>
-          <button onClick={() => go_to_well("B1")}>go B1</button>
-          <button onClick={() => go_to_well("B12")}>go B12</button>
-          <button onClick={() => go_to_well("H1")}>go H1</button>
-          <button onClick={() => go_to_well("H12")}>go H12</button>
-        </div>
-      </div>
+      <Jogger />
       <div className='pump_bay'>
         <div className='reagents_needed_container'>
           {reagents_needed.length > 0 ?
@@ -163,21 +76,29 @@ function Controller(props) {
             </div>
           }
         </div>
-        {
-          Object.keys(pump_array).map((id) => (
-            <div>
-              <Pump_row
-                key={id} id={id}
-                reagent={pump_array[id]}
-                reagents={reagents}
-                set_pump_array={set_pump_array}
-                reagents_needed={reagents_needed}
-                load_needed={load_needed} />
-            </div>
-          ))
-        }
+        <table>
+          <thead>
+            <tr>
+              <th>pump id</th>
+              <th>buzz</th>
+              <th>reagent select</th>
+              <th>dispense volume</th>
+            </tr>
+          </thead>
+          <tbody>{
+            Object.keys(pump_array).map((id) => (
+                <Pump_row
+                  key={id} id={id}
+                  reagent={pump_array[id]}
+                  reagents={reagents}
+                  set_pump_array={set_pump_array}
+                  reagents_needed={reagents_needed}
+                  load_needed={load_needed} />
+            ))
+          }</tbody>
+        </table>
       </div>
-      <button onClick={send_run_experiment}>run experiment!!</button>
+      <button onClick={send_run_experiment}>run {experiment.title}</button>
     </div>
   )
 }

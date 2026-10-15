@@ -10,15 +10,26 @@
 #include <hardware/irq.h>
 #include <hardware/regs/intctrl.h>
 #include <hardware/structs/timer.h>
+#include <hardware/sync/spin_lock.h>
 #include <hardware/timer.h>
 #include <motors.hpp>
 #include <pico/platform/common.h>
 #include <pico/time.h>
+#include <pico/types.h>
 #include <sys/unistd.h>
 #include <utility>
 #include <vector>
 
 using namespace std;
+
+// hw alarm set target but tolerant of lateness
+static inline void arm(int n, uint32_t t) {
+  uint32_t now = timer_hw->timelr;
+  uint32_t target = (uint32_t)t;
+  if ((int32_t)(target - now) < 4)
+    target = now + 4;
+  hardware_alarm_set_target(n, target);
+}
 
 Motor::Motor(const vector<int> &argumentVector)
     : step_pin(argumentVector[STP_PIN]), dir_pin(argumentVector[DIR_PIN]),
@@ -29,6 +40,7 @@ Motor::Motor(const vector<int> &argumentVector)
   if (lim_pin != -1) {
     gpio_init(lim_pin);
     gpio_set_dir(lim_pin, GPIO_IN);
+    gpio_pull_up(lim_pin);
   }
   gpio_init(dir_pin);
   gpio_init(step_pin);
@@ -37,15 +49,14 @@ Motor::Motor(const vector<int> &argumentVector)
   gpio_put(dir_pin, dir_pin_inverted);
 }
 
-void Motor::buzz() {
-
+void Motor::buzz(int cycles) {
   float buzz_amplitude_deg = 3.6;
 
   int amp_steps = (int)(buzz_amplitude_deg / (360.f / (float)stp_per_rev));
   if (amp_steps < 0) {
     amp_steps = 1;
   }
-  for (int cycle_count = 0; cycle_count < 50; cycle_count++) {
+  for (int cycle_count = 0; cycle_count < cycles; cycle_count++) {
     for (int stpcnt = 0; stpcnt < amp_steps; stpcnt++) {
       step();
       sleep_ms(5);
@@ -65,7 +76,7 @@ void Motor::set_dir(int dir) {
 
 void Motor::step() {
   gpio_put(step_pin, 1);
-  sleep_us(1);
+  busy_wait_us_32(1);
   gpio_put(step_pin, 0);
   position_state += direction;
 }
@@ -75,12 +86,13 @@ MoveEntity::MoveEntity(int profile_id, float angv_max, float ang_accel,
     : profile_id(profile_id), angv_max(angv_max), ang_accel(ang_accel),
       step_distance(step_distance), motor(motor), calculation_step_index(0),
       hit_limit(false), is_complete(false), homing(false) {
+
   angular_distance = motor->TORADS * step_distance;
   abs_ang_dist = abs(angular_distance);
   abs_stp_dist = abs(step_distance);
 
   float v_reached = angv_max;
-  bool short_hop = abs_ang_dist < ((float)(angv_max * angv_max) / ang_accel);
+  bool short_hop = abs_ang_dist < ((angv_max * angv_max) / ang_accel);
   accel_stop = (v_reached * v_reached) / (2. * ang_accel);
   const_stop = (abs_ang_dist - (v_reached * v_reached) / (2 * ang_accel));
 
@@ -103,10 +115,13 @@ MoveEntity::MoveEntity(int profile_id, float angv_max, float ang_accel,
   return;
 }
 
-uint64_t MoveEntity::find_step_timing() {
+uint32_t MoveEntity::find_step_timing() {
   if (calculation_step_index == abs_stp_dist || hit_limit) {
     is_complete = true;
     return 0;
+  }
+  if (calculation_step_index == 0) {
+    move_init_time = time_us_32();
   }
   calculation_step_index += 1;
   double theta = motor->TORADS * (calculation_step_index);
@@ -118,7 +133,7 @@ uint64_t MoveEntity::find_step_timing() {
       stepTiming = (theta / angv_max) + (angv_max / (2. * ang_accel));
     } else {
       stepTiming =
-          total_move_time - sqrt((2 * (angular_distance - theta)) / ang_accel);
+          total_move_time - sqrt((2 * (abs_ang_dist - theta)) / ang_accel);
     }
   } else if (profile_id == NO_DECEL) {
     if (theta < accel_stop) {
@@ -133,136 +148,135 @@ uint64_t MoveEntity::find_step_timing() {
       stepTiming = (theta / angv_max);
     } else {
       stepTiming =
-          total_move_time - sqrt((2 * (angular_distance - theta)) / ang_accel);
+          total_move_time - sqrt((2 * (abs_ang_dist - theta)) / ang_accel);
     }
   }
-  next_timing = move_init_time + (uint64_t)(stepTiming * 1e6f);
+  uint64_t next_step_time = (uint64_t)(stepTiming * 1e6f);
+  next_timing = delayed_by_us(move_init_time, next_step_time);
   return next_timing;
 }
 
 // behold... the sorted step queue torus
-#define alarm_count 4
-static array<StepAlarmQueue *, alarm_count> step_queues;
-static atomic_int alarm_write_index = {0};
-static volatile int currently_in_isr = -1;
+static array<StepAlarmQueue *, ALARM_COUNT> step_queues;
+static int alarm_write_index = 0;
 
-void alarm_isr(uint alarm_num) {
-  currently_in_isr = alarm_num;
-  hw_clear_bits(&timer_hw->intr, 1u << alarm_num);
-  StepAlarmQueue &queue = *step_queues[alarm_num];
-  MoveEntity *current_move = queue.circ_queue[queue.read_index];
-  int lim_pin = current_move->motor->lim_pin;
-  if (lim_pin > 0 && current_move->homing == true) {
-    if (gpio_get(lim_pin)) {
-      current_move->hit_limit = true;
-    }
+void init_step_queues() { // call on core 0, BEFORE multicore_launch_core1
+  for (int i = 0; i < ALARM_COUNT; i++) {
+    step_queues[i] = new StepAlarmQueue();
+    step_queues[i]->alarm_number = i;
   }
-  queue.alarm_callback();
-  if ((uint32_t)(queue.time_target - timer_hw->timelr) <= 0) {
-    alarm_isr(alarm_num);
-  }
-  hardware_alarm_set_target(alarm_num, queue.time_target);
-  currently_in_isr = -1;
 }
 
-static void (*alarm_isrs[])() = {
-    []() -> void { alarm_isr(0); },
-    []() -> void { alarm_isr(1); },
-    []() -> void { alarm_isr(2); },
-    []() -> void { alarm_isr(3); },
-};
+static int num = spin_lock_claim_unused(true);
+static spin_lock_t *queue_lock = spin_lock_init(num);
+
+void alarm_isr(uint alarm_num) {
+  StepAlarmQueue &q = *step_queues[alarm_num];
+  uint32_t save = spin_lock_blocking(queue_lock);
+  while (q.queue_count > 0) {
+    if ((int32_t)((uint32_t)q.time_target - timer_hw->timelr) > 0) {
+      arm(alarm_num, q.time_target);
+      break;
+    }
+    q.alarm_callback();
+  }
+  spin_unlock(queue_lock, save);
+}
 
 // only need to set the handler via the api on core 1 because core 0 and 1
 // share alarm interrupts so regardless of who sets the actual time, they both
 // catch it. however, the irq_set_exclusive_handler function implicitly
 // handles the callback from the assigning core
 void core1_main() {
-  for (int timer_ind = 0; timer_ind < alarm_count; timer_ind++) {
-    hardware_alarm_claim(timer_ind);
-    step_queues[timer_ind] = new StepAlarmQueue();
-    irq_set_enabled(timer_ind, false);
-    irq_set_exclusive_handler(timer_ind, alarm_isrs[timer_ind]);
-    irq_set_enabled(timer_ind, true);
-    timer_hw->inte |= 1u << timer_ind;
+  for (int i = 0; i < ALARM_COUNT; i++) {
+    hardware_alarm_claim(i);
+    hardware_alarm_set_callback(i, (hardware_alarm_callback_t)alarm_isr);
   }
-  while (true) {
+  while (true)
     tight_loop_contents();
-  }
 }
 
 void StepAlarmQueue::alarm_callback() {
-  MoveEntity &entity = *circ_queue[read_index];
-  entity.motor->step();
-  queue_count -= 1;
-  read_index = (read_index + 1) % ALARM_QUEUE_LENGTH;
-  if (queue_count == 0) {
-    return;
-  };
-  time_target = circ_queue[read_index]->next_timing;
+  MoveEntity &move = *circ_queue[read_index].move;
+  Motor &mot = *move.motor;
+  if (move.homing && mot.lim_pin != -1 && !gpio_get(mot.lim_pin))
+    move.hit_limit = true;
+  if (!move.hit_limit)
+    mot.step();
+  queue_count--;
+  read_index = (read_index + 1) & AQ_MASK;
+  if (queue_count > 0)
+    time_target = circ_queue[read_index].time;
 }
 
-void enqeue_next_step(MoveEntity *move) {
-  uint64_t next_timing = move->find_step_timing();
-  if (next_timing == 0) {
+void enqueue_next_step(MoveEntity *move) {
+  uint32_t next_timing = move->find_step_timing();
+  if (move->is_complete) {
     return;
   }
+  Step_Event stp_to_queue = {next_timing, move};
   // idle until open queue found
-  StepAlarmQueue &queue = *step_queues[alarm_write_index];
-  do {
-    StepAlarmQueue &queue = *step_queues[alarm_write_index];
-    alarm_write_index = (alarm_write_index + 1) % alarm_count;
-  } while (queue.queue_count == ALARM_QUEUE_LENGTH);
+  StepAlarmQueue *queue_ptr = step_queues[alarm_write_index];
+  while (queue_ptr->queue_count == ALARM_QUEUE_LENGTH) {
+    alarm_write_index = (alarm_write_index + 1) & (ALARM_COUNT - 1);
+    queue_ptr = step_queues[alarm_write_index];
+  }
 
-  if (queue.queue_count == 0) {
+  StepAlarmQueue &queue = *queue_ptr;
+  uint32_t save = spin_lock_blocking(queue_lock);
+
+  if (queue.queue_count == 0) { // first step in queue
     queue.time_target = next_timing;
-    queue.circ_queue[queue.read_index] = move;
-    hardware_alarm_set_target(queue.alarm_number, next_timing);
-    queue.write_index = (queue.write_index + 1) % ALARM_QUEUE_LENGTH;
+    queue.circ_queue[queue.read_index] = stp_to_queue;
+    queue.write_index = (queue.write_index + 1) & AQ_MASK;
+    // set initial alarm
+    arm(queue.alarm_number, next_timing);
+
   } else if (next_timing < queue.time_target) {
-    while (currently_in_isr == alarm_write_index) {
-      tight_loop_contents();
-    }
-    queue.read_index =
-        (queue.read_index + ALARM_QUEUE_LENGTH - 1) % ALARM_QUEUE_LENGTH;
+    queue.read_index = (queue.read_index - 1 + ALARM_QUEUE_LENGTH) & AQ_MASK;
     queue.time_target = next_timing;
-    queue.circ_queue[queue.read_index] = move;
-    hardware_alarm_set_target(queue.alarm_number, next_timing);
+    queue.circ_queue[queue.read_index] = stp_to_queue;
+    // wrote timing before current target and thus need to push target ahead
+    arm(queue.alarm_number, next_timing);
   } else {
-    queue.circ_queue[queue.write_index] = move;
-    queue.write_index = (queue.write_index + 1) % ALARM_QUEUE_LENGTH;
-    int prev = queue.write_index;
-    for (int i = prev; i != queue.write_index;
-         i = (i + ALARM_QUEUE_LENGTH - 1) % ALARM_QUEUE_LENGTH) {
-      int j = (i + ALARM_QUEUE_LENGTH - 1) % ALARM_QUEUE_LENGTH;
-      MoveEntity *just_added = queue.circ_queue[i];
-      MoveEntity *candidate = queue.circ_queue[j];
-      if (candidate->next_timing > just_added->next_timing) {
-        swap(candidate, just_added);
-      } else {
+    int i = queue.write_index;
+    queue.circ_queue[i] = stp_to_queue;
+    queue.write_index = (i + 1) & AQ_MASK;
+    while (i != queue.read_index) {
+      int j = (i - 1) & AQ_MASK;
+      if (queue.circ_queue[j].time > queue.circ_queue[i].time) {
+        swap(queue.circ_queue[j], queue.circ_queue[i]);
+        i = j;
+      } else
         break;
-      }
     }
   }
-  queue.queue_count += 1;
+  queue.queue_count++;
+  alarm_write_index = (alarm_write_index + 1) & (ALARM_COUNT - 1);
+  spin_unlock(queue_lock, save);
 }
 
-void await_async_move(vector<MoveEntity> moves) {
+void await_async_move(vector<MoveEntity> &moves) {
   for (auto &move : moves) {
     Motor &mot = *move.motor;
     int direction = abs(move.step_distance) / move.step_distance;
     mot.set_dir(direction);
   }
   bool all_complete = false;
-  for (auto &move : moves) {
-    move.move_init_time = get_absolute_time();
-  }
   while (!all_complete) {
     all_complete = true;
     for (auto &move : moves) {
       if (!move.is_complete) {
-        enqeue_next_step(&move);
+        enqueue_next_step(&move);
       }
       all_complete = move.is_complete && all_complete;
     }
   }
+  int total_waiting = 0;
+  do {
+    total_waiting = 0;
+    for (auto &queue : step_queues) {
+      total_waiting += queue->queue_count;
+    }
+  } while (total_waiting != 0);
 }

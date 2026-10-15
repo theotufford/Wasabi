@@ -99,7 +99,7 @@ export function Reagent_Selector({ selected_reagent, select_reagent, enable_crea
         autoFocus={true}
         placeholder="input reagent name"
         select_option_source={reagent_lib_state?.names}
-        defaultValue={selected_reagent}
+        defaultValue={""}
         onSelect={(event) => {
           select_reagent(event.target.value)
           set_view_state("display_reagent")
@@ -117,7 +117,7 @@ export function Reagent_Selector({ selected_reagent, select_reagent, enable_crea
   if (view_state === "display_reagent") {
     return <div>
       {selected_reagent}
-      <button onClick={() => {set_view_state("dropdown")}}>change reagent</button>
+      <button onClick={() => {set_view_state("dropdown")}}>⌄</button>
     </div>
   }
 }

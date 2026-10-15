@@ -110,8 +110,8 @@ class ComsChannel:
 
     async def init_coms_handler_loop(self):
         while True:
-            if self.picostate == codex.LISTENING:
-                if self.txQueue[self.tx_head] is None:  # nothing to transmit
+            if self.picostate != codex.BUSY:
+                if self.q:  # nothing to transmit
                     self.send_packet(empty_code_packet(codex.IDLE))
                 else:
                     self.send_packet(empty_code_packet(state=codex.LISTENING))
