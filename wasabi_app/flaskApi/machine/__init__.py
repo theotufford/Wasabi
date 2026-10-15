@@ -6,15 +6,15 @@ import asyncio
 import math
 import inspect
 import RPi.GPIO as pio
-
-from .containers import Plate, Reagent_Mix, Well
+import threading
+from .containers import Plate, Reagent_Mix
 from .method_library_class import MethodLibrary
 from ..db import get_db
 from .kinematics import solve_5bar_FK, solve_5bar_IK, Vec2d, Vec3d, Vec2d_Ang
 from . import coms as slib
 from .coms import packet
 from .coms import codex
-from utils import liq_handling_data
+from .utils import liq_handling_data, get_reagent, get_pump_id
 
 
 class Machine:
@@ -73,14 +73,14 @@ class Machine:
         self.methods.machine = self
 
         self.position_known = False
-        self.got_home_complete = asyncio.Event()
-        self.move_complete = asyncio.Event()
-        self.got_packet = asyncio.Event()
+        self.got_home_complete = threading.Event()
+        self.move_complete = threading.Event()
+        self.got_packet = threading.Event()
         self.in_simulation = False
         self.coms: slib.ComsChannel
 
         self.named_positions = {"waste": None}
-        self.named_containers = {"waste": Well()}
+        self.named_containers = {"waste": Reagent_Mix()}
         self.current_container = self.named_containers["waste"]
 
         mach = self.settings()["machine"]
@@ -95,15 +95,16 @@ class Machine:
         for id in range(0, len(pumps)):
             line_contents = Reagent_Mix()
             line_contents.gain_reagent(
-                f"{self.get_reagent(id)}", reservoir=True)
+                f"{get_reagent(id)}", reservoir=True)
             self.pump_line_contents[id] = [line_contents]
         print(f"pump line: {self.pump_line_contents}")
 
         self.plate = Plate(self.settings()["plates"]["standard 96"])
         self.hw_init()
         self.add_default_responses()
-
-        self.coms.init_coms_handler_loop()
+        self.serial_coms_thread = threading.Thread(
+            target=self.coms.init_coms_handler_loop, daemon=True)
+        self.serial_coms_thread.start()
 
     def add_default_responses(self):
         def move_response(context: slib.Loopctx):
@@ -114,6 +115,7 @@ class Machine:
             self.current_position = self.from_steps(*mot_position)
             self.position_known = True
             self.got_home_complete.set()
+            print(f"got homing position: {self.current_position.position}")
 
         self.coms.add_response(
             "homing_response", slib.code_dependent_true(slib.codex.HOME),
@@ -126,6 +128,7 @@ class Machine:
         )
 
     def hw_init(self):
+        pio.setmode(pio.BCM)
         # reboot the pico
         pi3b_pins = self.settings()["machine"]["pins"]["on_3b_server_board"]
         pico_reset_pin = pi3b_pins["pico_reset_pin"]
@@ -166,8 +169,8 @@ class Machine:
             return settings
 
     def get_pos_FK(self, target: Kinematic_State) -> Kinematic_State:
-        solved = solve_5bar_FK(self.settings(), target)
-        output_position = Vec3d([*solved.axis, target.position.z])
+        solved = solve_5bar_FK(self.settings(), target.angular_position)
+        output_position = Vec3d([*solved.axes, target.position.z])
         output = Kinematic_State(output_position, target.angular_position)
         return output
 
@@ -187,12 +190,12 @@ class Machine:
             Vec3d([
                 0,
                 0,
-                z / self.z_steps_per_rad
+                z / self.z_steps_per_mm
             ]),
-            Vec2d_Ang(
+            Vec2d_Ang([
                 a / self.a_steps_per_rad,
                 b / self.b_steps_per_rad
-            )
+            ])
         )
         given_pos = self.get_pos_FK(given_pos)
         return given_pos
@@ -205,7 +208,7 @@ class Machine:
             pos = self.get_pos_IK(pos)
             steps = self.to_steps(pos)
 
-            mot_settings = self.settings()["motors"]
+            mot_settings = self.settings()["machine"]["motors"]
 
             amove = slib.packet.MoveEntity(
                 codex.A_MOTOR,
@@ -263,23 +266,24 @@ class Machine:
             if liq_data.volume == 0:
                 continue
             if liq_data.volume > 0:
-                if liq_data.id is None:
-                    id = self.get_pump_id(liq_data.reagent)
-                held_volume = self.pump_line_contents[liq_data.id][-1]
-                output_liquid = held_volume.release_volume(liq_data.volume)
-                if held_volume.get_total_volume() == 0:
+                if liq_data.pumpid is None:
+                    id = get_pump_id(liq_data.reagent)
+                line_volume: Reagent_Mix = self.pump_line_contents[liq_data.pumpid][-1]
+                self.current_container.gain_mixed_volume(
+                    line_volume.release_volume(liq_data.volume))
+                if line_volume.get_total_volume() == 0:
                     self.pump_line_contents.pop()
-                self.current_container.gain_liquid(output_liquid)
             elif liq_data.volume < 0:
                 self.impure_method_flag = True
                 pump_line = self.pump_line_contents[id]
                 reagent_contents = self.current_container.contents
                 pump_line.append(reagent_contents)
 
-            settings = self.settings()["motors"]
-            pump = settings["pumps"]
+            settings = self.settings()["machine"]["motors"]
+            pump = settings["pumps"][liq_data.pumpid]
+            common = settings["common_settings"]
 
-            rad_per_step = 2 * math.pi / settings["pump_steps_per_revolution"]
+            rad_per_step = 2 * math.pi / common["pump_steps_per_revolution"]
             ul_per_steps = pump["ul_per_rad"] * rad_per_step
             ul_per_steps *= pump["compensation_factor"]
 
@@ -309,3 +313,18 @@ class Machine:
             ))
 
         self.coms.send_packet(packet.move_packet(move_data))
+
+    def send_home(self):
+        speed_settings = self.settings(
+        )["machine"]["motors"]["common_settings"]
+        z_vmax = float(speed_settings["z_max_angular_velocity"])
+        z_accel = float(speed_settings["z_angular_accel"])
+        ab_vmax = float(speed_settings["arms_angular_max_velocity"])
+        ab_accel = float(speed_settings["arms_angular_accel"])
+        self.coms.send_packet(packet.make_float_vec_packet(
+            codex.HOME,
+            [z_vmax,
+             z_accel,
+             ab_vmax,
+             ab_accel]
+        ))

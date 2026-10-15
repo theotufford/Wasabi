@@ -2,7 +2,6 @@ import json
 import copy
 import inspect
 from typing import Literal
-from .machine import Machine
 from .containers import Plate, Reagent_Mix
 
 
@@ -10,7 +9,7 @@ class MethodLibrary:
     def __init__(self):
         self.method_callables = {}
         self.method_info = {}
-        self.machine: Machine
+        self.machine = None
 
     def call_method(self, name, args_dict):
         inputs = self.method_info[name]["inputs"]
@@ -57,14 +56,11 @@ class MethodLibrary:
         sig = inspect.signature(method_function)
         args = dict(sig.parameters.items())
         method_name = method_function.__name__
-
-        if not args.get("machine") or not args["machine"].annotation == Machine:
-            raise ValueError(f"method: {method_name} needs machine parameter!")
-
         self.method_callables[method_name] = method_function
         is_direct_input = "volume_map" in args.keys()
         has_region_select = "well_array" in args.keys()
         has_region_select = has_region_select or "well_array_dict" in args.keys()
+
         info = {
             "inputs": [],
             "purity": function_purity,

@@ -1,13 +1,12 @@
 from . import db
 import json
-from .machine import machine_state
+from .import machine as mach
 from .methods import methods
 from . import dataApi
 from . import controlApi
 from flask import Flask, session
 from flask_session import Session
 from flask_cors import CORS
-import threading
 import os
 
 
@@ -28,7 +27,7 @@ app.register_blueprint(dataApi.bp)
 db.init_app(app)
 
 with app.app_context():
-    machine = machine_state.Machine(
+    machine = mach.Machine(
         "./public/machine_config.json", methods)
 
 methods.output_methods_outline()

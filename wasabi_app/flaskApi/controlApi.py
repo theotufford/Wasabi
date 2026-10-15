@@ -5,7 +5,8 @@ import json
 from flask import Flask, jsonify, Blueprint, request, session, Response
 from .db import get_db, close_db
 from .machine.coms import codex
-from .machine.coms.packet import code_packet, state_packet
+from .machine.utils import liq_handling_data
+from .machine.coms.packet import code_packet, state_packet, make_int_vec_packet
 from .machine import Machine, Kinematic_State, Vec3d
 
 
@@ -13,10 +14,10 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     bp = Blueprint('machine_aware_bp', __name__, url_prefix='/control')
 
     @bp.route('/home', methods=['POST'])
-    async def home():
-        coms = machine.coms
-        coms.send_packet(code_packet(codex.HOME))
-        await machine.got_home.wait()
+    def home():
+        machine.send_home()
+        machine.got_home_complete.wait()
+        machine.got_home_complete.clear()
         return jsonify({"data": "successful home"})
 
     found_corner = asyncio.Event()
@@ -58,7 +59,8 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         volume_ul = float(data["volume"])
         id = int(data["id"])
         if volume_ul > 0:
-            machine.handle_liquids(volume=volume_ul, id=id)
+            machine.handle_liquids(
+                [liq_handling_data(volume=volume_ul, pumpid=id)])
         else:
             machine.aspirate(volume=volume_ul, id=id)
         return jsonify({"data": "successful pump action"})
@@ -97,8 +99,8 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     @bp.route('/buzz', methods=['POST'])
     def buzz_pump():
         data = request.get_json()
-        id = data["id"]
-        machine.coms.send_packet(code_packet(codex.BUZZ))
+        id = int(data["id"])
+        machine.coms.send_packet(make_int_vec_packet(codex.BUZZ, [id]))
         return jsonify({"data": f"buzzed id:{id}"})
 
     @bp.route('/run_experiment', methods=['POST'])
@@ -149,16 +151,11 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         return jsonify({"data": plate_data})
 
     def monitor():
-        prev = machine.coms.most_recent_rx
-        while True:
-            time.sleep(1)
-            if machine.coms.most_recent_rx != prev:
-                prev = machine.coms.most_recent_rx
-                yield jsonify({"data": "hello"})
+        pass
 
     @bp.route('/serial_stream', methods=['GET'])
     def return_serial_response_stream():
-        return Response(monitor(), mimetype="text/event-stream")
+        return Response(None, mimetype="text/event-stream")
 
     def db_update_pumps(reagent, id):
         db = get_db()

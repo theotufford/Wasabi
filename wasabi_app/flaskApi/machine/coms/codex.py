@@ -5,21 +5,27 @@ MOVE = 2
 HOME = 3
 WAKE = 4
 BUZZ = 5
+MESSAGE = 6
 
 COMS_INV = [
     "STATE",
     "RE_REQUEST",
-    "MESSAGE",
     "MOVE",
     "HOME",
     "WAKE",
-    "BUZZ"
+    "BUZZ",
+    "MESSAGE"
 ]
 
 BUSY = 0
 LISTENING = 1
 IDLE = 2
 
+STATE_INV = [
+    "BUSY",
+    "LISTENING",
+    "IDLE",
+]
 INT = 0
 FLOAT = 1
 STRUCT = 2
