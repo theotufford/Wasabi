@@ -122,12 +122,12 @@ def get_pump_id(reagent):
 
 class liq_handling_data():
     def __init__(self, volume, reagent: str | None = None, pumpid: int | None = None):
+        self.volume = volume
+        self.pumpid = pumpid
+        self.reagent = reagent
         if self.pumpid is None and self.reagent is None:
             raise ValueError(
                 "trying to construct nondescript liq handling data!")
-        self.volume = volume
-        self.reagent = reagent
-        self.pumpid = pumpid
         if self.reagent is None:
             self.reagent = get_reagent(self.pumpid)
         if self.pumpid is None:

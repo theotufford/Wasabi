@@ -1,6 +1,6 @@
 import math
 from typing import Self
-from utils import vec_to_alph, alph_to_vec
+from .utils import vec_to_alph, alph_to_vec
 from .kinematics import Vec2d, Vec3d,  vec2d_rotate_rads
 
 
@@ -53,19 +53,6 @@ class Reagent_Mix:
             self.gain_reagent(reagent, volume)
 
 
-class Well:
-    def __init__(self, contents={}):
-        self.contents = Reagent_Mix(contents)
-
-    def release_aspirate(self, volume) -> Reagent_Mix:
-        return self.liquid.release_volume(volume)
-
-    def gain_liquid(self, liquid: Reagent_Mix):
-        if liquid is None:
-            return
-        return self.liquid.gain_mixed_volume(liquid)
-
-
 class Plate:
     def __init__(self, settings: dict, top_left_abs: Vec2d = Vec2d([0, 0]), bottom_right_abs: Vec2d | None = None):
         self.settings = settings
@@ -86,12 +73,12 @@ class Plate:
         self.wells = []
         for row_y in range(0, self.rows):
             for col_x in range(0, self.columns):
-                new_well = Well()
+                new_well = Reagent_Mix()
                 self.wells.append(new_well)
 
     def clear_contents(self):
         for well in self.wells:
-            well.liquid = Reagent_Mix()
+            well = Reagent_Mix()
         return self.wells
 
     def get_well_abs_position(self, wellid):
@@ -109,7 +96,7 @@ class Plate:
         measured_corner_angle = math.atan(corner_vector.y / corner_vector.x)
         self.plate_rotation = measured_corner_angle - relative_corner_angle
 
-    def by_alph(self, alph) -> Well:
+    def by_alph(self, alph) -> Reagent_Mix:
         col, row = alph_to_vec(alph)
         ind = col + ((row - 1) * self.columns)
         return self.wells[ind]

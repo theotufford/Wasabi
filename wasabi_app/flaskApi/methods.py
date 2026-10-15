@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask import Flask, jsonify, Blueprint, request, session
 from typing import Literal
-from .machine.machine_state import Machine, MethodLibrary
+from .machine import Machine, MethodLibrary
 from .machine.kinematics import Vec2d, dot_product
 from .machine.utils import alph_to_vec, get_linear_well_array_height, get_linear_well_array_width, xy_to_alph
 

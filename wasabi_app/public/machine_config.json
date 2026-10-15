@@ -26,7 +26,7 @@
         "arms_angular_accel": 8,
         "z_max_angular_velocity": 5,
         "z_angular_accel": 30,
-        "pump_steps_per_revoulution": 1600,
+        "pump_steps_per_revolution": 1600,
         "kinematic_steps_per_revolution": 1600
       },
       "a": {
@@ -42,7 +42,7 @@
       "z": {
         "stp_pin": 6,
         "dir_pin": 7,
-        "invert_dir": 1
+        "invert_dir": 0
       },
       "pumps": [
         {

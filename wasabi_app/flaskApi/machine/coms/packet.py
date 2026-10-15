@@ -4,6 +4,17 @@ from . import codex
 from typing import Literal
 
 
+# packet structure is strictly ordered by byte:
+# 0: start byte
+# 1: coms code
+# 2: data type
+# 3-4: data length
+# 5 to n + 5: data
+# n+6 to n+10: checksum
+
+HEADER_SIZE = 5
+
+
 def make_uint8_t(val: int):
     return val.to_bytes(byteorder="little", length=1)
 
@@ -12,8 +23,14 @@ def make_uint16_t(val: int):
     return val.to_bytes(byteorder="little", length=2)
 
 
-def make_pico_int(val: int):
-    return val.to_bytes(byteorder="little", length=4)
+def get_pico_int(val: int):
+    print(f"attempting to convert: {val}")
+    return val.to_bytes(byteorder="little", length=4, signed=True)
+
+
+def get_pico_float(val: float):
+    print(f"attempting to convert: {val}")
+    return struct.pack('<f', val)
 
 
 def parse_uint16_t(databytes: bytearray):
@@ -43,13 +60,8 @@ class Packet:
         self.data = data
         self.checksum = 0
 
-    # packet structure is strictly ordered by byte:
-    # 0: start byte
-    # 1: coms code
-    # 2: data type
-    # 3-4: data length
-    # 5 to n + 5: data
-    # n+6 to n+10: checksum
+    def __repr__(self):
+        return f"{codex.COMS_INV[self.code]} type packet with {codex.types_by_code[self.datatype_id]} data of value: {self.data}"
 
     def make_header(self) -> bytearray:
         header = bytearray()
@@ -62,12 +74,12 @@ class Packet:
     def calculate_checksum(self) -> bytearray:
         message_bytes = self.make_header()
         message_bytes += self.data
-        return make_pico_int(zlib.crc32(message_bytes))
+        return get_pico_int(0)
 
     def get_full_bytes(self) -> bytearray:
         out_bytes = self.make_header()
         out_bytes += self.data
-        out_bytes += make_pico_int(zlib.crc32(out_bytes))
+        out_bytes += get_pico_int(0)
         return out_bytes
 
     def get_int_argvec(self) -> list[int]:
@@ -95,19 +107,26 @@ def make_new_packet(code, datatype, data: bytearray) -> Packet:
 def make_int_vec_packet(code, vec: list[int]) -> Packet:
     output_data = b""
     for entry in vec:
-        output_data += make_pico_int(entry)
+        output_data += get_pico_int(entry)
 
-    return Packet(code, codex.INT, len(output_data), output_data)
+    return Packet(code, int, len(output_data), output_data)
+
+
+def make_float_vec_packet(code, vec: list[float]) -> Packet:
+    output_data = b""
+    for entry in vec:
+        output_data += get_pico_float(entry)
+
+    return Packet(code, float, len(output_data), output_data)
 
 
 def code_packet(code: int):
-    code = bytearray(bytes([code]))
-    return make_new_packet(code, codex.NONE, b"")
+    return make_new_packet(code, None, b"")
 
 
 def state_packet(state: Literal[codex.BUSY, codex.LISTENING]):
     state = bytearray(bytes([state]))
-    return make_new_packet(codex.STATE, codex.INT, state)
+    return make_new_packet(codex.STATE, int, state)
 
 
 def get_settings_packet(settings_dict):
@@ -136,7 +155,7 @@ def get_settings_packet(settings_dict):
         motors["z"]["invert_dir"],
         common_settings["kinematic_steps_per_revolution"],
     ]
-    pump_microsteps = common_settings["pump_steps_per_revoulution"]
+    pump_microsteps = common_settings["pump_steps_per_revolution"]
     # send pump motor settings -----------------
     for pump_conf in motors["pumps"]:
         settings += [
