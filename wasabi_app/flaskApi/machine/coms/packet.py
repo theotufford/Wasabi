@@ -24,12 +24,10 @@ def make_uint16_t(val: int):
 
 
 def get_pico_int(val: int):
-    print(f"attempting to convert: {val}")
     return val.to_bytes(byteorder="little", length=4, signed=True)
 
 
 def get_pico_float(val: float):
-    print(f"attempting to convert: {val}")
     return struct.pack('<f', val)
 
 
@@ -132,28 +130,41 @@ def state_packet(state: Literal[codex.BUSY, codex.LISTENING]):
 def get_settings_packet(settings_dict):
     motors = settings_dict["machine"]["motors"]
     common_settings = motors["common_settings"]
-
-    # send common pico pin settings -------------
     pinsettings = settings_dict["machine"]["pins"]
+    dimensionsettings = settings_dict["machine"]["machineDimensions"]
+
+    kine_spr = common_settings["kinematic_steps_per_revolution"]
+
+    a_lim_stp_pos = dimensionsettings["a_endstop_position_deg"] / 360
+    b_lim_stp_pos = dimensionsettings["b_endstop_position_deg"] / 360
+    z_lim_stp_pos = dimensionsettings["z_endstop_position_mm"] / dimensionsettings["z_screw_pitch"]
+
+    a_lim_stp_pos = round(a_lim_stp_pos * kine_spr)
+    b_lim_stp_pos = round(b_lim_stp_pos * kine_spr)
+    z_lim_stp_pos = round(z_lim_stp_pos * kine_spr)
+    # send common pico pin settings -------------
     settings = [
         # a motor settings
         motors["a"]["stp_pin"],
         motors["a"]["dir_pin"],
         pinsettings["a_endstop"],
+        a_lim_stp_pos,
         motors["a"]["invert_dir"],
-        common_settings["kinematic_steps_per_revolution"],
+        kine_spr,
         # b motor settings
         motors["b"]["stp_pin"],
         motors["b"]["dir_pin"],
         pinsettings["b_endstop"],
+        b_lim_stp_pos,
         motors["b"]["invert_dir"],
-        common_settings["kinematic_steps_per_revolution"],
+        kine_spr,
         # z motor settings
         motors["z"]["stp_pin"],
         motors["z"]["dir_pin"],
         pinsettings["z_endstop"],
+        z_lim_stp_pos,
         motors["z"]["invert_dir"],
-        common_settings["kinematic_steps_per_revolution"],
+        kine_spr,
     ]
     pump_microsteps = common_settings["pump_steps_per_revolution"]
     # send pump motor settings -----------------
@@ -162,6 +173,7 @@ def get_settings_packet(settings_dict):
             pump_conf["stp_pin"],
             pump_conf["dir_pin"],
             -1,  # pumps dont have limit switches
+            -1,
             pump_conf["invert_dir"],
             pump_microsteps
         ]
@@ -193,9 +205,20 @@ class MoveEntity:
         data += bytearray(struct.pack("<f", self.accel))
         return data
 
+    def __repr__(self):
+        return f"""
+    mot: {self.motid}
+    profile_id: {self.profile_id}
+    movetype: {self.movetype}
+    target: {self.step_target}
+    vmax: {self.vmax}
+    accel: {self.accel}
+    """
+
 
 def move_packet(moves: list[MoveEntity]) -> Packet:
     output_data = b""
+    print(f"generating move packet: {moves}")
     for move in moves:
         output_data += move.data
     return Packet(codex.MOVE, bytearray, len(output_data), output_data)

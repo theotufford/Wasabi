@@ -25,7 +25,7 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     @bp.route('/work_offset_finder', methods=['POST'])
     async def work_offset_finder():
         if not machine.position_known:
-            await home()
+            home()
         machine.goto_well("A1")
         await found_corner.wait()
         top_left = machine.current_position.position

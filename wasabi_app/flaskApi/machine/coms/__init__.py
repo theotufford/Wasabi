@@ -25,9 +25,9 @@ def code_dependent_true(target_code):
 class ComsChannel:
     def __init__(self, settings_path,  timeout):
         self.picostate: Literal[codex.BUSY,
-                                codex.LISTENING, codex.IDLE] = codex.BUSY
+                                codex.LISTENING] = codex.LISTENING
         self.self_state: Literal[codex.BUSY,
-                                              codex.LISTENING, codex.IDLE] = codex.BUSY
+                                 codex.LISTENING] = codex.BUSY
         self.settings_path = settings_path
         self.queue_size = 60
         self.tx_head = 0
@@ -68,6 +68,7 @@ class ComsChannel:
 
     def send_packet(self, packet: Packet):
         with self.queue_lock:
+            print(f"queuing packet with code {codex.COMS_INV[packet.code]}")
             if self.queue_count == self.queue_size:
                 raise OverflowError("trying to queue too many packets!")
                 return
@@ -76,6 +77,7 @@ class ComsChannel:
             self.queue_count += 1
 
     def listen_for_packet(self):
+        print("\rlistening for packet", end="")
         header_data = bytearray()
         while True:
             if self.ser.in_waiting > HEADER_SIZE:
@@ -117,9 +119,6 @@ class ComsChannel:
     def transmit_next(self):
         with self.queue_lock:
             next_packet = self.txQueue[self.tx_tail]
-            if next_packet.code == codex.STATE:
-                self.self_state = next_packet.data[0]
-
             print(f"transmitting packet: {next_packet}")
             self.ser.write(next_packet.get_full_bytes())
             self.ser.flush()
@@ -132,16 +131,19 @@ class ComsChannel:
         while True:
             # print(f"\r time: {time.perf_counter()}, picostate: {codex.STATE_INV[self.picostate]}", end=" ")
             with self.queue_lock:
-                if self.picostate != codex.BUSY:
-                    if self.queue_count > 0:
+                if (self.picostate != codex.BUSY):
+                    if (self.queue_count == 0):
+                        if (self.picostate == codex.LISTENING):
+                            self.send_packet(state_packet(codex.IDLE))
+                            self.transmit_next()
+                        self.self_state = codex.IDLE
+                        self.picostate = codex.IDLE
+                    else:
                         self.send_packet(state_packet(codex.LISTENING))
-                    elif self.self_state == codex.LISTENING:
-                        self.send_packet(state_packet(codex.IDLE))
-
-                    while self.queue_count > 0:
-                        self.transmit_next()
-                        if self.queue_count == 0:
-                            self.picostate = codex.BUSY
+                        while (self.queue_count != 0):
+                            self.transmit_next()
+                        self.self_state = codex.BUSY
+                        self.picostate = codex.BUSY
 
             current_packet = self.listen_for_packet()
             if current_packet is None:
@@ -156,7 +158,7 @@ class ComsChannel:
                     called_functions.append(name)
             if self.picostate != last:
                 last = self.picostate
-                print(f"state updated: {codex.STATE_INV[self.picostate]}")
+                print(f"state updated {codex.STATE_INV[self.picostate]}")
 
     def __del__(self):
         self.ser.close()

@@ -33,8 +33,8 @@ class Kinematic_State():
             cartesian_position = Vec3d([*cartesian_position.axis, 0])
 
     def __repr__(self):
-        return f"""{self.x}, {self.y}, {self.z}
-                   {math.degrees(self.alpha)},{math.degrees(self.beta)}
+        return f"""{self.position.x}, {self.position.y}, {self.position.z}
+                   {math.degrees(self.angular_position.a)},{math.degrees(self.angular_position.b)}
                    """
 
     def __add__(self, other):
@@ -172,18 +172,22 @@ class Machine:
         solved = solve_5bar_FK(self.settings(), target.angular_position)
         output_position = Vec3d([*solved.axes, target.position.z])
         output = Kinematic_State(output_position, target.angular_position)
+        print(f"solved fk: {output}")
         return output
 
     def get_pos_IK(self, target: Kinematic_State) -> Kinematic_State:
         angular_target = solve_5bar_IK(
             self.settings(), target.position)
         output = Kinematic_State(target.position, angular_target)
+        print(f"solved Ik: {output}")
         return output
 
     def to_steps(self, pos: Kinematic_State) -> Vec3d:
-        return Vec3d([math.ceil(pos.alpha * self.a_steps_per_rad),
-                      math.ceil(pos.beta * self.b_steps_per_rad),
-                      math.ceil(pos.z * self.z_steps_per_mm)])
+        out = Vec3d([0,0,0])
+        out.axes[codex.A_MOTOR] = math.ceil(pos.angular_position.a * self.a_steps_per_rad)
+        out.axes[codex.B_MOTOR] = math.ceil(pos.angular_position.b * self.b_steps_per_rad)
+        out.axes[codex.Z_MOTOR] = math.ceil(pos.position.z * self.z_steps_per_mm)
+        return out
 
     def from_steps(self, a, b, z) -> Kinematic_State:
         given_pos = Kinematic_State(
@@ -261,6 +265,8 @@ class Machine:
     def handle_liquids(self, volumes: list[liq_handling_data]):
         self.move_complete.clear()
         move_data = []
+        retract_move_data = []
+
         for liq_data in volumes:
             # simulation / audit-trail handling
             if liq_data.volume == 0:
@@ -284,11 +290,13 @@ class Machine:
             common = settings["common_settings"]
 
             rad_per_step = 2 * math.pi / common["pump_steps_per_revolution"]
-            ul_per_steps = pump["ul_per_rad"] * rad_per_step
-            ul_per_steps *= pump["compensation_factor"]
+            ul_per_step = pump["ul_per_rad"] * rad_per_step
+            ul_per_step *= pump["compensation_factor"]
+
+            print(f"ul per step: {ul_per_step}")
 
             def vto_steps(vol: float):
-                return round(vol * ul_per_steps)
+                return round(vol / ul_per_step)
 
             airgap = vto_steps(pump["droplet_vol_ul"] +
                                pump["overshoot_offset_ul"])
@@ -298,28 +306,28 @@ class Machine:
                 codex.NO_DECEL,
                 codex.RELATIVE,
                 vto_steps(liq_data.volume + airgap),
-                pump["ang_accel_rad"],
-                pump["ang_v_max"]
-
+                pump["ang_v_max"],
+                pump["ang_accel_rad"]
             ))
 
-            move_data.append(packet.MoveEntity(
+            retract_move_data.append(packet.MoveEntity(
                 codex.PUMP(liq_data.pumpid),
                 codex.NO_DECEL,
                 codex.RELATIVE,
                 vto_steps(-pump["droplet_vol_ul"]),
-                pump["ang_accel_rad"],
-                pump["ang_v_max"]
+                pump["ang_v_max"],
+                pump["ang_accel_rad"]
             ))
 
         self.coms.send_packet(packet.move_packet(move_data))
+        self.coms.send_packet(packet.move_packet(retract_move_data))
 
     def send_home(self):
         speed_settings = self.settings(
         )["machine"]["motors"]["common_settings"]
-        z_vmax = float(speed_settings["z_max_angular_velocity"])
+        z_vmax = float(speed_settings["z_homing_velocity"])
         z_accel = float(speed_settings["z_angular_accel"])
-        ab_vmax = float(speed_settings["arms_angular_max_velocity"])
+        ab_vmax = float(speed_settings["arms_homing_velocity"])
         ab_accel = float(speed_settings["arms_angular_accel"])
         self.coms.send_packet(packet.make_float_vec_packet(
             codex.HOME,

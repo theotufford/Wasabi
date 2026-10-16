@@ -155,7 +155,7 @@ def solve_5bar_IK(settings: dict, target: Vec3d) -> Vec2d_Ang:
     print(f"solved IK - target_pos: {target}, alpha: {
           (180 / math.pi) * alpha_final}, {(180 / math.pi) * beta_final}")
 
-    return Vec2d_Ang(alpha_final, beta_final)
+    return Vec2d_Ang([alpha_final, beta_final])
 
 
 def solve_5bar_FK(settings: dict, given: Vec2d_Ang) -> Vec2d:

@@ -5,7 +5,10 @@
       "spacing": 70,
       "arm": 60,
       "tool_offset": 10,
-      "z_screw_pitch": 4
+      "z_screw_pitch": 4,
+      "z_endstop_position_mm": 20,
+      "a_endstop_position_deg": 200,
+      "b_endstop_position_deg": 0
     },
     "pins": {
       "on_3b_server_board": {
@@ -22,10 +25,15 @@
     },
     "motors": {
       "common_settings": {
-        "arms_angular_max_velocity": 2,
-        "arms_angular_accel": 8,
+
+        "arms_homing_velocity": 3,
+        "arms_angular_max_velocity": 10,
+        "arms_angular_accel": 60,
+
+        "z_homing_velocity": 5,
         "z_max_angular_velocity": 5,
         "z_angular_accel": 30,
+
         "pump_steps_per_revolution": 1600,
         "kinematic_steps_per_revolution": 1600
       },
