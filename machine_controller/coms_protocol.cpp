@@ -132,10 +132,6 @@ void ComsInstance::transmit_next() {
     return;
   }
   Packet &packet = *tx_queue[tx_read_index];
-
-  if (packet.coms_code == STATE)
-    self_state = packet.data[0];
-
   tx_read_index = (tx_read_index + 1) % TX_HISTORY_LEN;
   uint32_t calculated_checksum = 0; // TODO currently stubbed
   int total_length = HEADER_SIZE + packet.datalen + CHECKSUM_SIZE_BYTES;
@@ -227,7 +223,6 @@ struct MoveData {
 };
 #pragma pack(pop)
 
-enum { ABSOLUTE, RELATIVE };
 
 vector<MoveEntity> parse_move_packet(Packet *movepacket, Motor **motors_byid) {
   Packet &packet = *movepacket;
@@ -298,14 +293,19 @@ void ComsInstance::queue_send(Packet *packet_to_send) {
 void ComsInstance::main_loop() {
   // dump the transmission queue
   if (partner_state != STATE_BUSY) {
-    if (queue_count == 0  && self_state != STATE_IDLE) {
-      queue_send(state_packet(STATE_IDLE));
+    if (queue_count == 0) {
+      if (partner_state == STATE_LISTENING) {
+        queue_send(state_packet(STATE_IDLE));
+        transmit_next();
+      }
+      self_state = STATE_IDLE;
+      partner_state = STATE_IDLE;
     } else {
       queue_send(state_packet(STATE_LISTENING));
-    }
-    while (queue_count != 0) {
       partner_state = STATE_BUSY;
-      transmit_next();
+      while (queue_count != 0) {
+        transmit_next();
+      }
     }
   }
   // once tx is dumped

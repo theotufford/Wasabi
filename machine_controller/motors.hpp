@@ -32,6 +32,7 @@ public:
   const int dir_pin_inverted;
   const int stp_per_rev;
   const int lim_pin;
+  const int lim_pin_stp_position;
 
   volatile int position_state;
   int direction;
@@ -51,11 +52,10 @@ public:
   Motor(const vector<int> &argumentVector);
 };
 
-enum { TRAPEZOIDAL, NO_DECEL, NO_ACCEL, LINEAR };
 
 class MoveEntity {
 public:
-  int profile_id;
+  uint8_t profile_id;
   float angv_max;
   float ang_accel;
   double angular_distance;
@@ -75,7 +75,7 @@ public:
 
   Motor *motor;
 
-  MoveEntity(int profile_id, float angv_max, float ang_accel_max,
+  MoveEntity(uint8_t profile_id, float angv_max, float ang_accel_max,
              int step_distance, Motor *mtr);
   uint32_t find_step_timing();
 };

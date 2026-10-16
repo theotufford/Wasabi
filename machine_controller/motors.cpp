@@ -34,6 +34,7 @@ static inline void arm(int n, uint32_t t) {
 Motor::Motor(const vector<int> &argumentVector)
     : step_pin(argumentVector[STP_PIN]), dir_pin(argumentVector[DIR_PIN]),
       lim_pin(argumentVector[LIM_PIN]),
+      lim_pin_stp_position(argumentVector[LIM_STP_POS]),
       dir_pin_inverted(argumentVector[INVERSION]),
       stp_per_rev(argumentVector[STP_PER_REV]), position_state(0),
       direction(1) {
@@ -81,7 +82,7 @@ void Motor::step() {
   position_state += direction;
 }
 
-MoveEntity::MoveEntity(int profile_id, float angv_max, float ang_accel,
+MoveEntity::MoveEntity(uint8_t profile_id, float angv_max, float ang_accel,
                        int step_distance, Motor *motor)
     : profile_id(profile_id), angv_max(angv_max), ang_accel(ang_accel),
       step_distance(step_distance), motor(motor), calculation_step_index(0),

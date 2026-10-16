@@ -27,6 +27,9 @@ enum : uint8_t { STATE_BUSY, STATE_LISTENING, STATE_IDLE };
 // coms data type ids
 enum : uint8_t { INT_ID, FLOAT_ID, STRUCT_ID, NONETYPE_ID };
 
+enum : uint8_t { ABSOLUTE, RELATIVE };
+enum: uint8_t { TRAPEZOIDAL, NO_DECEL, NO_ACCEL, LINEAR };
+
 //  Constructs and writes out packet, also calculates checksum
 //  packet structure is strictly ordered by byte:
 //  0: start byte
@@ -94,4 +97,12 @@ public:
 };
 
 // motor frame settings codex
-enum { STP_PIN, DIR_PIN, LIM_PIN, INVERSION, STP_PER_REV, MOTOR_CONFIG_SIZE };
+enum {
+  STP_PIN,
+  DIR_PIN,
+  LIM_PIN,
+  LIM_STP_POS,
+  INVERSION,
+  STP_PER_REV,
+  MOTOR_CONFIG_SIZE
+};

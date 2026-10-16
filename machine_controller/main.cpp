@@ -63,17 +63,14 @@ int main() {
         B_motor = motors[1];
         Z_motor = motors[2];
 
-
         vector<MoveEntity> gen_move;
         vector<MoveEntity> rev_gen_move;
         for (Motor *mot : motors) {
           if (mot == nullptr) {
             continue;
           }
-          gen_move.push_back(MoveEntity(TRAPEZOIDAL, 10, 4,
-             200, mot));
-          rev_gen_move.push_back(MoveEntity(TRAPEZOIDAL, 10, 4,
-             -200, mot));
+          gen_move.push_back(MoveEntity(TRAPEZOIDAL, 10, 4, 200, mot));
+          rev_gen_move.push_back(MoveEntity(TRAPEZOIDAL, 10, 4, -200, mot));
         }
         await_async_move(gen_move);
         await_async_move(rev_gen_move);
@@ -102,9 +99,11 @@ int main() {
         float z_accel = speeds[1];
         float ab_vmax = speeds[2];
         float ab_accel = speeds[3];
+
         A_motor->position_state = 0;
         B_motor->position_state = 0;
         Z_motor->position_state = 0;
+
         MoveEntity zmove(NO_DECEL, z_vmax, z_accel, 999999, Z_motor);
         zmove.homing = true;
         vector<MoveEntity> z_home_move = {zmove};
@@ -118,6 +117,13 @@ int main() {
         vector<MoveEntity> ab_home_move = {amove, bmove};
         await_async_move(ab_home_move);
 
+        vector<int> initial_positions = {
+            A_motor->lim_pin_stp_position - A_motor->position_state,
+            B_motor->lim_pin_stp_position - B_motor->position_state,
+            Z_motor->lim_pin_stp_position - Z_motor->position_state};
+
+        ctx.coms_ctx->queue_send(packet_from_vec<int>(HOME, initial_positions));
+
         MoveEntity areset(TRAPEZOIDAL, ab_vmax, ab_accel,
                           -A_motor->position_state, A_motor);
         MoveEntity breset(TRAPEZOIDAL, ab_vmax, ab_accel,
@@ -127,13 +133,9 @@ int main() {
 
         vector<MoveEntity> reset_move = {areset, breset, zreset};
 
-        vector<int> initial_positions = {-A_motor->position_state,
-                                         -B_motor->position_state,
-                                         -Z_motor->position_state};
-        ctx.coms_ctx->queue_send(packet_from_vec<int>(HOME, initial_positions));
-        A_motor->position_state = 0;
-        B_motor->position_state = 0;
-        Z_motor->position_state = 0;
+        A_motor->position_state = A_motor->lim_pin_stp_position;
+        B_motor->position_state = B_motor->lim_pin_stp_position;
+        Z_motor->position_state = Z_motor->lim_pin_stp_position;
 
         await_async_move(reset_move);
       }));
