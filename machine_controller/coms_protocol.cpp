@@ -223,7 +223,6 @@ struct MoveData {
 };
 #pragma pack(pop)
 
-
 vector<MoveEntity> parse_move_packet(Packet *movepacket, Motor **motors_byid) {
   Packet &packet = *movepacket;
   // move packet structure:
@@ -233,11 +232,17 @@ vector<MoveEntity> parse_move_packet(Packet *movepacket, Motor **motors_byid) {
     uint8_t *raw_data = packet.data + i;
     MoveData tmp_mdata;
     memcpy(&tmp_mdata, raw_data, sizeof(MoveData));
+    int id = tmp_mdata.mot_id;
+    if (id >= 24 || !motors_byid[id]) continue;
     Motor *motor = motors_byid[tmp_mdata.mot_id];
     int step_distance = tmp_mdata.step_target;
 
     if (tmp_mdata.movetype == ABSOLUTE) {
       step_distance = step_distance - motor->position_state;
+    }
+
+    if (step_distance == 0){
+      continue;
     }
 
     output.push_back(MoveEntity(tmp_mdata.profile_id, tmp_mdata.vmax,
@@ -291,24 +296,6 @@ void ComsInstance::queue_send(Packet *packet_to_send) {
 }
 
 void ComsInstance::main_loop() {
-  // dump the transmission queue
-  if (partner_state != STATE_BUSY) {
-    if (queue_count == 0) {
-      if (partner_state == STATE_LISTENING) {
-        queue_send(state_packet(STATE_IDLE));
-        transmit_next();
-      }
-      self_state = STATE_IDLE;
-      partner_state = STATE_IDLE;
-    } else {
-      queue_send(state_packet(STATE_LISTENING));
-      partner_state = STATE_BUSY;
-      while (queue_count != 0) {
-        transmit_next();
-      }
-    }
-  }
-  // once tx is dumped
   variant<Packet *, int> listen_response = listen_for_packet();
   bool packet_received = holds_alternative<Packet *>(listen_response);
   if (packet_received) {
@@ -321,5 +308,23 @@ void ComsInstance::main_loop() {
       }
     }
     delete &pack;
+  } else {
+    // dump the transmission queue if partner is listening and no rx
+    if (partner_state != STATE_BUSY) {
+      if (queue_count == 0) {
+        if (partner_state == STATE_LISTENING) {
+          queue_send(state_packet(STATE_IDLE));
+          transmit_next();
+        }
+        self_state = STATE_IDLE;
+        partner_state = STATE_IDLE;
+      } else {
+        queue_send(state_packet(STATE_LISTENING));
+        partner_state = STATE_BUSY;
+        while (queue_count != 0) {
+          transmit_next();
+        }
+      }
+    }
   }
 }

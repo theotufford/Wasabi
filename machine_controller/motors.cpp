@@ -23,14 +23,6 @@
 using namespace std;
 
 // hw alarm set target but tolerant of lateness
-static inline void arm(int n, uint32_t t) {
-  uint32_t now = timer_hw->timelr;
-  uint32_t target = (uint32_t)t;
-  if ((int32_t)(target - now) < 4)
-    target = now + 4;
-  hardware_alarm_set_target(n, target);
-}
-
 Motor::Motor(const vector<int> &argumentVector)
     : step_pin(argumentVector[STP_PIN]), dir_pin(argumentVector[DIR_PIN]),
       lim_pin(argumentVector[LIM_PIN]),
@@ -98,7 +90,12 @@ MoveEntity::MoveEntity(uint8_t profile_id, float angv_max, float ang_accel,
   const_stop = (abs_ang_dist - (v_reached * v_reached) / (2 * ang_accel));
 
   if (profile_id == TRAPEZOIDAL) {
-    total_move_time = (abs_ang_dist / v_reached + v_reached / ang_accel);
+    if (short_hop) {
+      accel_stop = const_stop = abs_ang_dist / 2;
+      total_move_time = 2 * sqrt(abs_ang_dist / ang_accel);
+    } else {
+      total_move_time = (abs_ang_dist / v_reached + v_reached / ang_accel);
+    }
   }
   if (profile_id == NO_ACCEL) {
     accel_stop = 0;
@@ -127,6 +124,7 @@ uint32_t MoveEntity::find_step_timing() {
   calculation_step_index += 1;
   double theta = motor->TORADS * (calculation_step_index);
   double stepTiming;
+
   if (profile_id == TRAPEZOIDAL) {
     if (theta < accel_stop) {
       stepTiming = sqrt((2 * theta) / ang_accel);
@@ -153,8 +151,16 @@ uint32_t MoveEntity::find_step_timing() {
     }
   }
   uint64_t next_step_time = (uint64_t)(stepTiming * 1e6f);
-  next_timing = delayed_by_us(move_init_time, next_step_time);
-  return next_timing;
+  return next_step_time;
+}
+
+void set_stp_alarm(int alarm_num, uint32_t rel_time, MoveEntity * move){
+    uint32_t time = delayed_by_us(rel_time, move->move_init_time);
+    if (hardware_alarm_set_target(alarm_num, time)) {
+      auto missed_by = ((int32_t)timer_hw->timelr - (int32_t)time);
+      move->move_init_time += missed_by;
+      hardware_alarm_force_irq(alarm_num);
+    }
 }
 
 // behold... the sorted step queue torus
@@ -173,15 +179,10 @@ static spin_lock_t *queue_lock = spin_lock_init(num);
 
 void alarm_isr(uint alarm_num) {
   StepAlarmQueue &q = *step_queues[alarm_num];
-  uint32_t save = spin_lock_blocking(queue_lock);
-  while (q.queue_count > 0) {
-    if ((int32_t)((uint32_t)q.time_target - timer_hw->timelr) > 0) {
-      arm(alarm_num, q.time_target);
-      break;
-    }
-    q.alarm_callback();
+  q.alarm_callback();
+  if (q.time_target != 0) {
+    set_stp_alarm(alarm_num, q.time_target, q.circ_queue[q.read_index].move);
   }
-  spin_unlock(queue_lock, save);
 }
 
 // only need to set the handler via the api on core 1 because core 0 and 1
@@ -208,7 +209,10 @@ void StepAlarmQueue::alarm_callback() {
   read_index = (read_index + 1) & AQ_MASK;
   if (queue_count > 0)
     time_target = circ_queue[read_index].time;
+  else
+    time_target = 0;
 }
+
 
 void enqueue_next_step(MoveEntity *move) {
   uint32_t next_timing = move->find_step_timing();
@@ -224,21 +228,20 @@ void enqueue_next_step(MoveEntity *move) {
   }
 
   StepAlarmQueue &queue = *queue_ptr;
-  uint32_t save = spin_lock_blocking(queue_lock);
 
   if (queue.queue_count == 0) { // first step in queue
     queue.time_target = next_timing;
     queue.circ_queue[queue.read_index] = stp_to_queue;
     queue.write_index = (queue.write_index + 1) & AQ_MASK;
     // set initial alarm
-    arm(queue.alarm_number, next_timing);
+    set_stp_alarm(queue.alarm_number, next_timing, move);
 
   } else if (next_timing < queue.time_target) {
     queue.read_index = (queue.read_index - 1 + ALARM_QUEUE_LENGTH) & AQ_MASK;
     queue.time_target = next_timing;
     queue.circ_queue[queue.read_index] = stp_to_queue;
     // wrote timing before current target and thus need to push target ahead
-    arm(queue.alarm_number, next_timing);
+    set_stp_alarm(queue.alarm_number, next_timing, move);
   } else {
     int i = queue.write_index;
     queue.circ_queue[i] = stp_to_queue;
@@ -254,7 +257,6 @@ void enqueue_next_step(MoveEntity *move) {
   }
   queue.queue_count++;
   alarm_write_index = (alarm_write_index + 1) & (ALARM_COUNT - 1);
-  spin_unlock(queue_lock, save);
 }
 
 void await_async_move(vector<MoveEntity> &moves) {

@@ -53,27 +53,23 @@ int main() {
           motors[i] = newmotor;
         }
         settings_initialized = true;
-        for (Motor *mot : motors) {
-          if (mot == nullptr) {
-            continue;
-          }
-          mot->buzz(5);
-        }
         A_motor = motors[0];
         B_motor = motors[1];
         Z_motor = motors[2];
 
-        vector<MoveEntity> gen_move;
-        vector<MoveEntity> rev_gen_move;
-        for (Motor *mot : motors) {
-          if (mot == nullptr) {
-            continue;
+        for (int i = 0; i < 2; i++) {
+          vector<MoveEntity> gen_move;
+          vector<MoveEntity> rev_gen_move;
+          for (Motor *mot : motors) {
+            if (mot == nullptr) {
+              continue;
+            }
+            gen_move.push_back(MoveEntity(TRAPEZOIDAL, 10, 4, 200, mot));
+            rev_gen_move.push_back(MoveEntity(TRAPEZOIDAL, 10, 4, -200, mot));
           }
-          gen_move.push_back(MoveEntity(TRAPEZOIDAL, 10, 4, 200, mot));
-          rev_gen_move.push_back(MoveEntity(TRAPEZOIDAL, 10, 4, -200, mot));
+          await_async_move(gen_move);
+          await_async_move(rev_gen_move);
         }
-        await_async_move(gen_move);
-        await_async_move(rev_gen_move);
       }));
 
   coms.add_response(
@@ -116,6 +112,32 @@ int main() {
         bmove.homing = true;
         vector<MoveEntity> ab_home_move = {amove, bmove};
         await_async_move(ab_home_move);
+
+        A_motor->set_dir(A_motor->direction * -1);
+        B_motor->set_dir(B_motor->direction * -1);
+
+        while (!gpio_get(A_motor->lim_pin)) {
+          A_motor->step();
+          sleep_ms(10);
+        }
+
+        while (!gpio_get(B_motor->lim_pin)) {
+          B_motor->step();
+          sleep_ms(10);
+        }
+
+        A_motor->set_dir(A_motor->direction * -1);
+        B_motor->set_dir(B_motor->direction * -1);
+
+        while (gpio_get(A_motor->lim_pin)) {
+          A_motor->step();
+          sleep_ms(10);
+        }
+
+        while (gpio_get(B_motor->lim_pin)) {
+          B_motor->step();
+          sleep_ms(10);
+        }
 
         vector<int> initial_positions = {
             A_motor->lim_pin_stp_position - A_motor->position_state,
