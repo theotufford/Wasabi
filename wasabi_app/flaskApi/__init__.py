@@ -8,6 +8,7 @@ from flask import Flask, session
 from flask_session import Session
 from flask_cors import CORS
 import os
+from .machine import kinematics
 
 
 app = Flask(__name__)

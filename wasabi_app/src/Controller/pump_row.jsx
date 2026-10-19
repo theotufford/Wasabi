@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRef } from "react"
 import { apiCall, control_call, dataStream } from '@src/backendConfig.jsx'
 import { Reagent_Selector } from "../Reagent_Selector"
@@ -46,35 +46,11 @@ function Pump_block(props) {
       }
     )
   }
-
-  function Pump_reagent_swapper(props) {
-    return (
-      <dialog id={id}>
-        <form action={() => commit(selected_reagent)}>
-          <p>current: {props.reagent}</p>
-          needed for current experiment:
-          <ul>
-            {
-              reagents_needed.map((needed_reagent) => {
-                return (<li key={needed_reagent} value={needed_reagent}>{needed_reagent}</li>)
-              })
-            }
-          </ul>
-          <div>
-          </div>
-        </form>
-      </dialog >
-    )
-  }
-
-  let content
-
-  if (experiment_reagents.includes(reagent)) {
-    content = (<> {id} has {reagent}, no change needed </>)
-  } else {
-    content = (<> pump {id} has '{reagent}', not used in loaded experiment </>)
-  }
   const [selected_reagent, set_selected_reagent] = useState(props.reagent)
+  useEffect(() => {
+    commit(selected_reagent)
+  }, [selected_reagent])
+  
 
   return (
     <tr>

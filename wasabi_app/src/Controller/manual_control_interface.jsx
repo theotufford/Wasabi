@@ -30,7 +30,7 @@ function Jogger(props) {
   }
 
 
-  const go_to_well = (wellid) => {
+  const goto_well = (wellid) => {
     control_call({
       route: "move",
       body: {
@@ -47,6 +47,7 @@ function Jogger(props) {
         <input name='xyjog' type="number" onChange={(e) => {
           const val = e.target.valueAsNumber
           if (isNaN(val)) { return }
+          xy_jogIncrement.current = val
         }} />
 
         <div className='xy_control_buttons'>
@@ -62,12 +63,18 @@ function Jogger(props) {
         <input name='zjog' type="number" onChange={(e) => {
           const val = e.target.valueAsNumber
           if (isNaN(val)) { return }
-          z_jogIncrement.current = ([xy_jogIncrement.current, val])
+          z_jogIncrement.current = val
         }} />
-        <button onClick={() => jog(0, 0, z_jogIncrement.current)} >-z</button>
-        <button onClick={() => jog(0, 0, -z_jogIncrement.current)} >+z</button>
+        <button onClick={() => jog(0, 0, -z_jogIncrement.current)} >-z</button>
+        <button onClick={() => jog(0, 0, z_jogIncrement.current)} >+z</button>
       </div>
       <button onClick={send_home}>home</button>
+      <button onClick={() => control_call({route: "set_top_left"})} > set top left </button>
+      <button onClick={() => control_call({route: "set_bottom_right"})} > set bottom right </button>
+      <button onClick={() => goto_well("A1")}>goto A1</button>
+      <button onClick={() => goto_well("A12")}>goto A12</button>
+      <button onClick={() => goto_well("H1")}>goto H1</button>
+      <button onClick={() => goto_well("H12")}>goto H12</button>
       <button onClick={send_set_waste_position}>set waste position</button>
     </div>
   )

@@ -8,6 +8,7 @@ class Vector:
         self.axes = axes
 
     def __add__(self, other):
+        print(f"adding : {self} + {other}")
         if isinstance(other, Vector):
             if self.dimension == other.dimension:
                 return self.__class__(
@@ -189,4 +190,4 @@ def solve_5bar_FK(settings: dict, given: Vec2d_Ang) -> Vec2d:
 
     end_point = joint_position + tool_offset_vector
 
-    return end_point
+    return Vec2d([-end_point.x,end_point.y])

@@ -39,7 +39,7 @@ class Kinematic_State():
 
     def __add__(self, other):
         if isinstance(other, Vec3d):
-            new = Kinematic_State(self.position + other.position)
+            new = Kinematic_State(self.position + other)
             return new
         elif isinstance(other, list):
             new = Kinematic_State(Vec3d(other) + self.position)
@@ -49,7 +49,7 @@ class Kinematic_State():
 
     def __sub__(self, other):
         if isinstance(other, Vec3d):
-            new = Kinematic_State(self.position - other.position)
+            new = Kinematic_State(self.position - other)
             return new
         elif isinstance(other, list):
             new = Kinematic_State(self.position - Vec3d(other))
@@ -183,10 +183,13 @@ class Machine:
         return output
 
     def to_steps(self, pos: Kinematic_State) -> Vec3d:
-        out = Vec3d([0,0,0])
-        out.axes[codex.A_MOTOR] = math.ceil(pos.angular_position.a * self.a_steps_per_rad)
-        out.axes[codex.B_MOTOR] = math.ceil(pos.angular_position.b * self.b_steps_per_rad)
-        out.axes[codex.Z_MOTOR] = math.ceil(pos.position.z * self.z_steps_per_mm)
+        out = Vec3d([0, 0, 0])
+        out.axes[codex.A_MOTOR] = math.ceil(
+            pos.angular_position.a * self.a_steps_per_rad)
+        out.axes[codex.B_MOTOR] = math.ceil(
+            pos.angular_position.b * self.b_steps_per_rad)
+        out.axes[codex.Z_MOTOR] = math.ceil(
+            pos.position.z * self.z_steps_per_mm)
         return out
 
     def from_steps(self, a, b, z) -> Kinematic_State:
@@ -257,15 +260,16 @@ class Machine:
             return
 
     def goto_well(self, wellid: str):
-        target_pos = self.plate.get_well_abs_position(wellid)
-        print(f"going to {wellid} at target position: {target_pos}")
+        abs_well_pos_2d = self.plate.get_well_abs_position(wellid)
+        target_pos = Kinematic_State(Vec3d([*abs_well_pos_2d.axes, self.current_position.position.z]))
+        print(f"going to {wellid} at target position: {target_pos.position}")
         self.current_container = self.plate.by_alph(wellid)
         self.goto_pos(target_pos)
 
     def handle_liquids(self, volumes: list[liq_handling_data]):
         self.move_complete.clear()
-        move_data = []
-        retract_move_data = []
+        move_data=[]
+        retract_move_data=[]
 
         for liq_data in volumes:
             # simulation / audit-trail handling
@@ -273,24 +277,24 @@ class Machine:
                 continue
             if liq_data.volume > 0:
                 if liq_data.pumpid is None:
-                    id = get_pump_id(liq_data.reagent)
-                line_volume: Reagent_Mix = self.pump_line_contents[liq_data.pumpid][-1]
+                    id=get_pump_id(liq_data.reagent)
+                line_volume: Reagent_Mix=self.pump_line_contents[liq_data.pumpid][-1]
                 self.current_container.gain_mixed_volume(
                     line_volume.release_volume(liq_data.volume))
                 if line_volume.get_total_volume() == 0:
                     self.pump_line_contents.pop()
             elif liq_data.volume < 0:
-                self.impure_method_flag = True
-                pump_line = self.pump_line_contents[id]
-                reagent_contents = self.current_container.contents
+                self.impure_method_flag=True
+                pump_line=self.pump_line_contents[id]
+                reagent_contents=self.current_container.contents
                 pump_line.append(reagent_contents)
 
-            settings = self.settings()["machine"]["motors"]
-            pump = settings["pumps"][liq_data.pumpid]
-            common = settings["common_settings"]
+            settings=self.settings()["machine"]["motors"]
+            pump=settings["pumps"][liq_data.pumpid]
+            common=settings["common_settings"]
 
-            rad_per_step = 2 * math.pi / common["pump_steps_per_revolution"]
-            ul_per_step = pump["ul_per_rad"] * rad_per_step
+            rad_per_step=2 * math.pi / common["pump_steps_per_revolution"]
+            ul_per_step=pump["ul_per_rad"] * rad_per_step
             ul_per_step *= pump["compensation_factor"]
 
             print(f"ul per step: {ul_per_step}")
@@ -298,7 +302,7 @@ class Machine:
             def vto_steps(vol: float):
                 return round(vol / ul_per_step)
 
-            airgap = vto_steps(pump["droplet_vol_ul"] +
+            airgap=vto_steps(pump["droplet_vol_ul"] +
                                pump["overshoot_offset_ul"])
 
             move_data.append(packet.MoveEntity(
@@ -323,12 +327,12 @@ class Machine:
         self.coms.send_packet(packet.move_packet(retract_move_data))
 
     def send_home(self):
-        speed_settings = self.settings(
+        speed_settings=self.settings(
         )["machine"]["motors"]["common_settings"]
-        z_vmax = float(speed_settings["z_homing_velocity"])
-        z_accel = float(speed_settings["z_angular_accel"])
-        ab_vmax = float(speed_settings["arms_homing_velocity"])
-        ab_accel = float(speed_settings["arms_angular_accel"])
+        z_vmax=float(speed_settings["z_homing_velocity"])
+        z_accel=float(speed_settings["z_angular_accel"])
+        ab_vmax=float(speed_settings["arms_homing_velocity"])
+        ab_accel=float(speed_settings["arms_angular_accel"])
         self.coms.send_packet(packet.make_float_vec_packet(
             codex.HOME,
             [z_vmax,

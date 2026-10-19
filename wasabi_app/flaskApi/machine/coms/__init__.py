@@ -77,7 +77,6 @@ class ComsChannel:
             self.queue_count += 1
 
     def listen_for_packet(self):
-        print("\rlistening for packet", end="")
         header_data = bytearray()
         while True:
             if self.ser.in_waiting > HEADER_SIZE:
@@ -128,8 +127,9 @@ class ComsChannel:
 
     def init_coms_handler_loop(self):
         last = self.picostate
+        transmission_total_size = 0
         while True:
-            # print(f"\r time: {time.perf_counter()}, picostate: {codex.STATE_INV[self.picostate]}", end=" ")
+            # print(f"\r time: {time.perf_counter()}, picostate: {codex.STATE_INV[self.picostate]}, transmission size: {transmission_total_size}", end=" ")
             with self.queue_lock:
                 if (self.picostate != codex.BUSY):
                     if (self.queue_count == 0):
@@ -139,15 +139,26 @@ class ComsChannel:
                         self.self_state = codex.IDLE
                         self.picostate = codex.IDLE
                     else:
-                        self.send_packet(state_packet(codex.LISTENING))
-                        while (self.queue_count != 0):
+                        while (self.queue_count > 0):
+                            next_packet = self.txQueue[self.tx_tail]
+                            transmission_total_size += len(next_packet.get_full_bytes())
+                            if (transmission_total_size > 1024):
+                                break
                             self.transmit_next()
+
+                            if self.queue_count == 0:
+                                self.send_packet(state_packet(codex.LISTENING))
+                                self.transmit_next()
+
+
                         self.self_state = codex.BUSY
                         self.picostate = codex.BUSY
 
             current_packet = self.listen_for_packet()
             if current_packet is None:
                 continue
+
+            transmission_total_size = 0
 
             called_functions = []
             print(f"got packet: {current_packet}")

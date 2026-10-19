@@ -59,7 +59,7 @@ class Plate:
         self.rows = settings["rows"]
         self.columns = settings["columns"]
         self.spacing = settings["spacing"]
-        self.top_left = top_left_abs
+        self.tl = top_left_abs
         self.br = bottom_right_abs
         self.plate_rotation = 0
         if bottom_right_abs is None:
@@ -83,21 +83,36 @@ class Plate:
 
     def get_well_abs_position(self, wellid):
         relative_position_vec = alph_to_vec(wellid) * self.spacing
-        abs_position = self.top_left + \
+        abs_position = self.tl + \
             vec2d_rotate_rads(relative_position_vec, self.plate_rotation)
+        return abs_position
 
-    def set_plate_position(self, a1: Vec3d, br: Vec3d | None = None):
-        self.top_left = a1
+    def set_plate_position(self, a1: Vec2d, br: Vec2d | None = None):
+        a1 = Vec2d([a1.x, a1.y])
+
         if br is None:
-            self.br = Vec3d([self.rows, self.columns, 0]) * self.spacing
-        br = self.br
-        relative_corner_angle = math.atan(self.rows/self.columns)
+            self.br = Vec2d([self.columns-1, self.rows-1]) * self.spacing + a1
+            br = self.br
+
+        br = Vec2d([br.x, br.y])
+        self.tl = a1
+
+        relative_corner_angle = math.atan((self.rows-1)/(self.columns - 1))
+
         corner_vector = br - a1
         measured_corner_angle = math.atan(corner_vector.y / corner_vector.x)
         self.plate_rotation = measured_corner_angle - relative_corner_angle
+        print(f"plate rotation: {self.plate_rotation}, measured_angle: {
+              measured_corner_angle}, standard_angle: {relative_corner_angle}")
+
+    def set_tl(self, a1):
+        self.set_plate_position(a1)
+
+    def set_br(self, br):
+        self.set_plate_position(self.tl, br)
 
     def by_alph(self, alph) -> Reagent_Mix:
-        col, row = alph_to_vec(alph)
+        col, row = alph_to_vec(alph).axes
         ind = col + ((row - 1) * self.columns)
         return self.wells[ind]
 

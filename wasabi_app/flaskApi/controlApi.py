@@ -5,7 +5,7 @@ import json
 from flask import Flask, jsonify, Blueprint, request, session, Response
 from .db import get_db, close_db
 from .machine.coms import codex
-from .machine.utils import liq_handling_data
+from .machine.utils import liq_handling_data, xy_to_alph
 from .machine.coms.packet import code_packet, state_packet, make_int_vec_packet
 from .machine import Machine, Kinematic_State, Vec3d
 
@@ -20,29 +20,15 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         machine.got_home_complete.clear()
         return jsonify({"data": "successful home"})
 
-    found_corner = asyncio.Event()
+    @bp.route('/set_top_left', methods=['POST'])
+    def found_top_left():
+        machine.plate.set_tl(machine.current_position.position)
+        return jsonify({"data": "set corner"})
 
-    @bp.route('/work_offset_finder', methods=['POST'])
-    async def work_offset_finder():
-        if not machine.position_known:
-            home()
-        machine.goto_well("A1")
-        await found_corner.wait()
-        top_left = machine.current_position.position
-        found_corner.clear()
-
-        br_id = machine.plate.rows
-        machine.goto_well(br_id)
-
-        await found_corner.wait()
-        bottom_right = machine.current_position.position
-        found_corner.clear()
-
-        machine.plate.set_plate_position(top_left, bottom_right)
-
-    @bp.route('/work_offset_finder/found', methods=['POST'])
-    def found_corner_resp():
-        found_corner.set()
+    @bp.route('/set_bottom_right', methods=['POST'])
+    def found_bottom_right():
+        machine.plate.set_br(machine.current_position.position)
+        return jsonify({"data": "set corner"})
 
     @bp.route('/set_named_position', methods=['POST'])
     async def set_named_position():
@@ -68,7 +54,7 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     @bp.route('/move', methods=['POST'])
     def move():
         data = request.get_json()
-
+        print(f"got jog directive: {data}")
         if data["move_context"] == "named":
             target = data["target_name"]
             machine.goto_named(target)
