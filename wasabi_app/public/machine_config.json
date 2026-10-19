@@ -50,11 +50,11 @@
           "stp_pin": 4,
           "dir_pin": 5,
           "invert_dir": 0,
-          "ang_v_max": 100,
-          "ang_accel_rad": 1600,
+          "ang_v_max": 45,
+          "ang_accel_rad": 1000,
           "ul_per_rad": 1.8,
           "aspiration_ang_v": 4,
-          "compensation_factor": 0.992083026,
+          "compensation_factor": 0.921,
           "line_volume_uL": 875,
           "droplet_vol_ul": 2 
         },
@@ -62,11 +62,11 @@
           "stp_pin": 2,
           "dir_pin": 3,
           "invert_dir": 0,
-          "ang_v_max": 100,
-          "ang_accel_rad": 1600,
+          "ang_v_max": 45,
+          "ang_accel_rad": 1000,
           "ul_per_rad": 1.8,
           "aspiration_ang_v": 5,
-          "compensation_factor": 1.059827942,
+          "compensation_factor": 1.017,
           "line_volume_uL": 875,
           "droplet_vol_ul": 2
         },
@@ -74,11 +74,11 @@
           "stp_pin": 12,
           "dir_pin": 13,
           "invert_dir": 0,
-          "ang_v_max": 100,
-          "ang_accel_rad": 1600,
+          "ang_v_max": 45,
+          "ang_accel_rad": 1000,
           "ul_per_rad": 1.8,
           "aspiration_ang_v": 5,
-          "compensation_factor": 0.962000962,
+          "compensation_factor": 0.925,
           "line_volume_uL": 875,
           "droplet_vol_ul": 2
 
@@ -111,9 +111,9 @@
   },
   "plates": {
     "standard 96": {
-      "rows": 4,
-      "columns": 5,
-      "spacing":16
+      "rows": 8,
+      "columns": 12,
+      "spacing":9
     },
     "standard 6": {
       "rows": 2,
