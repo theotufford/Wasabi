@@ -86,7 +86,7 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     def buzz_pump():
         data = request.get_json()
         id = int(data["id"])
-        machine.coms.send_packet(make_int_vec_packet(codex.BUZZ, [id]))
+        machine.coms.queue_packet(make_int_vec_packet(codex.BUZZ, [id]))
         return jsonify({"data": f"buzzed id:{id}"})
 
     @bp.route('/run_experiment', methods=['POST'])

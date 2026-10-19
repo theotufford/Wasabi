@@ -2,7 +2,7 @@ import asyncio
 import serial
 import math
 import threading
-import RPi.GPIO as pio
+# import RPi.GPIO as pio
 import zlib
 import time
 import json
@@ -44,7 +44,7 @@ class ComsChannel:
         # default responses
         self.add_response("reboot_response",
                           code_dependent_true(codex.WAKE),
-                          lambda context: self.send_packet(
+                          lambda context: self.queue_packet(
                               get_settings_packet(self.settings()))
                           )
 
@@ -66,7 +66,7 @@ class ComsChannel:
     def delete_response(self, name):
         del self.response_tree[name]
 
-    def send_packet(self, packet: Packet):
+    def queue_packet(self, packet: Packet):
         with self.queue_lock:
             print(f"queuing packet with code {codex.COMS_INV[packet.code]}")
             if self.queue_count == self.queue_size:
@@ -134,7 +134,7 @@ class ComsChannel:
                 if (self.picostate != codex.BUSY):
                     if (self.queue_count == 0):
                         if (self.picostate == codex.LISTENING):
-                            self.send_packet(state_packet(codex.IDLE))
+                            self.queue_packet(state_packet(codex.IDLE))
                             self.transmit_next()
                         self.self_state = codex.IDLE
                         self.picostate = codex.IDLE
@@ -147,7 +147,7 @@ class ComsChannel:
                             self.transmit_next()
 
                             if self.queue_count == 0:
-                                self.send_packet(state_packet(codex.LISTENING))
+                                self.queue_packet(state_packet(codex.LISTENING))
                                 self.transmit_next()
 
 

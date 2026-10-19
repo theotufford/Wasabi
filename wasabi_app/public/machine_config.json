@@ -64,7 +64,8 @@
           "compensation_factor": 0.921,
           "line_volume_uL": 875,
           "droplet_vol_ul": 1,
-          "overshoot_offset_ul": 0
+          "airgap_vol_ul": 5
+          
         },
         {
           "stp_pin": 2,
@@ -77,7 +78,8 @@
           "compensation_factor": 1.017,
           "line_volume_uL": 875,
           "droplet_vol_ul": 1,
-          "overshoot_offset_ul": 0
+          "airgap_vol_ul": 5
+          
         },
         {
           "stp_pin": 12,
@@ -90,7 +92,8 @@
           "compensation_factor": 0.925,
           "line_volume_uL": 875,
           "droplet_vol_ul": 1,
-          "overshoot_offset_ul": 0
+          "airgap_vol_ul": 5
+          
         },
         {
           "stp_pin": 18,
@@ -103,7 +106,8 @@
           "compensation_factor": 1,
           "line_volume_uL": 875,
           "droplet_vol_ul": 0,
-          "overshoot_offset_ul": 0
+          "airgap_vol_ul": 5
+          
         },
         {
           "stp_pin": 8,
@@ -116,7 +120,7 @@
           "compensation_factor": 0.9943,
           "line_volume_uL": 875,
           "droplet_vol_ul": 0,
-          "overshoot_offset_ul": 0
+          "airgap_vol_ul": 5
 
         }
       ]

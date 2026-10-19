@@ -5,7 +5,7 @@ import time
 import asyncio
 import math
 import inspect
-import RPi.GPIO as pio
+# import RPi.GPIO as pio
 import threading
 from .containers import Plate, Reagent_Mix
 from .method_library_class import MethodLibrary
@@ -90,14 +90,14 @@ class Machine:
         self.b_steps_per_rad = spr / (2 * math.pi)
         self.z_steps_per_mm = spr / pitch
 
-        self.pump_line_contents = {}
+        self.pump_lines = {}
         pumps = mach["motors"]["pumps"]
         for id in range(0, len(pumps)):
             line_contents = Reagent_Mix()
             line_contents.gain_reagent(
                 f"{get_reagent(id)}", reservoir=True)
-            self.pump_line_contents[id] = [line_contents]
-        print(f"pump line: {self.pump_line_contents}")
+            self.pump_lines[id] = [line_contents]
+        print(f"pump line: {self.pump_lines}")
 
         self.plate = Plate(self.settings()["plates"]["standard 96"])
         self.hw_init()
@@ -208,6 +208,8 @@ class Machine:
         return given_pos
 
     def goto_pos(self, pos: Kinematic_State) -> None:
+        if self.current_position == pos:
+            return
         self.move_complete.clear()
         if not self.position_known:
             return
@@ -245,7 +247,7 @@ class Machine:
 
             )
 
-            self.coms.send_packet(packet.move_packet([amove, bmove, zmove]))
+            self.coms.queue_packet(packet.move_packet([amove, bmove, zmove]))
             self.current_position = pos
 
     def stall_for_confirm(self, confirm_prompt_message):
@@ -261,55 +263,56 @@ class Machine:
 
     def goto_well(self, wellid: str):
         abs_well_pos_2d = self.plate.get_well_abs_position(wellid)
-        target_pos = Kinematic_State(Vec3d([*abs_well_pos_2d.axes, self.current_position.position.z]))
+        target_pos = Kinematic_State(
+            Vec3d([*abs_well_pos_2d.axes, self.current_position.position.z]))
         print(f"going to {wellid} at target position: {target_pos.position}")
         self.current_container = self.plate.by_alph(wellid)
         self.goto_pos(target_pos)
 
-    def handle_liquids(self, volumes: list[liq_handling_data]):
+    def vto_steps(self, pumpid, vol):
+        settings = self.settings()["machine"]["motors"]
+        pump = settings["pumps"][pumpid]
+        common = settings["common_settings"]
+        rad_per_step = 2 * math.pi / common["pump_steps_per_revolution"]
+        ul_per_step = pump["ul_per_rad"] * rad_per_step
+        ul_per_step *= pump["compensation_factor"]
+        return round(vol / ul_per_step)
+
+    def group_dispense(self, volumes: list[liq_handling_data]):
         self.move_complete.clear()
-        move_data=[]
-        retract_move_data=[]
+        move_data = []
+        retract_move_data = []
 
         for liq_data in volumes:
             # simulation / audit-trail handling
             if liq_data.volume == 0:
                 continue
+
             if liq_data.volume > 0:
-                if liq_data.pumpid is None:
-                    id=get_pump_id(liq_data.reagent)
-                line_volume: Reagent_Mix=self.pump_line_contents[liq_data.pumpid][-1]
+                end_of_line_reagent: Reagent_Mix = self.pump_lines[liq_data.pumpid][-1]
+
                 self.current_container.gain_mixed_volume(
-                    line_volume.release_volume(liq_data.volume))
-                if line_volume.get_total_volume() == 0:
-                    self.pump_line_contents.pop()
-            elif liq_data.volume < 0:
-                self.impure_method_flag=True
-                pump_line=self.pump_line_contents[id]
-                reagent_contents=self.current_container.contents
-                pump_line.append(reagent_contents)
+                    end_of_line_reagent.release_volume(liq_data.volume))
 
-            settings=self.settings()["machine"]["motors"]
-            pump=settings["pumps"][liq_data.pumpid]
-            common=settings["common_settings"]
+                if end_of_line_reagent.get_total_volume() == 0:
+                    self.pump_lines.pop()
+            else:
+                self.pump_lines[liq_data.pumpid].append(
+                    Reagent_Mix({"air_from_airgap_induced_by_negative_volume_dispense_call": liq_data.volume}))
 
-            rad_per_step=2 * math.pi / common["pump_steps_per_revolution"]
-            ul_per_step=pump["ul_per_rad"] * rad_per_step
-            ul_per_step *= pump["compensation_factor"]
+            pump = self.settings()[
+                "machine"]["motors"]["pumps"][liq_data.pumpid]
 
-            print(f"ul per step: {ul_per_step}")
-
-            def vto_steps(vol: float):
-                return round(vol / ul_per_step)
-
-            airgap=vto_steps(pump["droplet_vol_ul"] +
-                               pump["overshoot_offset_ul"])
+            disp_step_total = self.vto_steps(liq_data.pumpid,
+                                             pump["droplet_vol_ul"] +
+                                             pump["airgap_vol_ul"] +
+                                             liq_data.volume)
 
             move_data.append(packet.MoveEntity(
                 codex.PUMP(liq_data.pumpid),
                 codex.NO_DECEL,
                 codex.RELATIVE,
-                vto_steps(liq_data.volume + airgap),
+                disp_step_total,
                 pump["ang_v_max"],
                 pump["ang_accel_rad"]
             ))
@@ -318,22 +321,67 @@ class Machine:
                 codex.PUMP(liq_data.pumpid),
                 codex.NO_DECEL,
                 codex.RELATIVE,
-                vto_steps(-pump["droplet_vol_ul"]),
+                self.vto_steps(liq_data.pumpid,
+                               - pump["droplet_vol_ul"]
+                               - pump["airgap_vol_ul"]),
                 pump["ang_v_max"],
                 pump["ang_accel_rad"]
             ))
 
-        self.coms.send_packet(packet.move_packet(move_data))
-        self.coms.send_packet(packet.move_packet(retract_move_data))
+        self.coms.queue_packet(packet.move_packet(move_data))
+        self.coms.queue_packet(packet.move_packet(retract_move_data))
+
+    def dispense(self, volume, reagent_name=None, pumpid=None):
+        self.group_dispense(
+            [liq_handling_data(volume, pumpid=pumpid, reagent=reagent_name)])
+
+    def aspirate(self, volume, pumpid):
+        self.move_complete.clear()
+        if volume == 0:
+            return
+        if volume < 0:
+            raise ValueError(
+                "attempting to aspirate negative volume (which would be a dispense move), fix unintended (-) sign or use dispense functions")
+            return
+
+        if not self.in_simulation:
+            pump = self.settings()["machine"]["motors"]["pumps"][pumpid]
+            self.goto_pos(self.current_position +
+                          [0, 0, self.aspiration_depth_offset])
+
+            self.coms.queue_packet(packet.MoveEntity(
+                codex.PUMP(pumpid),
+                codex.NO_DECEL,
+                codex.RELATIVE,
+                self.vto_steps(pumpid, -volume),
+                pump["ang_v_max"],
+                pump["ang_accel_rad"]
+            ))
+
+            self.goto_pos(self.current_position +
+                          [0, 0, -self.aspiration_depth_offset])
+
+            self.coms.queue_packet(packet.MoveEntity(
+                codex.PUMP(pumpid),
+                codex.NO_DECEL,
+                codex.RELATIVE,
+                self.vto_steps(pumpid, -pump["airgap_vol_ul"]),
+                pump["ang_v_max"],
+                pump["ang_accel_rad"]
+            ))
+
+        pump_line = self.pump_lines[id]
+        aspirant = self.current_container.release_volume(volume)
+        pump_line.append(aspirant)
 
     def send_home(self):
-        speed_settings=self.settings(
+        speed_settings = self.settings(
         )["machine"]["motors"]["common_settings"]
-        z_vmax=float(speed_settings["z_homing_velocity"])
-        z_accel=float(speed_settings["z_angular_accel"])
-        ab_vmax=float(speed_settings["arms_homing_velocity"])
-        ab_accel=float(speed_settings["arms_angular_accel"])
-        self.coms.send_packet(packet.make_float_vec_packet(
+        z_vmax = float(speed_settings["z_homing_velocity"])
+        z_accel = float(speed_settings["z_angular_accel"])
+        ab_vmax = float(speed_settings["arms_homing_velocity"])
+        ab_accel = float(speed_settings["arms_angular_accel"])
+        self.coms.queue_packet(packet.make_float_vec_packet(
             codex.HOME,
             [z_vmax,
              z_accel,
