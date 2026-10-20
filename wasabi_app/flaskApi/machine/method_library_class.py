@@ -41,11 +41,12 @@ class MethodLibrary:
         return output_plate
 
     def run_experiment(self, data):
+        initial_position = copy.deepcopy(self.machine.current_position)
         for form_id in data["forms"]:
             form = data["forms"][form_id]
             name = form["method"]
             self.call_method(name, form)
-        self.machine.goto_pos(self.machine.home_offset)
+        self.machine.goto_pos(initial_position)
         return self.machine.plate
 
     def register_method(self,

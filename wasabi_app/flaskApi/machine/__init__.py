@@ -5,7 +5,7 @@ import time
 import asyncio
 import math
 import inspect
-# import RPi.GPIO as pio
+import RPi.GPIO as pio
 import threading
 from .containers import Plate, Reagent_Mix
 from .method_library_class import MethodLibrary
@@ -67,7 +67,7 @@ class Machine:
 
         self.current_position = Kinematic_State()
         self.home_offset = Kinematic_State()
-        self.aspiration_depth_offset = 0
+        self.aspiration_depth_offset = -10
 
         self.methods: MethodLibrary = method_library
         self.methods.machine = self
@@ -92,12 +92,11 @@ class Machine:
 
         self.pump_lines = {}
         pumps = mach["motors"]["pumps"]
-        for id in range(0, len(pumps)):
+        for pumpid in range(0, len(pumps)):
             line_contents = Reagent_Mix()
             line_contents.gain_reagent(
-                f"{get_reagent(id)}", reservoir=True)
-            self.pump_lines[id] = [line_contents]
-        print(f"pump line: {self.pump_lines}")
+                f"{get_reagent(pumpid)}", reservoir=True)
+            self.pump_lines[pumpid] = [line_contents]
 
         self.plate = Plate(self.settings()["plates"]["standard 96"])
         self.hw_init()
@@ -115,7 +114,6 @@ class Machine:
             self.current_position = self.from_steps(*mot_position)
             self.position_known = True
             self.got_home_complete.set()
-            print(f"got homing position: {self.current_position.position}")
 
         self.coms.add_response(
             "homing_response", slib.code_dependent_true(slib.codex.HOME),
@@ -172,14 +170,12 @@ class Machine:
         solved = solve_5bar_FK(self.settings(), target.angular_position)
         output_position = Vec3d([*solved.axes, target.position.z])
         output = Kinematic_State(output_position, target.angular_position)
-        print(f"solved fk: {output}")
         return output
 
     def get_pos_IK(self, target: Kinematic_State) -> Kinematic_State:
         angular_target = solve_5bar_IK(
             self.settings(), target.position)
         output = Kinematic_State(target.position, angular_target)
-        print(f"solved Ik: {output}")
         return output
 
     def to_steps(self, pos: Kinematic_State) -> Vec3d:
@@ -265,7 +261,6 @@ class Machine:
         abs_well_pos_2d = self.plate.get_well_abs_position(wellid)
         target_pos = Kinematic_State(
             Vec3d([*abs_well_pos_2d.axes, self.current_position.position.z]))
-        print(f"going to {wellid} at target position: {target_pos.position}")
         self.current_container = self.plate.by_alph(wellid)
         self.goto_pos(target_pos)
 
@@ -331,9 +326,9 @@ class Machine:
         self.coms.queue_packet(packet.move_packet(move_data))
         self.coms.queue_packet(packet.move_packet(retract_move_data))
 
-    def dispense(self, volume, reagent_name=None, pumpid=None):
+    def dispense(self, volume, reagent=None, pumpid=None):
         self.group_dispense(
-            [liq_handling_data(volume, pumpid=pumpid, reagent=reagent_name)])
+            [liq_handling_data(volume, pumpid=pumpid, reagent=reagent)])
 
     def aspirate(self, volume, pumpid):
         self.move_complete.clear()
@@ -349,28 +344,28 @@ class Machine:
             self.goto_pos(self.current_position +
                           [0, 0, self.aspiration_depth_offset])
 
-            self.coms.queue_packet(packet.MoveEntity(
+            self.coms.queue_packet(packet.move_packet([packet.MoveEntity(
                 codex.PUMP(pumpid),
                 codex.NO_DECEL,
                 codex.RELATIVE,
                 self.vto_steps(pumpid, -volume),
                 pump["ang_v_max"],
                 pump["ang_accel_rad"]
-            ))
+            )]))
 
             self.goto_pos(self.current_position +
                           [0, 0, -self.aspiration_depth_offset])
 
-            self.coms.queue_packet(packet.MoveEntity(
+            self.coms.queue_packet(packet.move_packet([packet.MoveEntity(
                 codex.PUMP(pumpid),
                 codex.NO_DECEL,
                 codex.RELATIVE,
                 self.vto_steps(pumpid, -pump["airgap_vol_ul"]),
                 pump["ang_v_max"],
                 pump["ang_accel_rad"]
-            ))
+            )]))
 
-        pump_line = self.pump_lines[id]
+        pump_line = self.pump_lines[pumpid]
         aspirant = self.current_container.release_volume(volume)
         pump_line.append(aspirant)
 

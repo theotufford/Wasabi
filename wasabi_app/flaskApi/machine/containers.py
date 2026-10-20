@@ -68,7 +68,7 @@ class Plate:
             corner_angle = math.atan(self.rows/self.columns)
             corner_vector = bottom_right_abs - top_left_abs
             measured_corner_angle = math.atan(corner_vector.y, corner_vector.x)
-            self.plate_rotation = measured_corner_angle - corner_angle
+            self.plate_rotation = corner_angle - measured_corner_angle
 
         self.wells = []
         for row_y in range(0, self.rows):
@@ -77,9 +77,17 @@ class Plate:
                 self.wells.append(new_well)
 
     def clear_contents(self):
-        for well in self.wells:
-            well = Reagent_Mix()
+        for wellind in range(len(self.wells)):
+            self.wells[wellind] = Reagent_Mix()
         return self.wells
+
+    @property
+    def all_ids(self):
+        outp = []
+        for row_y in range(0, self.rows):
+            for col_x in range(0, self.columns):
+                outp.append(vec_to_alph(Vec2d([col_x, row_y])))
+        return outp
 
     def get_well_abs_position(self, wellid):
         relative_position_vec = alph_to_vec(wellid) * self.spacing

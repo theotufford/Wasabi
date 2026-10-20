@@ -45,8 +45,7 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
         volume_ul = float(data["volume"])
         id = int(data["id"])
         if volume_ul > 0:
-            machine.handle_liquids(
-                [liq_handling_data(volume=volume_ul, pumpid=id)])
+            machine.dispense(volume=volume_ul, pumpid=id)
         else:
             machine.aspirate(volume=volume_ul, id=id)
         return jsonify({"data": "successful pump action"})

@@ -7,7 +7,7 @@
       "tool_offset": 10,
       "z_screw_pitch": 4,
       "z_endstop_position_mm": 20,
-      "a_endstop_position_deg": 245,
+      "a_endstop_position_deg": 246,
       "b_endstop_position_deg": 5
     },
     "pins": {

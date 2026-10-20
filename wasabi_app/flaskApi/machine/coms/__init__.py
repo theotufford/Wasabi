@@ -2,7 +2,7 @@ import asyncio
 import serial
 import math
 import threading
-# import RPi.GPIO as pio
+import RPi.GPIO as pio
 import zlib
 import time
 import json
@@ -29,7 +29,7 @@ class ComsChannel:
         self.self_state: Literal[codex.BUSY,
                                  codex.LISTENING] = codex.BUSY
         self.settings_path = settings_path
-        self.queue_size = 60
+        self.queue_size = 5
         self.tx_head = 0
         self.tx_tail = 0
         self.queue_count = 0
@@ -67,14 +67,13 @@ class ComsChannel:
         del self.response_tree[name]
 
     def queue_packet(self, packet: Packet):
+        while (self.queue_count == self.queue_size - 1):
+            pass
         with self.queue_lock:
-            print(f"queuing packet with code {codex.COMS_INV[packet.code]}")
-            if self.queue_count == self.queue_size:
-                raise OverflowError("trying to queue too many packets!")
-                return
             self.txQueue[self.tx_head] = packet
             self.tx_head = (self.tx_head + 1) % self.queue_size
             self.queue_count += 1
+            print(f"queuing packet with code {codex.COMS_INV[packet.code]}, qc: {self.queue_count}")
 
     def listen_for_packet(self):
         header_data = bytearray()
@@ -141,15 +140,16 @@ class ComsChannel:
                     else:
                         while (self.queue_count > 0):
                             next_packet = self.txQueue[self.tx_tail]
-                            transmission_total_size += len(next_packet.get_full_bytes())
-                            if (transmission_total_size > 1024):
+                            transmission_total_size += len(
+                                next_packet.get_full_bytes())
+                            if (transmission_total_size > 240):
                                 break
                             self.transmit_next()
 
                             if self.queue_count == 0:
-                                self.queue_packet(state_packet(codex.LISTENING))
+                                self.queue_packet(
+                                    state_packet(codex.LISTENING))
                                 self.transmit_next()
-
 
                         self.self_state = codex.BUSY
                         self.picostate = codex.BUSY

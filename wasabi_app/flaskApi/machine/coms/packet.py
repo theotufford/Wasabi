@@ -218,7 +218,6 @@ class MoveEntity:
 
 def move_packet(moves: list[MoveEntity]) -> Packet:
     output_data = b""
-    print(f"generating move packet: {moves}")
     for move in moves:
         output_data += move.data
     return Packet(codex.MOVE, bytearray, len(output_data), output_data)

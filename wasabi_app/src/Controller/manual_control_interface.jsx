@@ -13,7 +13,10 @@ function Jogger(props) {
   }
 
   const send_set_waste_position = () => {
-    control_call({ route: "set_waste_position" })
+    control_call({
+      route: "set_named_position",
+      body: { name: "waste" }
+    })
   }
 
   const xy_jogIncrement = useRef(0)
@@ -69,8 +72,8 @@ function Jogger(props) {
         <button onClick={() => jog(0, 0, z_jogIncrement.current)} >+z</button>
       </div>
       <button onClick={send_home}>home</button>
-      <button onClick={() => control_call({route: "set_top_left"})} > set top left </button>
-      <button onClick={() => control_call({route: "set_bottom_right"})} > set bottom right </button>
+      <button onClick={() => control_call({ route: "set_top_left" })} > set top left </button>
+      <button onClick={() => control_call({ route: "set_bottom_right" })} > set bottom right </button>
       <button onClick={() => goto_well("A1")}>goto A1</button>
       <button onClick={() => goto_well("A12")}>goto A12</button>
       <button onClick={() => goto_well("H1")}>goto H1</button>

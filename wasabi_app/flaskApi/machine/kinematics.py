@@ -8,7 +8,6 @@ class Vector:
         self.axes = axes
 
     def __add__(self, other):
-        print(f"adding : {self} + {other}")
         if isinstance(other, Vector):
             if self.dimension == other.dimension:
                 return self.__class__(
@@ -104,7 +103,6 @@ def vec_from_angle_length(angle, length) -> Vec2d:
 
 
 def inv_law_of_cosines(hypot, opposite, adjacent):
-    # print(f"getting theta for {hypot=}, {opposite=}, {adjacent=}")
 
     cos_of_theta = ((opposite ** 2) - (hypot ** 2) - (adjacent ** 2)) / \
         (- 2 * hypot * adjacent)
@@ -135,7 +133,6 @@ def solve_5bar_IK(settings: dict, target: Vec3d) -> Vec2d_Ang:
 
     joint = target - (tool_offset * hand_unit_vec)
 
-    # print(f"{joint=}")
 
     b_mot_to_joint = Vec2d([spacing, 0]) - joint
 
@@ -152,10 +149,6 @@ def solve_5bar_IK(settings: dict, target: Vec3d) -> Vec2d_Ang:
     alpha_final = 3 * math.pi / 2 - alpha_1 - alpha_2
 
     beta_final = 3 * math.pi / 2 - beta_1 - beta_2
-
-    print(f"solved IK - target_pos: {target}, alpha: {
-          (180 / math.pi) * alpha_final}, {(180 / math.pi) * beta_final}")
-
     return Vec2d_Ang([alpha_final, beta_final])
 
 

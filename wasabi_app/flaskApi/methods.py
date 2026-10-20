@@ -19,11 +19,23 @@ def volume_map(machine: Machine,
                volume_map: dict,
                reagent):
     for wellid in volume_map:
-        volume = volume_map[wellid]
+        volume = float(volume_map[wellid])
         if volume == 0:
             continue
         machine.goto_well(wellid)
         machine.dispense(volume, reagent=reagent)
+
+
+@methods.register_method
+def discard_volume_by_map(machine: Machine, pumpid: int, volume_map: dict):
+    for wellid in volume_map:
+        volume = float(volume_map[wellid])
+        if volume == 0:
+            continue
+        machine.goto_well(wellid)
+        machine.aspirate(volume, pumpid=pumpid)
+        machine.goto_named("waste")
+        machine.dispense(volume, pumpid=pumpid)
 
 
 @methods.register_method
