@@ -166,9 +166,6 @@ variant<Packet *, int> ComsInstance::listen_for_packet() {
   uint8_t datatype_id = header_data[TYPE_INDEX];
   uint16_t len;
   memcpy(&len, header_data + LENGTH_INDEX, 2);
-  if (len > MAX_PACKET_SIZE) {
-    return -2;
-  }
   uint8_t *packet_data = (uint8_t *)malloc(len);
   uint32_t checksum;
 

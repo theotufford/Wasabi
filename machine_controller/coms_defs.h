@@ -15,7 +15,6 @@
 // defs for checksum calculation
 #define REVERSED_STD_POLY 0xEDB88320ul
 #define CRC32_INIT 0xFFFFFFFF
-#define MAX_PACKET_SIZE 240
 #define CRC_DISABLED true
 #define TX_HISTORY_LEN 32
 #define READ_TIMEOUT_US 200 * 1000

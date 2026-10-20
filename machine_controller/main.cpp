@@ -57,19 +57,17 @@ int main() {
         B_motor = motors[1];
         Z_motor = motors[2];
 
-        for (int i = 0; i < 2; i++) {
           vector<MoveEntity> gen_move;
           vector<MoveEntity> rev_gen_move;
           for (Motor *mot : motors) {
             if (mot == nullptr) {
               continue;
             }
-            gen_move.push_back(MoveEntity(TRAPEZOIDAL, 10, 4, 200, mot));
-            rev_gen_move.push_back(MoveEntity(TRAPEZOIDAL, 10, 4, -200, mot));
+            gen_move.push_back(MoveEntity(TRAPEZOIDAL, 12, 4, 50, mot));
+            rev_gen_move.push_back(MoveEntity(TRAPEZOIDAL, 12, 4, -50, mot));
           }
           await_async_move(gen_move);
           await_async_move(rev_gen_move);
-        }
       }));
 
   coms.add_response(

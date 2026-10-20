@@ -10,6 +10,7 @@
 #include <hardware/irq.h>
 #include <hardware/regs/intctrl.h>
 #include <hardware/structs/timer.h>
+#include <hardware/sync.h>
 #include <hardware/sync/spin_lock.h>
 #include <hardware/timer.h>
 #include <motors.hpp>
@@ -154,13 +155,13 @@ uint32_t MoveEntity::find_step_timing() {
   return next_step_time;
 }
 
-void set_stp_alarm(int alarm_num, uint32_t rel_time, MoveEntity * move){
-    uint32_t time = delayed_by_us(rel_time, move->move_init_time);
-    if (hardware_alarm_set_target(alarm_num, time)) {
-      auto missed_by = ((int32_t)timer_hw->timelr - (int32_t)time);
-      move->move_init_time += missed_by;
-      hardware_alarm_force_irq(alarm_num);
-    }
+void set_stp_alarm(int alarm_num, uint32_t rel_time, MoveEntity *move) {
+  uint32_t time = delayed_by_us(rel_time, move->move_init_time);
+  if (hardware_alarm_set_target(alarm_num, time)) {
+    auto missed_by = ((int32_t)timer_hw->timelr - (int32_t)time);
+    move->move_init_time += missed_by;
+    hardware_alarm_force_irq(alarm_num);
+  }
 }
 
 // behold... the sorted step queue torus
@@ -169,8 +170,14 @@ static int alarm_write_index = 0;
 
 void init_step_queues() { // call on core 0, BEFORE multicore_launch_core1
   for (int i = 0; i < ALARM_COUNT; i++) {
+
     step_queues[i] = new StepAlarmQueue();
     step_queues[i]->alarm_number = i;
+    int num = spin_lock_claim_unused(false);
+    if (num == -1) {
+      blink(99999);
+    }
+    step_queues[i]->lock = spin_lock_init(num);
   }
 }
 
@@ -205,14 +212,15 @@ void StepAlarmQueue::alarm_callback() {
     move.hit_limit = true;
   if (!move.hit_limit)
     mot.step();
+  uint32_t save = spin_lock_blocking(lock);
   queue_count--;
   read_index = (read_index + 1) & AQ_MASK;
   if (queue_count > 0)
     time_target = circ_queue[read_index].time;
   else
     time_target = 0;
+  spin_unlock(lock, save);
 }
-
 
 void enqueue_next_step(MoveEntity *move) {
   uint32_t next_timing = move->find_step_timing();
@@ -222,12 +230,19 @@ void enqueue_next_step(MoveEntity *move) {
   Step_Event stp_to_queue = {next_timing, move};
   // idle until open queue found
   StepAlarmQueue *queue_ptr = step_queues[alarm_write_index];
-  while (queue_ptr->queue_count == ALARM_QUEUE_LENGTH) {
+  while(true){
+    bool queue_full = queue_ptr->queue_count == ALARM_QUEUE_LENGTH;
+    if (queue_full){
+      continue;
+    }
+    if (spin_try_lock_unsafe(queue_ptr->lock)){
+      break;
+    }
     alarm_write_index = (alarm_write_index + 1) & (ALARM_COUNT - 1);
     queue_ptr = step_queues[alarm_write_index];
-  }
+  } 
 
-  StepAlarmQueue &queue = *queue_ptr;
+      StepAlarmQueue &queue = *queue_ptr;
 
   if (queue.queue_count == 0) { // first step in queue
     queue.time_target = next_timing;
@@ -257,6 +272,7 @@ void enqueue_next_step(MoveEntity *move) {
   }
   queue.queue_count++;
   alarm_write_index = (alarm_write_index + 1) & (ALARM_COUNT - 1);
+  spin_unlock_unsafe(queue.lock);
 }
 
 void await_async_move(vector<MoveEntity> &moves) {

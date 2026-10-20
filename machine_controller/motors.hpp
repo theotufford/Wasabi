@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <dma_uart.hpp>
 #include <hardware/gpio.h>
+#include <hardware/sync/spin_lock.h>
 #include <hardware/timer.h>
 #include <hardware/uart.h>
 #include <iostream>
@@ -20,7 +21,7 @@
 #define ALARM_COUNT  4
 
 // arbitrary but must be power of 2 for the AQ_MASK to work
-static constexpr int ALARM_QUEUE_LENGTH = 4;
+static constexpr int ALARM_QUEUE_LENGTH = 16;
 static constexpr int AQ_MASK = ALARM_QUEUE_LENGTH - 1;
 
 using namespace std;
@@ -91,6 +92,7 @@ public:
   volatile int read_index = 0;
   volatile uint32_t time_target = 0;
   atomic<int> queue_count = 0;
+  spin_lock_t * lock;
 
   array<Step_Event, ALARM_QUEUE_LENGTH> circ_queue;
   void enqeue_next_step(MoveEntity *entity);

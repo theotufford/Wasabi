@@ -1,8 +1,8 @@
 #pragma once
 #include <hardware/uart.h>
 
-constexpr uint8_t kRxBuffLengthPow = 12;
-constexpr uint8_t kTxBuffLengthPow = 12;
+constexpr uint8_t kRxBuffLengthPow = 11;
+constexpr uint8_t kTxBuffLengthPow = 11;
 constexpr uint16_t kRxBuffLength = 1 << (kRxBuffLengthPow);
 constexpr uint16_t kTxBuffLength = 1 << (kTxBuffLengthPow);
 constexpr int kUartRxChannel = 0;
