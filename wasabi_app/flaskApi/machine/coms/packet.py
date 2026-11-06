@@ -95,6 +95,7 @@ def parse_header(header: bytearray) -> tuple:
     coms_code = header[1]
     datatype = codex.types_by_code[header[2]]
     datalen = parse_uint16_t(header[3:5])
+
     return (coms_code, datatype, datalen)
 
 

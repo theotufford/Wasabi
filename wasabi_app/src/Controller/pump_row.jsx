@@ -33,14 +33,14 @@ function Pump_block(props) {
     props.load_needed()
   }
 
+  const pump_action_ref = useRef(null)
   const pump_action = (event) => {
     event.preventDefault()
-    const volume_ul = (new FormData(event.target)).get("volume")
     control_call(
       {
         route: "pump_action",
         body: {
-          volume: volume_ul,
+          volume: parseFloat(pump_action_ref.current.value),
           id: id
         }
       }
@@ -50,7 +50,8 @@ function Pump_block(props) {
   useEffect(() => {
     commit(selected_reagent)
   }, [selected_reagent])
-  
+
+
 
   return (
     <tr>
@@ -60,9 +61,8 @@ function Pump_block(props) {
         <Reagent_Selector selected_reagent={selected_reagent} select_reagent={(new_reagent) => set_selected_reagent(new_reagent)} />
       </td>
       <td>
-        <form onSubmit={pump_action}>
-          <input name="volume" type="number" placeholder="pump volume ul" /> <button type="submit">o</button>
-        </form>
+        <input ref={pump_action_ref} name="volume" type="number" placeholder="pump volume ul" />
+        <button onClick={pump_action}>o</button>
       </td>
     </tr>
   )

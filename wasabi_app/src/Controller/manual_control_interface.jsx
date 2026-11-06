@@ -18,6 +18,15 @@ function Jogger(props) {
       body: { name: "waste" }
     })
   }
+  const goto_named = (name) => {
+    control_call({
+      route: "move",
+      body: { 
+        move_context: "named",
+        target_name: name
+      }
+    })
+  }
 
   const xy_jogIncrement = useRef(0)
   const z_jogIncrement = useRef(0)
@@ -79,6 +88,7 @@ function Jogger(props) {
       <button onClick={() => goto_well("H1")}>goto H1</button>
       <button onClick={() => goto_well("H12")}>goto H12</button>
       <button onClick={send_set_waste_position}>set waste position</button>
+      <button onClick={ () => goto_named("waste")}>go to waste</button>
     </div>
   )
 }

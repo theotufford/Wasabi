@@ -6,9 +6,9 @@
       "arm": 60,
       "tool_offset": 10,
       "z_screw_pitch": 4,
-      "z_endstop_position_mm": 20,
-      "a_endstop_position_deg": 246,
-      "b_endstop_position_deg": 5
+      "z_endstop_position_mm": 48,
+      "a_endstop_position_deg": 248,
+      "b_endstop_position_deg": 4
     },
     "pins": {
       "on_3b_server_board": {
@@ -25,15 +25,12 @@
     },
     "motors": {
       "common_settings": {
-
         "arms_homing_velocity": 2,
         "arms_angular_max_velocity": 5,
         "arms_angular_accel": 60,
-
         "z_homing_velocity": 10,
         "z_max_angular_velocity": 10,
         "z_angular_accel": 30,
-
         "pump_steps_per_revolution": 1600,
         "kinematic_steps_per_revolution": 1600
       },
@@ -58,14 +55,13 @@
           "dir_pin": 5,
           "invert_dir": 0,
           "ang_v_max": 45,
-          "ang_accel_rad": 1000,
+          "ang_accel_rad": 1900,
           "ul_per_rad": 1.8,
           "aspiration_ang_v": 3,
-          "compensation_factor": 0.921,
+          "compensation_factor": 0.966,
           "line_volume_uL": 875,
-          "droplet_vol_ul": 1,
-          "airgap_vol_ul": 5
-          
+          "droplet_vol_ul": 0,
+          "airgap_vol_ul": 1
         },
         {
           "stp_pin": 2,
@@ -75,11 +71,10 @@
           "ang_accel_rad": 1000,
           "ul_per_rad": 1.8,
           "aspiration_ang_v": 5,
-          "compensation_factor": 1.017,
+          "compensation_factor": 0.866,
           "line_volume_uL": 875,
-          "droplet_vol_ul": 1,
-          "airgap_vol_ul": 5
-          
+          "droplet_vol_ul": 0,
+          "airgap_vol_ul": 1
         },
         {
           "stp_pin": 12,
@@ -89,11 +84,10 @@
           "ang_accel_rad": 1000,
           "ul_per_rad": 1.8,
           "aspiration_ang_v": 5,
-          "compensation_factor": 0.925,
+          "compensation_factor": 0.913,
           "line_volume_uL": 875,
-          "droplet_vol_ul": 1,
-          "airgap_vol_ul": 5
-          
+          "droplet_vol_ul": 0,
+          "airgap_vol_ul": 1
         },
         {
           "stp_pin": 18,
@@ -106,8 +100,7 @@
           "compensation_factor": 1,
           "line_volume_uL": 875,
           "droplet_vol_ul": 0,
-          "airgap_vol_ul": 5
-          
+          "airgap_vol_ul": 1
         },
         {
           "stp_pin": 8,
@@ -120,22 +113,78 @@
           "compensation_factor": 0.9943,
           "line_volume_uL": 875,
           "droplet_vol_ul": 0,
-          "airgap_vol_ul": 5
-
+          "airgap_vol_ul": 1
         }
       ]
     }
   },
+  "fixtures": {
+    "std_plate_fixture": {
+      "zero_position": [
+        -83.5,
+        60,
+        20
+      ],
+      "named_containers": {
+        "tube_r1": [
+          41.6,
+          60,
+          22
+        ],
+        "tube_r2": [
+          41.6,
+          76,
+          22
+        ],
+        "tube_r3": [
+          41.6,
+          92,
+          22
+        ],
+        "tube_r4": [
+          41.6,
+          108,
+          22
+        ],
+        "tube_r5": [
+          41.6,
+          124,
+          22
+        ],
+        "tube_l1": [
+          -111.6,
+          60,
+          22
+        ],
+        "tube_l2": [
+          -111.6,
+          76,
+          22
+        ],
+        "tube_l3": [
+          -111.6,
+          92,
+          22
+        ],
+        "tube_l4": [
+          -111.6,
+          108,
+          22
+        ],
+        "tube_l5": [
+          -111.6,
+          124,
+          22
+        ]
+      }
+    }
+  },
   "plates": {
     "standard 96": {
+      "top_left_offset": [14.38, 11.24, 0],
       "rows": 8,
       "columns": 12,
       "spacing": 9
-    },
-    "150ml_waste_beaker": {
-      "well_depth": 5,
-      "major_diameter": 40,
-      "minor_diameter": 40
     },
     "standard 6": {
       "rows": 2,

@@ -16,7 +16,6 @@ function Controller(props) {
 
 
   const load_needed = () => {
-    console.log("pump array: ", pump_array)
     const tmp = []
     Object.keys(experiment.forms).forEach((form_id) => {
       const form = experiment.forms[form_id]
@@ -52,6 +51,7 @@ function Controller(props) {
 
 
   const send_run_experiment = () => {
+    console.log("experiment being sent to run: ", experiment)
     control_call({
       route: "run_experiment",
       body: {
@@ -59,6 +59,17 @@ function Controller(props) {
       }
     })
   }
+
+  const send_simulate_experiment = () => {
+    console.log("experiment being sent to simulate: ", experiment)
+    control_call({
+      route: "simulate_experiment",
+      body: {
+        experiment: experiment
+      }
+    })
+  }
+
 
   return (
     <div className='controller'>
@@ -87,18 +98,19 @@ function Controller(props) {
           </thead>
           <tbody>{
             Object.keys(pump_array).map((id) => (
-                <Pump_row
-                  key={id} id={id}
-                  reagent={pump_array[id]}
-                  reagents={reagents}
-                  set_pump_array={set_pump_array}
-                  reagents_needed={reagents_needed}
-                  load_needed={load_needed} />
+              <Pump_row
+                key={id} id={id}
+                reagent={pump_array[id]}
+                reagents={reagents}
+                set_pump_array={set_pump_array}
+                reagents_needed={reagents_needed}
+                load_needed={load_needed} />
             ))
           }</tbody>
         </table>
       </div>
       <button onClick={send_run_experiment}>run {experiment.title}</button>
+      <button onClick={send_simulate_experiment}>simulate {experiment.title}</button>
     </div>
   )
 }

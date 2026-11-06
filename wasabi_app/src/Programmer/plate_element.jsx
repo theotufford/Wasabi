@@ -23,36 +23,32 @@ function PlateElement(props) {
 
   useEffect(() => {
     const method_meta = selected_form.method_meta
-    let new_options = default_options
-    if (method_meta.is_direct_input) {
-      new_options = {
-        ...new_options,
-        "input": <InputPlate />
+    let plate_options = default_options
+
+    console.log("metmeta ", method_meta)
+    Object.entries(method_meta).forEach(([arg_name, arg_meta]) => {
+      if (arg_meta.type == "Plate_Map") {
+        const well_value_types = arg_meta.sub_args
+        if (well_value_types.includes("Volume")) {
+          plate_options = {
+            ...plate_options,
+            "input": <InputPlate field_name={arg_name} />
+          }
+          set_view_mode("input")
+        }
       }
-      set_view_mode("input")
-    }
-    if (method_meta.has_region_select) {
-      new_options = {
-        ...new_options,
-        "select_plate": <SelectPlate />,
-        "outcome_plate": (method_meta.purity == "pure" ?
-          <PureOutcomePlate /> :
-          <Impure_Outcome_plate />
-        )
-      }
-      set_view_mode("select_plate")
-    }
-    set_view_options(new_options)
-  }, [selected_form.method_meta])
+    })
+    set_view_options(plate_options)
+  }, [selected_form.method_meta.name, experiment.selected_id])
 
   return (
     <div>
       <div key={view_mode} id='plate_view'>
         {view_options[view_mode]}
       </div>
-       <select value = {view_mode} onChange={(ev) => { set_view_mode(ev.target.value) }} >
+      <select value={view_mode} onChange={(ev) => { set_view_mode(ev.target.value) }} >
         {Object.keys(view_options).map((view_name) => {
-          if ( view_name == "" ) return
+          if (view_name == "") return
           return <option value={view_name}>{view_name}</option>
         })}
       </select>

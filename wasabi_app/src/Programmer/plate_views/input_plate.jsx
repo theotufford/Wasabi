@@ -22,18 +22,18 @@ const Well_Element = (props) => {
 }
 
 
-function InputPlate(props) {
+function InputPlate({ field_name }) {
   const { experiment, set_experiment } = useContext(AppGlobalContext)
   const selected_form = experiment.forms[experiment.selected_id]
 
   const update_volume_map = (id, volume) => set_experiment(prev => {
     const clone_exp = structuredClone(prev)
     const selected_form_clone = clone_exp.forms[clone_exp.selected_id]
-    selected_form_clone.volume_map[id] = volume
+    selected_form_clone[field_name][id] = parseFloat(volume) || 0
     return clone_exp
   })
 
-  const volume_map = selected_form.volume_map
+  const volume_map = selected_form[field_name]
 
   return <Plate_Wrapper well_constructor={Well_Element} value_map={volume_map} update_value_map={update_volume_map} />
 }

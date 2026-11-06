@@ -4,16 +4,18 @@ import math
 
 class Vector:
     def __init__(self, axes: list[float]):
-        self.dimension = len(axes)
         self.axes = axes
+        self.dimension = len(self.axes)
 
     def __add__(self, other):
         if isinstance(other, Vector):
             if self.dimension == other.dimension:
-                return self.__class__(
+                return type(self)(
                     [self.axes[i] + other.axes[i]
                      for i in range(0, self.dimension)]
                 )
+            else:
+                print(f"DIMENSION ERROR! {self.dimension} + {other.dimension}")
         return NotImplemented
 
     def __mul__(self, scalar):
@@ -94,6 +96,15 @@ class Vec3d(Vector):
     def __repr__(self):
         return f"a 3d vector with axes: {self.x=}, {self.y=}, {self.z=}"
 
+def vec3d_rotate_xy(initial_vector, radians) -> Vec3d:
+    rotation_matrix_row_1 = Vec3d([math.cos(radians), math.sin(radians), 0])
+    rotation_matrix_row_2 = Vec3d([-math.sin(radians), math.cos(radians), 0])
+
+    output_vec = Vec3d([dot_product(initial_vector, rotation_matrix_row_1),
+                        dot_product(initial_vector, rotation_matrix_row_2),
+                        initial_vector.z])
+    return output_vec
+
 
 def vec_from_angle_length(angle, length) -> Vec2d:
     unit_x = math.cos(angle)
@@ -132,7 +143,6 @@ def solve_5bar_IK(settings: dict, target: Vec3d) -> Vec2d_Ang:
         (1. / (hand_length + tool_offset))
 
     joint = target - (tool_offset * hand_unit_vec)
-
 
     b_mot_to_joint = Vec2d([spacing, 0]) - joint
 
@@ -183,4 +193,4 @@ def solve_5bar_FK(settings: dict, given: Vec2d_Ang) -> Vec2d:
 
     end_point = joint_position + tool_offset_vector
 
-    return Vec2d([-end_point.x,end_point.y])
+    return Vec2d([-end_point.x, end_point.y])

@@ -5,8 +5,8 @@ import { alph, make_plate_matrix, get_int_array, get_well_array_from_corners, ge
 
 function Plate_Wrapper({ well_constructor, value_map, update_value_map }) {
   const { keystate, set_keybind_function_map, experiment, set_experiment, mouse_state } = useContext(AppGlobalContext)
-  const rows = experiment.plateDimensions.rows
-  const columns = experiment.plateDimensions.columns
+  const rows = experiment.plate.rows
+  const columns = experiment.plate.columns
   const id_set = get_id_set(rows, columns)
   const get_plate_matrix = (valmap) => make_plate_matrix(rows, columns, well_constructor, valmap)
 

@@ -6,6 +6,7 @@ HOME = 3
 WAKE = 4
 BUZZ = 5
 MESSAGE = 6
+DELAY = 7
 
 COMS_INV = [
     "STATE",
@@ -14,7 +15,8 @@ COMS_INV = [
     "HOME",
     "WAKE",
     "BUZZ",
-    "MESSAGE"
+    "MESSAGE",
+    "DELAY"
 ]
 
 BUSY = 0

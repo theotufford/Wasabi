@@ -3,7 +3,7 @@ import { AppGlobalContext } from './AppGlobalContext.jsx'
 import Dropdown_Search from './dropdown_input.jsx'
 import "./Reagent_Selector.css"
 
-import { apiCall, add_new_reagent, delete_reagent as db_delete_reagent, modify_reagent } from './backendConfig.jsx'
+import { apiCall, add_new_reagent, delete_reagent as db_delete_reagent, modify_reagent, control_call } from './backendConfig.jsx'
 
 class Reagent_lib {
   constructor(initialization_callback, previous_lib = undefined) {
@@ -92,7 +92,6 @@ export function Reagent_Selector({ selected_reagent, select_reagent, enable_crea
   useEffect(() => {
     new Reagent_lib(set_reagent_lib_state)
   }, [])
-
   if (view_state === "dropdown") {
     return <div>
       <Dropdown_Search
@@ -114,10 +113,11 @@ export function Reagent_Selector({ selected_reagent, select_reagent, enable_crea
       }
     </div>
   }
+
   if (view_state === "display_reagent") {
     return <div>
       {selected_reagent}
-      <button onClick={() => {set_view_state("dropdown")}}>⌄</button>
+      <button onClick={() => { set_view_state("dropdown") }}>⌄</button>
     </div>
   }
 }

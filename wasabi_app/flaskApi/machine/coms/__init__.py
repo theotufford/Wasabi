@@ -39,6 +39,7 @@ class ComsChannel:
         self.timeout = timeout
         # initialize serial contact
         self.ser = serial.Serial("/dev/ttyS0", 115200, timeout=timeout)
+        self.ser.reset_input_buffer()
         self.response_tree = {}
 
         # default responses

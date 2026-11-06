@@ -3,22 +3,20 @@ import { AppGlobalContext } from "./AppGlobalContext"
 import apiCall from "./backendConfig"
 import { useState } from "react"
 import { useEffect } from "react"
-import { useParams, useSearchParams } from "react-router-dom"
 import Keybound_Container from "./keybound_container"
 import { empty_experiment } from "./AppGlobalContext"
 import { useRef } from "react"
 
+function check_cache_or_default(name, default_value) {
+  const saved_value = localStorage.getItem(name)
+  return saved_value !== null ? JSON.parse(saved_value) : default_value
+}
+
 export const AppGlobalContextProvider = ({ children }) => {
   const [keybind_function_map, set_keybind_function_map] = useState(new Map())
   const keystate = useRef([])
-  const [experiment, set_experiment] = useState(() => {
-    const saved_exp = localStorage.getItem("experiment")
-    return (
-      saved_exp !== null ?
-        JSON.parse(saved_exp) :
-        empty_experiment
-    )
-  })
+
+  const [experiment, set_experiment] = useState(check_cache_or_default("experiment", empty_experiment))
 
   useEffect(() => {
     localStorage.setItem("experiment", JSON.stringify(experiment))
@@ -32,6 +30,7 @@ export const AppGlobalContextProvider = ({ children }) => {
       .then(fetched_experiment => {
         if (fetched_experiment?.failure == true) {
           set_experiment(empty_experiment)
+          alert(`couldnt find experiment with id ${id} and version ${version}`)
         }
         else {
           // if it gets back an experiment record from the api it will set it

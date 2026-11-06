@@ -1,4 +1,4 @@
-import { AppGlobalContext } from '@src/AppGlobalContext.jsx';
+import { AppGlobalContext, get_method_input_default } from '@src/AppGlobalContext.jsx';
 import './css/instructionForm.css'
 import methods from '@src/assets/methods.json'
 import { useContext, useEffect, useState } from 'react';
@@ -29,38 +29,41 @@ function InstructionForm(props) {
     set_experiment(previous_value => ({ ...previous_value, forms: tmp }))
   }
 
-  function Method_Input(props) {
+
+  function Method_Input({ name, type, sub_args }) {
+
     const mod_function = (event) => {
       let value = event.target.value
-      console.log("got mod func call", value)
-      if (props.type == "float") {
+      if (type == "float") {
         value = parseFloat(value)
       }
-      if (props.type == "int") {
+      if (type == "int") {
         value = parseInt(value)
       }
-      set_form_data(props.name, value)
+      set_form_data(name, value)
     }
-    const filtered_name = props.name.replaceAll("_", " ")
-    const current_value = this_form?.[props.name]
+
+    const filtered_name = name.replaceAll("_", " ")
+    const current_value = this_form?.[name]
     if (props.name === "well_array") {
       return
     }
-    if (props.name == "volume_map") {
-      this_form.is_direct_input = true
+    if (type == "Named_Container") {
+      return <div>
+        container selector goes here
+      </div>
     }
-    if (props.name === "reagent") {
-      return (<div> reagent:
-        <Reagent_Selector selected_reagent={current_value} select_reagent={(value) => set_form_data("reagent", value) } />
+    if (type == "Reagent") {
+      return (<div> {filtered_name}: <Reagent_Selector selected_reagent={current_value} select_reagent={(value) => set_form_data(name, value)} />
       </div>
       )
     }
-    if (props.type == "Literal") {
+    if (type == "Literal") {
       return (
-        <div className={props.name}>
-          pick {props.name}:
+        <div className={name}>
+          pick {name}:
           <select defaultValue={current_value} onBlur={mod_function}>
-            {props.args.map((option_name) => {
+            {sub_args.map((option_name) => {
               const filtered_opt_name = option_name?.replaceAll("_", " ")
               return (
                 <option value={option_name}>{filtered_opt_name}</option>
@@ -70,7 +73,7 @@ function InstructionForm(props) {
         </div>
       )
     }
-    if (props.type == "int" || props.type == "float") {
+    if (type == "int" || props.type == "float") {
       return (
         <input type="number"
           placeholder={filtered_name}
@@ -79,7 +82,7 @@ function InstructionForm(props) {
           onBlur={mod_function} />
       )
     }
-    if (props.type == "str") {
+    if (type == "str") {
       return (<input
         placeholder={filtered_name}
         defaultValue={current_value}
@@ -122,7 +125,7 @@ function InstructionForm(props) {
         })}
       </select>
       <div className='method-container' key={this_form.method}>
-        {this_form.method_meta.inputs.map((input) => <Method_Input {...input} />)}
+        {Object.values(this_form.method_meta).map((input_meta) => <Method_Input {...input_meta} />)}
       </div>
       <button onClick={self_destruct}>x</button>
     </div>

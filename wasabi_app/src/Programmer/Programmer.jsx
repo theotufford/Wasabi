@@ -14,14 +14,15 @@ function Programmer(props) {
     set_experiment(previous_value => ({ ...previous_value, [key]: value }))
   }
 
-  const title_ref = useRef(experiment.title)
 
   const setTitle = (value) => {
     modify_experiment("title", value)
   }
+
   const setPlateDimensions = (value) => {
     modify_experiment("plateDimensions", value)
   }
+
   const setForms = (value) => {
     modify_experiment("forms", value)
   }
@@ -38,12 +39,6 @@ function Programmer(props) {
     tmp.forms[empty_form.id] = empty_form
     tmp.selected_id = empty_form.id
     set_experiment(tmp)
-  }
-
-  const deleteForm = (event) => {
-    const target_id = event.target.id
-    const { [target_id]: _, ...new_forms_object } = experiment.forms;
-    setForms(new_forms_object)
   }
 
   const keydownHandler = (event) => {

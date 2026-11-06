@@ -1,14 +1,28 @@
 import { createContext } from "react"
 import methods from '@src/assets/methods.json'
+import machine_data from '@src/assets/machine_config.json'
+
+
 
 const default_method = "volume_map"
+const default_fixture = "std_plate_fixture"
+const default_plate = "standard 96"
 
-const get_method_input_default = (input) => {
+export const get_method_input_default = (input) => {
   const empty_value = {
     _empty: "",
     dict: {},
+    Plate_Map: {},
+    Named_Container: {
+      name: "",
+      contents: {},
+      is_reservoir: false
+    },
     float: 0,
     int: 0,
+    Volume: 0,
+    Reagent: "",
+    Wellid: "",
     Literal: input.args?.[0],
     list: []
   }
@@ -16,9 +30,13 @@ const get_method_input_default = (input) => {
 }
 
 const get_new_method_input_record = (method_name) => {
-  const inputs = methods[method_name].inputs
-  const inputname_default_pairs = inputs.map((input) => [input.name, get_method_input_default(input)])
-  return Object.fromEntries(inputname_default_pairs)
+  const inputs = methods[method_name]
+  const input_record = {}
+  Object.entries(inputs).forEach(([argname, meta]) => {
+    input_record[argname] = get_method_input_default(meta)
+  })
+  console.log("input record: ", input_record)
+  return input_record
 }
 
 export const default_form = {
@@ -32,15 +50,17 @@ export const default_form = {
 
 
 export const empty_experiment = {
-  id : 0,
+  id: 0,
   author: "anonymous",
   title: "",
   version: 0,
-  plateDimensions: { rows: 8, columns: 12 },
+  plate: machine_data.plates[default_plate],
+  fixture: machine_data.fixtures[default_fixture],
   forms: { [default_form.id]: default_form },
-  selected_id: "form_0",
+  selected_id: default_form.id,
   simulated_platemap: {}
 }
+
 
 
 export const AppGlobalContext = createContext(null)
