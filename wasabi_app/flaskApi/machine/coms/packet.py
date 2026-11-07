@@ -58,9 +58,6 @@ class Packet:
         self.data = data
         self.checksum = 0
 
-    def __repr__(self):
-        return f"{codex.COMS_INV[self.code]} type packet with {codex.types_by_code[self.datatype_id]} data of value: {self.data}"
-
     def make_header(self) -> bytearray:
         header = bytearray()
         header += codex.COMS_START_BYTE
@@ -89,6 +86,25 @@ class Packet:
         flt_iter = struct.iter_unpack("<f", self.data)
         argvec = [flt[0] for flt in flt_iter]
         return argvec
+
+    def state_repr(self):
+        return f"STATE packet with state: {codex.STATE_INV[self.data[0]]}"
+
+    def home_repr(self):
+        return f"HOME packet with coords: {self.get_int_argvec()}"
+
+    def message_repr(self):
+        return f"MESSAGE {self.data.decode("utf-8")}"
+
+    def __repr__(self):
+        if self.code == codex.HOME:
+            return self.home_repr()
+        if self.code == codex.STATE:
+            return self.state_repr()
+        if self.code == codex.MESSAGE:
+            return self.message_repr()
+        else:
+            return f"{codex.COMS_INV[self.code]}"
 
 
 def parse_header(header: bytearray) -> tuple:
@@ -138,7 +154,8 @@ def get_settings_packet(settings_dict):
 
     a_lim_stp_pos = dimensionsettings["a_endstop_position_deg"] / 360
     b_lim_stp_pos = dimensionsettings["b_endstop_position_deg"] / 360
-    z_lim_stp_pos = dimensionsettings["z_endstop_position_mm"] / dimensionsettings["z_screw_pitch"]
+    z_lim_stp_pos = dimensionsettings["z_endstop_position_mm"] / \
+        dimensionsettings["z_screw_pitch"]
 
     a_lim_stp_pos = round(a_lim_stp_pos * kine_spr)
     b_lim_stp_pos = round(b_lim_stp_pos * kine_spr)

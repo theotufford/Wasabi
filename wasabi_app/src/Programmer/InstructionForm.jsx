@@ -1,7 +1,8 @@
-import { AppGlobalContext, get_method_input_default } from '@src/AppGlobalContext.jsx';
+import { AppGlobalContext, default_form } from '@src/AppGlobalContext.jsx';
 import './css/instructionForm.css'
 import methods from '@src/assets/methods.json'
 import { useContext, useEffect, useState } from 'react';
+import { Container_selector } from '../named_container_selector';
 import { Reagent_Selector } from '../Reagent_Selector';
 
 
@@ -17,9 +18,13 @@ function InstructionForm(props) {
 
   const self_destruct = () => {
     const tmp = structuredClone(experiment)
-    delete tmp.forms[props.id]
+    if (length(tmp.forms) > 1) {
+      delete tmp.forms[props.id]
+    }
+    else {
+      tmp.forms[props.id] = default_form
+    }
     tmp.selected_id = Object.keys(tmp.forms)[0]
-    console.log("updating experiment to: ", tmp)
     set_experiment(tmp)
   }
 
@@ -34,7 +39,7 @@ function InstructionForm(props) {
 
     const mod_function = (event) => {
       let value = event.target.value
-      if (type == "float") {
+      if (type == "float" || type == "Volume") {
         value = parseFloat(value)
       }
       if (type == "int") {
@@ -48,13 +53,20 @@ function InstructionForm(props) {
     if (props.name === "well_array") {
       return
     }
+
     if (type == "Named_Container") {
       return <div>
-        container selector goes here
+        {filtered_name}:
+        <Container_selector
+          selected_container={current_value}
+          select_container={(event) => set_form_data(name, event)}
+        />
       </div>
     }
+
     if (type == "Reagent") {
-      return (<div> {filtered_name}: <Reagent_Selector selected_reagent={current_value} select_reagent={(value) => set_form_data(name, value)} />
+      console.log("classname of ", name, "is ", type)
+      return (<div> {filtered_name}: <Reagent_Selector selected_reagent={current_value} select_reagent={(event) => set_form_data(name, event)} />
       </div>
       )
     }
@@ -73,7 +85,7 @@ function InstructionForm(props) {
         </div>
       )
     }
-    if (type == "int" || props.type == "float") {
+    if (type == "int" || type == "float" || type == "Volume") {
       return (
         <input type="number"
           placeholder={filtered_name}

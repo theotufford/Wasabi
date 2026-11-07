@@ -5,46 +5,36 @@ from .kinematics import Vec2d, Vec3d, vec3d_rotate_xy
 
 
 class Reagent_Mix:
-    def __init__(self, contents={}, is_reservoir=False):
+    def __init__(self, contents=dict(), is_reservoir=False):
         self.contents = contents
         self.is_reservoir = is_reservoir
 
-    def get_total_volume(self):
-        total_volume = 0
-        for reagent in self.contents:
-            held_volume = self.contents[reagent]
-            total_volume += held_volume
-        return total_volume
+    @property
+    def total_volume(self):
+        acc = 0
+        for volume in self.contents.values():
+            acc += volume
+        return acc
 
-    def release_volume(self, target_volume):
-        released_volume = Reagent_Mix({}, False)
-        v_total = self.get_total_volume()
-        for reagent in self.contents.keys():
-            volume = (self.contents[reagent] / v_total) * target_volume
+    def gain(self, mix: Self) -> None:
+        for reagent, volume in mix.contents.items():
+            if not self.contents.get(reagent):
+                self.contents[reagent] = 0
+            self.contents[reagent] += volume
+
+    def release(self, volume: float) -> Self:
+        output_contents = {}
+        scale_factor = volume / self.total_volume
+        for reagent, vol in self.contents.items():
+            volume_released = vol * scale_factor
             if not self.is_reservoir:
-                self.contents[reagent] -= volume
-            released_volume.contents[reagent] = volume
-        return released_volume
+                self.contents[reagent] -= volume_released
+            output_contents[reagent] = volume_released
+
+        return Reagent_Mix(contents=output_contents, is_reservoir=False)
 
     def __repr__(self):
         return f"{self.contents}"
-
-    def gain_reagent(self, reagent, volume=0):
-        if self.is_reservoir:
-            return ValueError("attempting to add reagent to mix that is reservoir with indeterminate volume")
-        self.empty = False
-
-        if not self.contents.get(reagent):
-            self.contents[reagent] = 0
-
-        self.contents[reagent] += volume
-
-    def gain_mixed_volume(self, liquid: Self):
-        if self.is_reservoir:
-            return ValueError("attempting to add reagent to mix that is reservoir with indeterminate volume")
-        for reagent in liquid.contents:
-            volume = liquid.contents[reagent]
-            self.gain_reagent(reagent, volume)
 
 
 class Fixture:
@@ -64,7 +54,8 @@ class Fixture:
 
     def add_named(self, name, position):
         self.names.add(name)
-        self.named_containers[name] = Reagent_Mix({}, False)
+        self.named_containers[name] = Reagent_Mix(
+            {f"unknown contents of {name}": 1}, True)
         self.named_positions[name] = Vec3d(position)
 
     def set_tl(self, position: Vec3d):
@@ -72,9 +63,9 @@ class Fixture:
             vec3d_rotate_xy(self.plate.tl_offset, self.rotation)
 
     def get_named_container(self, name) -> Reagent_Mix:
+        print(f"getting container of name: {name}")
         if name in self.names:
             return self.named_containers[name]
-
         elif name in self.plate.all_ids:
             return self.plate.wells[name]
 
@@ -106,7 +97,7 @@ class Plate:
             for col_x in range(0, self.columns):
                 wellid = xy_to_alph(col_x, row_y)
                 self.all_ids.add(wellid)
-                self.wells[wellid] = Reagent_Mix({}, False)
+                self.wells[wellid] = Reagent_Mix(dict(), False)
 
     def __repr__(self):
         return f" {self.rows * self.columns} well plate with contents: {self.wells}"

@@ -114,22 +114,6 @@ def experiment_dump():
     return jsonify({"data": db_row_outputs})
 
 
-# this is sort of cursed that this is using post instead of get but im lazy
-@bp.route('/get_pump_map', methods=["POST"])
-def get_current_pump_map():
-    db = get_db()
-    reagents_by_pumpid = {}
-    dump = db.execute("""
-                      SELECT pumpID, reagent
-                      FROM pumpMap
-                      """).fetchall()
-    for row in dump:
-        rowdict = dict(row)
-        reagents_by_pumpid[rowdict["pumpID"]] = rowdict["reagent"]
-    close_db()
-    return jsonify({"data": reagents_by_pumpid})
-
-
 @bp.route('/add_reagent', methods=["POST"])
 def add_reagent():
     db = get_db()

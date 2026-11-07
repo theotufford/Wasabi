@@ -32,16 +32,16 @@ function Controller(props) {
 
   // on page load
   useEffect(() => {
-    dataStream.onmessage = (e) => {
-      console.log("received: ", e)
-      setSerialMessage(e.data)
-    }
+
     //get and set key value pump array from backend db
-    apiCall({ route: "get_pump_map" })
+    control_call({ route: "get_pump_map" })
       .then(apiResponse => apiResponse.data)
       .then(data => {
         set_pump_array(data)
       })
+    return () => {
+      dataStream.close();
+    };
   }, [])
 
   useEffect(() => {

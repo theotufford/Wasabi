@@ -96,6 +96,7 @@ class Vec3d(Vector):
     def __repr__(self):
         return f"a 3d vector with axes: {self.x=}, {self.y=}, {self.z=}"
 
+
 def vec3d_rotate_xy(initial_vector, radians) -> Vec3d:
     rotation_matrix_row_1 = Vec3d([math.cos(radians), math.sin(radians), 0])
     rotation_matrix_row_2 = Vec3d([-math.sin(radians), math.cos(radians), 0])

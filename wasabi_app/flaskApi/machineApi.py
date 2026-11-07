@@ -1,8 +1,7 @@
 import asyncio
 import time
 import json
-
-from flask import Flask, jsonify, Blueprint, request, session, Response
+from flask import Flask, jsonify, Blueprint, request, session, Response, current_app, g
 from .db import get_db, close_db
 from .machine.coms import codex
 from .machine.utils import liq_handling_data, xy_to_alph
@@ -94,33 +93,46 @@ def machine_aware_bp_factory(machine: Machine) -> Blueprint:
     def monitor():
         pass
 
-    @bp.route('/serial_stream', methods=['GET'])
-    def return_serial_response_stream():
-        return Response(None, mimetype="text/event-stream")
-
-    def db_update_pumps(reagent, id):
-        db = get_db()
-        print(f"inserting into db: {id} has {reagent}")
-        db.execute("""
-                    UPDATE pumpMap
-                    SET reagent = ?
-                    WHERE pumpID = ?
-                    """,
-                   (reagent, id))
-        db.commit()
-        close_db()
+    @bp.route('/get_pump_map', methods=["POST"])
+    def get_pump_map():
+        return jsonify({"data": machine.pump_map})
 
     @bp.route('/update_reagent', methods=["POST"])
     def update_pump_map():
         data = request.get_json()
-        print(f"attempting to update reagents with: {data}")
         id = data["id"]
         reagent = data["reagent"]
-        db_update_pumps(reagent, id)
+        machine.set_pump_reagent(pumpid=int(id), reagent_name=reagent)
         return jsonify({"data": f"updated pump {id} to contain {reagent}"})
 
     @bp.route('/get_named_containers', methods=["POST"])
     def get_named_containers():
-        return jsonify({"data": [*machine.named_containers.keys()]})
+        return jsonify({"data": [*machine.fixture.names]})
+
+    @bp.route('/machine_state_stream')
+    def machine_state_stream():
+        def generate():
+            while True:
+                machine.state_update_available.wait()
+                state_data = None
+                state_data = json.dumps(machine.get_state_data())
+                print(f"yielding: {state_data}\n\n")
+                machine.state_update_available.clear()
+                yield f"data: {state_data}\n\n".encode('utf-8')
+        return Response(generate(), mimetype='text/event-stream')
+
+    @bp.route('/serial_stream')
+    def serial_stream():
+        def generate():
+            while True:
+                machine.new_message_available.wait()
+                if len(machine.messages_received) > 0:
+                    message = machine.messages_received.pop()
+                    formatted = f"data:{json.dumps({"message": message})}\n\n"
+                    yield formatted
+                else:
+                    machine.new_message_available.clear()
+
+        return Response(generate(), mimetype='text/event-stream')
 
     return bp

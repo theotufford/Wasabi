@@ -6,6 +6,11 @@ from .containers import Plate, Reagent_Mix
 from .method_arg_classes import special_constructors
 
 
+def sort_forms(forms):
+    print(f"unsorted: {forms}")
+    return dict(sorted(forms.items(), key=lambda item: item[1]["index"]))
+
+
 class MethodLibrary:
     def __init__(self):
         self.method_callables = {}
@@ -19,27 +24,27 @@ class MethodLibrary:
         form_data = {key: value for key,
                      value in form_data.items() if key in argument_names}
 
-        # call special constructors if they are found
         for argname, argvalue in form_data.items():
             argdata = method_data[argname]
             typename_str = argdata["type"]
             special_constructor = special_constructors.get(typename_str)
+            print(f"{typename_str} found special constructor: {
+                  special_constructor}")
             if special_constructor is not None:
                 form_data[argname] = special_constructor(form_data[argname])
 
         self.method_callables[name](machine=self.machine, **form_data)
 
     def simulate_experiment(self, data, until: int | None = None) -> dict:
+        data["forms"] = sort_forms(data["forms"])
         mach = self.machine
-        if mach.in_simulation:
-            raise Exception("trying to oversimulate!!")
-            return
         initial_position_state = mach.position_known
         mach.save_mutables()
-        mach.pump_map = {pumpid: f"unknown_reagent_of_pump{
-            pumpid}" for pumpid in range(mach.pump_count)}
-        mach.pump_lines = {pumpid: [f"unknown_reagent_of_pump{
-            pumpid}"] for pumpid in range(mach.pump_count)}
+
+        for pumpid in range(mach.pump_count):
+            mach.pump_lines[pumpid] = [None]
+            mach.set_pump_reagent(pumpid, f"unknown_reagent_of_pump{pumpid}")
+
         mach.fixture.plate.reset()
         mach.in_simulation = True
         mach.position_known = True
@@ -64,6 +69,8 @@ class MethodLibrary:
 
     def run_experiment(self, data):
         initial_position = copy.deepcopy(self.machine.current_position)
+        data["forms"] = sort_forms(data["forms"])
+
         for form_id in data["forms"]:
             form = data["forms"][form_id]
             name = form["method"]

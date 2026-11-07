@@ -13,6 +13,7 @@ export const get_method_input_default = (input) => {
     _empty: "",
     dict: {},
     Plate_Map: {},
+    Volume_Map: {},
     Named_Container: {
       name: "",
       contents: {},

@@ -121,9 +121,9 @@
   "fixtures": {
     "std_plate_fixture": {
       "zero_position": [
-        -83.5,
-        60,
-        20
+        -98,
+        49.6,
+        19
       ],
       "named_containers": {
         "tube_r1": [

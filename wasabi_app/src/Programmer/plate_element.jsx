@@ -27,15 +27,12 @@ function PlateElement(props) {
 
     console.log("metmeta ", method_meta)
     Object.entries(method_meta).forEach(([arg_name, arg_meta]) => {
-      if (arg_meta.type == "Plate_Map") {
-        const well_value_types = arg_meta.sub_args
-        if (well_value_types.includes("Volume")) {
-          plate_options = {
-            ...plate_options,
-            "input": <InputPlate field_name={arg_name} />
-          }
-          set_view_mode("input")
+      if (arg_meta.type == "Volume_Map") {
+        plate_options = {
+          ...plate_options,
+          "input": <InputPlate field_name={arg_name} />
         }
+        set_view_mode("input")
       }
     })
     set_view_options(plate_options)

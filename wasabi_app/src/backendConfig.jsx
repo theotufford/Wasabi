@@ -34,6 +34,7 @@ export function modify_reagent(name, metadata) {
     }
   })
 }
+
 export function delete_reagent(name) {
   apiCall({
     route: "add_reagent",
@@ -42,6 +43,7 @@ export function delete_reagent(name) {
     }
   })
 }
+
 export function add_new_reagent(name, metadata = {}) {
   console.log("adding new reagent? ", name, metadata)
   if (name === null) {return}

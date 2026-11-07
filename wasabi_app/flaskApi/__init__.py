@@ -2,7 +2,7 @@ from . import db
 import json
 from .methods import methods
 from . import dataApi
-from . import controlApi
+from . import machineApi
 from flask import Flask, session
 from flask_session import Session
 from flask_cors import CORS
@@ -32,6 +32,6 @@ with app.app_context():
         "./public/machine_config.json", methods)
 
 methods.output_methods_outline()
-ctlAPI = controlApi.machine_aware_bp_factory(machine)
+machAPI = machineApi.machine_aware_bp_factory(machine)
 
-app.register_blueprint(ctlAPI, url_prefix="/control")
+app.register_blueprint(machAPI, url_prefix="/control")

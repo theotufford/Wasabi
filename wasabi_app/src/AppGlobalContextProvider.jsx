@@ -17,6 +17,8 @@ export const AppGlobalContextProvider = ({ children }) => {
   const keystate = useRef([])
 
   const [experiment, set_experiment] = useState(check_cache_or_default("experiment", empty_experiment))
+  const [serial_message, set_serial_message] = useState("")
+  const [machine_state, set_machine_state] = useState({})
 
   useEffect(() => {
     localStorage.setItem("experiment", JSON.stringify(experiment))
@@ -40,11 +42,32 @@ export const AppGlobalContextProvider = ({ children }) => {
   }
 
 
+  useEffect(() => {
+    const streams = []
+    const configure_datastream = (endpoint, message_handler) => {
+      const data_stream = new EventSource(`api/${endpoint}`)
+      data_stream.onmessage = (event) => {
+        console.log("rx event: ", event)
+        const data = JSON.parse(event.data);
+        message_handler(data.message);
+      };
+      data_stream.onerror = (err) => {
+        console.error('serial stream connection error:', err);
+      };
+      streams.push(data_stream)
+    }
+
+    configure_datastream("control/serial_stream", set_serial_message)
+    configure_datastream("control/machine_state_stream", set_machine_state)
+
+    return () => {
+      streams.forEach(stream => { stream.close() })
+    }
+  }, [])
+
   const update_keystate = (new_keystate) => {
     keystate.current = new_keystate
   }
-
-
   const mouse_state = useRef(0)
   const mousedown_handler = (event) => {
     mouse_state.current = 1

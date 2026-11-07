@@ -29,6 +29,8 @@ function InputPlate({ field_name }) {
   const update_volume_map = (id, volume) => set_experiment(prev => {
     const clone_exp = structuredClone(prev)
     const selected_form_clone = clone_exp.forms[clone_exp.selected_id]
+    console.log(clone_exp)
+    console.log("field_name: ", field_name)
     selected_form_clone[field_name][id] = parseFloat(volume) || 0
     return clone_exp
   })

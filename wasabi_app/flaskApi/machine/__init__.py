@@ -61,6 +61,13 @@ class Kinematic_State:
 
 class Machine:
     def __init__(self, settings_path, method_library):
+        self.got_home_complete = threading.Event()
+        self.move_complete = threading.Event()
+        self.got_packet = threading.Event()
+        self.new_message_available = threading.Event()
+        self.state_update_available = threading.Event()
+        self.messages_received = []
+
         self.settings_path = settings_path
         self._current_position = Kinematic_State()
         self._current_container_name = "waste"
@@ -70,23 +77,23 @@ class Machine:
         self.methods: MethodLibrary = method_library
         self.methods.machine = self
 
+        self.fixture_name: str | None = None
+        self.fixture: Fixture | None = None
         self.set_fixture("std_fixture")
 
         self.position_known = False
-        self.got_home_complete = threading.Event()
-        self.move_complete = threading.Event()
-        self.got_packet = threading.Event()
         self.in_simulation = False
         self.simulation_resource_accumulator = []
         self.coms: slib.ComsChannel
 
         self.pump_count = len(self.settings()["machine"]["motors"]["pumps"])
 
-        self.pump_map = {pumpid: f"unknown_reagent_of_pump{
-            pumpid}" for pumpid in range(self.pump_count)}
+        self.pump_map = {}
+        self.pump_lines = {}
 
-        self.pump_lines = {pumpid: [f"unknown_reagent_of_pump{
-            pumpid}"] for pumpid in range(self.pump_count)}
+        for pumpid in range(self.pump_count):
+            self.pump_lines[pumpid] = [None]
+            self.set_pump_reagent(pumpid, f"unknown_reagent_of_pump{pumpid}")
 
         self.hw_init()
 
@@ -101,6 +108,7 @@ class Machine:
             contents={reagent_name: 1},
             is_reservoir=True
         )
+        print(f"pump lines: {self.pump_lines}")
 
     @property
     def current_position(self) -> Kinematic_State:
@@ -110,7 +118,7 @@ class Machine:
     def current_position(self, value: Kinematic_State):
         self._current_position = value
         if not self.in_simulation:
-            print(f"current position: {self.current_position}")
+            self.state_update_available.set()
 
     @property
     def current_container_name(self) -> str:
@@ -120,7 +128,7 @@ class Machine:
     def current_container_name(self, name):
         self._current_container_name = name
         if not self.in_simulation:
-            print(f"current container: {self.current_container_name}")
+            self.state_update_available.set()
 
     @property
     def current_container(self) -> Reagent_Mix:
@@ -135,12 +143,23 @@ class Machine:
 
     def set_fixture(self, name, plate_name="standard 96"):
         settings = self.settings()
+        self.fixture_name = name
         self.fixture = Fixture(
             settings["fixtures"]["std_plate_fixture"],
             settings["plates"]["standard 96"])
+        self.state_update_available.set()
 
     def set_plate(self, name):
         self.fixture.plate = Plate(self.settings()["plates"][name])
+        self.state_update_available.set()
+
+    def get_state_data(self):
+        return {
+            "absolute_position": self.current_position.position.axes,
+            "current_container": self.current_container_name,
+            "pump_map": self.pump_map,
+            "current_fixture": self.fixture_name,
+        }
 
     def save_mutables(self):
         self.saved = {
@@ -153,6 +172,7 @@ class Machine:
     def restore_mutables(self):
         self.current_position = self.saved["position"]
         self.fixture = self.saved["fixture"]
+        self.pump_map = self.saved["pumps"]
         self.pump_lines = self.saved["lines"]
 
     def add_default_responses(self):
@@ -164,6 +184,15 @@ class Machine:
             self.current_position = self.from_steps(*mot_position)
             self.position_known = True
             self.got_home_complete.set()
+
+        def notify_message(ctx: slib.Loopctx):
+            self.messages_received.append(f"{ctx.current_packet}")
+            self.new_message_available.set()
+
+        self.coms.add_response(
+            "message_notifier", lambda ctx: True,
+            notify_message
+        )
 
         self.coms.add_response(
             "homing_response", slib.code_dependent_true(slib.codex.HOME),
@@ -330,6 +359,7 @@ class Machine:
             self.record_needed_resource(
                 {"type": "named_container", "name": target_name})
 
+        print(f"got goto {target_name}")
         if target_name in self.fixture.names:
             target_pos = self.fixture.get_named_position(target_name)
             self.goto_pos(target_pos)
@@ -386,11 +416,15 @@ class Machine:
             if liq_data.volume > 0:
                 target_line = self.pump_lines[liq_data.pumpid]
                 end_of_line_reagent: Reagent_Mix = target_line[-1]
-                released_volume = end_of_line_reagent.release_volume(
+                released_volume = end_of_line_reagent.release(
                     liq_data.volume)
-                self.current_container.gain_mixed_volume(released_volume)
-                if end_of_line_reagent.get_total_volume() == 0:
-                    self.pump_lines.pop()
+                if self.current_container.is_reservoir:
+                    self.current_container.is_reservoir = False
+                    self.current_container.contents = released_volume.contents
+                else:
+                    self.current_container.gain(released_volume)
+                if end_of_line_reagent.total_volume == 0:
+                    target_line.pop()
             else:
                 self.pump_lines[liq_data.pumpid].append(
                     Reagent_Mix({"air_from_airgap_induced_by_negative_volume_dispense_call": liq_data.volume}))
@@ -449,6 +483,10 @@ class Machine:
                 "attempting to aspirate negative volume (which would be a dispense move), fix unintended (-) sign or use dispense functions")
             return
 
+        pump_line = self.pump_lines[pumpid]
+        aspirant = self.current_container.release(volume)
+        pump_line.append(aspirant)
+
         if not self.in_simulation:
             pump = self.settings()["machine"]["motors"]["pumps"][pumpid]
             self.goto_pos(self.current_position +
@@ -474,11 +512,6 @@ class Machine:
                 pump["ang_v_max"],
                 pump["ang_accel_rad"]
             )]))
-
-        pump_line = self.pump_lines[pumpid]
-        aspirant = self.current_container.release_volume(volume)
-
-        pump_line.append(aspirant)
 
     def send_home(self):
         speed_settings = self.settings(
