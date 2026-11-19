@@ -132,6 +132,8 @@ class Machine:
 
     @property
     def current_container(self) -> Reagent_Mix:
+        if self.current_container_name == "waste":
+            return Reagent_Mix()
         out = self.fixture.get_named_container(self.current_container_name)
         if out is None:
             if self.in_simulation:

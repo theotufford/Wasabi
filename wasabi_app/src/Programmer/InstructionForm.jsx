@@ -18,12 +18,7 @@ function InstructionForm(props) {
 
   const self_destruct = () => {
     const tmp = structuredClone(experiment)
-    if (length(tmp.forms) > 1) {
-      delete tmp.forms[props.id]
-    }
-    else {
-      tmp.forms[props.id] = default_form
-    }
+    delete tmp.forms[props.id]
     tmp.selected_id = Object.keys(tmp.forms)[0]
     set_experiment(tmp)
   }

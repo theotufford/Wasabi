@@ -4,7 +4,7 @@ from typing import Literal
 from .machine import Machine, MethodLibrary
 from .machine.kinematics import Vec2d, dot_product
 from .machine.utils import alph_to_vec, get_linear_well_array_height
-from .machine.method_arg_classes import Volume, Plate_Map, Named_Container, Reagent, Wellid, Volume_Map
+from .machine.method_arg_classes import Volume, Plate_Map, Named_Container, Reagent, Wellid
 
 methods = MethodLibrary()
 
@@ -19,7 +19,7 @@ def purge(machine: Machine,
 
 @methods.register_method
 def volume_map(machine: Machine,
-               volume_map: Volume_Map,
+               volume_map: Plate_Map[float],
                reagent: Reagent):
     for wellid in volume_map:
         volume = volume_map[wellid]
@@ -43,7 +43,7 @@ def dispense_into_container(machine: Machine,
 def transfer_from_well_to_plate(machine: Machine,
                                 pumpid: int,
                                 source: Wellid,
-                                volume_map: Volume_Map):
+                                volume_map: Plate_Map[float]):
     total = volume_map.get_value_sum()
     machine.goto_well(source)
     machine.aspirate(total, pumpid=pumpid)
@@ -74,7 +74,7 @@ def transfer_from_container_to_container(machine: Machine,
 def transfer_from_container_to_plate(machine: Machine,
                                      pumpid: int,
                                      named_location: Named_Container,
-                                     volume_map: Volume_Map):
+                                     volume_map: Plate_Map[float]):
     total_volume = volume_map.get_value_sum()
     machine.goto_named(named_location)
     machine.aspirate(total_volume, pumpid)
@@ -91,7 +91,7 @@ def transfer_from_container_to_plate(machine: Machine,
 @methods.register_method
 def discard_volume_by_map(machine: Machine,
                           pumpid: int,
-                          volume_map: Volume_Map):
+                          volume_map: Plate_Map[float]):
 
     for wellid in volume_map:
         volume = float(volume_map[wellid])
