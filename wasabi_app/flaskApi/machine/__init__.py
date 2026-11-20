@@ -432,6 +432,7 @@ class Machine:
                     Reagent_Mix({"air_from_airgap_induced_by_negative_volume_dispense_call": liq_data.volume}))
 
             if not self.in_simulation:
+
                 pump = self.settings()[
                     "machine"]["motors"]["pumps"][liq_data.pumpid]
                 disp_step_total = self.vto_steps(liq_data.pumpid,
@@ -439,12 +440,16 @@ class Machine:
                                                  pump["airgap_vol_ul"] +
                                                  liq_data.volume)
 
+                flow_rate = pump["ang_v_max"]
+                if liq_data.flow_rate is not None:
+                    flow_rate = liq_data.flow_rate
+
                 move_data.append(packet.MoveEntity(
                     codex.PUMP(liq_data.pumpid),
                     codex.NO_DECEL,
                     codex.RELATIVE,
                     disp_step_total,
-                    pump["ang_v_max"],
+                    flow_rate,
                     pump["ang_accel_rad"]
                 ))
 
@@ -455,7 +460,7 @@ class Machine:
                     self.vto_steps(liq_data.pumpid,
                                    - pump["droplet_vol_ul"]
                                    - pump["airgap_vol_ul"]),
-                    pump["ang_v_max"],
+                    flow_rate,
                     pump["ang_accel_rad"]
                 ))
 
@@ -465,11 +470,11 @@ class Machine:
                 packet.make_int_vec_packet(codex.DELAY, [20]))
             self.coms.queue_packet(packet.move_packet(retract_move_data))
             self.coms.queue_packet(
-                packet.make_int_vec_packet(codex.DELAY, [100]))
+                packet.make_int_vec_packet(codex.DELAY, [20]))
 
-    def dispense(self, volume, reagent=None, pumpid=None):
+    def dispense(self, volume, reagent=None, pumpid=None, flow_rate=None):
         singlet_disp_data = liq_handling_data(
-            self.pump_map, volume, pumpid=pumpid, reagent=reagent)
+            self.pump_map, volume, pumpid=pumpid, reagent=reagent, flow_rate=flow_rate)
         self.group_dispense([singlet_disp_data])
 
     def aspirate(self, volume, pumpid):

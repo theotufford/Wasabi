@@ -162,10 +162,17 @@ def alph_sort(arr: list[str]):
 
 
 class liq_handling_data():
-    def __init__(self, pump_map: dict, volume: float, reagent: str | None = None, pumpid: int | None = None):
+    def __init__(self,
+                 pump_map: dict,
+                 volume: float,
+                 reagent: str | None = None,
+                 pumpid: int | None = None,
+                 flow_rate: float | None = None
+                 ):
         self.volume = volume
         self.pumpid = pumpid
         self.reagent = reagent
+        self.flow_rate = flow_rate
         self.not_found = False
 
         if self.pumpid is None and self.reagent is None:

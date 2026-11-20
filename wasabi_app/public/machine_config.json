@@ -54,11 +54,11 @@
           "stp_pin": 4,
           "dir_pin": 5,
           "invert_dir": 0,
-          "ang_v_max": 45,
-          "ang_accel_rad": 1900,
-          "ul_per_rad": 1.8,
+          "ang_v_max": 40,
+          "ang_accel_rad": 2200,
+          "ul_per_rad": 2.2,
           "aspiration_ang_v": 3,
-          "compensation_factor": 0.966,
+          "compensation_factor": 1,
           "line_volume_uL": 875,
           "droplet_vol_ul": 0,
           "airgap_vol_ul": 1
@@ -69,7 +69,7 @@
           "invert_dir": 0,
           "ang_v_max": 45,
           "ang_accel_rad": 1000,
-          "ul_per_rad": 1.8,
+          "ul_per_rad": 2.2,
           "aspiration_ang_v": 5,
           "compensation_factor": 0.866,
           "line_volume_uL": 875,
@@ -80,7 +80,7 @@
           "stp_pin": 12,
           "dir_pin": 13,
           "invert_dir": 0,
-          "ang_v_max": 45,
+          "ang_v_max": 15,
           "ang_accel_rad": 1000,
           "ul_per_rad": 1.8,
           "aspiration_ang_v": 5,
@@ -125,57 +125,17 @@
         49.6,
         19
       ],
-      "named_containers": {
-        "tube_r1": [
-          41.6,
-          60,
-          22
-        ],
-        "tube_r2": [
-          41.6,
-          76,
-          22
-        ],
-        "tube_r3": [
-          41.6,
-          92,
-          22
-        ],
-        "tube_r4": [
-          41.6,
-          108,
-          22
-        ],
-        "tube_r5": [
-          41.6,
-          124,
-          22
-        ],
-        "tube_l1": [
-          -111.6,
-          60,
-          22
-        ],
-        "tube_l2": [
-          -111.6,
-          76,
-          22
-        ],
-        "tube_l3": [
-          -111.6,
-          92,
-          22
-        ],
-        "tube_l4": [
-          -111.6,
-          108,
-          22
-        ],
-        "tube_l5": [
-          -111.6,
-          124,
-          22
-        ]
+      "named_containers": { 
+        "tube_r1": [ 41.6, 60, 22 ],
+			  "tube_r2": [ 41.6, 76, 22 ],
+			  "tube_r3": [ 41.6, 92, 22 ],
+			  "tube_r4": [ 41.6, 108, 22 ],
+			  "tube_r5": [ 41.6, 124, 22 ],
+			  "tube_l1": [ -111.6, 60, 22 ],
+			  "tube_l2": [ -111.6, 76, 22 ],
+			  "tube_l3": [ -111.6, 92, 22 ],
+			  "tube_l4": [ -111.6, 108, 22 ],
+			  "tube_l5": [ -111.6, 124, 22 ]
       }
     }
   },
@@ -187,6 +147,7 @@
       "spacing": 9
     },
     "standard 6": {
+      "top_left_offset": [14.38, 11.24, 0],
       "rows": 2,
       "columns": 3,
       "spacing": 39,

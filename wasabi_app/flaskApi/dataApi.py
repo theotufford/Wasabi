@@ -17,10 +17,11 @@ def getExperiment(data):
     else:  # if no version is given the highest versioned instance is returned
         resp = db.execute(
             """
-                SELECT * FROM experiments
+                SELECT *
+                FROM experiments
                 WHERE ID = ?
                 ORDER BY version DESC
-                LIMIT 1
+                LIMIT 1;
                 """, (data['id'],)).fetchone()
 
     close_db()
@@ -78,12 +79,16 @@ def saveExperiment():
         return jsonify('trying to save a perfect duplicate')
 
     if not autoSave:
+
+        if version != 0:
+            version += 1
+
         db.execute("""
                    INSERT INTO experiments
-                   (data, id, version)
+                   (data, ID, version)
                    VALUES (?, ?, ?)
                    """,
-                   (experimentJson, id, version + 1))
+                   (experimentJson, id, version))
         db.commit()
         close_db()
         return jsonify({"version": version})
@@ -99,17 +104,26 @@ def saveExperiment():
     return jsonify({"status": 1})
 
 
-@bp.route('/experiment_dump', methods=["POST"])
+@bp.route('/search_experiments', methods=["POST"])
 def experiment_dump():
     db = get_db()
+    data = request.get_json()
+    search = data["search_value"]
     db_row_outputs = []
-    dump = db.execute("""
-               SELECT *
-               FROM experiments
-               ORDER BY created
-               """).fetchall()
-    for row in dump:
-        db_row_outputs.append(dict(row))
+    pattern = f"{search}*"
+    search_resp = db.execute("""
+               SELECT DISTINCT ID
+               FROM experiments_fts
+               WHERE data match ?
+               ORDER BY version DESC
+               """, (pattern,)).fetchall()
+    highest_ids = [row[0] for row in search_resp]
+    placeholders = ",".join("?" for _ in highest_ids)
+    print(f"{placeholders=}")
+    query = f"SELECT * FROM experiments WHERE id IN ({placeholders})"
+    db_row_outputs = [dict(row)
+                      for row in db.execute(query, (highest_ids)).fetchall()]
+
     close_db()
     return jsonify({"data": db_row_outputs})
 
@@ -137,7 +151,7 @@ def modify_reagent():
     name = data["name"]
     db = get_db()
     db.execute("""
-               UPDATE experiments
+               UPDATE reagentLib
                SET metadata = ?
                WHERE (name = ?)
                """, (json.dumps(metadata), name))

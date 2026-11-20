@@ -18,9 +18,27 @@ def purge(machine: Machine,
 
 
 @methods.register_method
+def gentle_volume_map(machine: Machine,
+                      volume_map: Plate_Map[float],
+                      reagent: Reagent,
+                      flow_rate: float,
+                      descent_distance: float):
+    for wellid in volume_map:
+        volume = volume_map[wellid]
+        if volume == 0 or volume == "":
+            continue
+        volume = float(volume_map[wellid])
+        machine.goto_well(wellid)
+        machine.goto_pos(machine.current_position + [0, 0, -descent_distance])
+        machine.goto_pos(machine.current_position + [0, 0, 1])
+        machine.dispense(volume, reagent=reagent, flow_rate=flow_rate)
+
+
+@methods.register_method
 def volume_map(machine: Machine,
                volume_map: Plate_Map[float],
-               reagent: Reagent):
+               reagent: Reagent,
+               ):
     for wellid in volume_map:
         volume = volume_map[wellid]
         if volume == 0 or volume == "":
@@ -44,11 +62,12 @@ def transfer_from_well_to_plate(machine: Machine,
                                 pumpid: int,
                                 source: Wellid,
                                 volume_map: Plate_Map[float]):
-    total = volume_map.get_value_sum()
+
+    total = sum(volume_map.values())
     machine.goto_well(source)
     machine.aspirate(total, pumpid=pumpid)
-    for wellid in volume_map:
-        volume = volume_map[wellid]
+
+    for wellid, volume in volume_map.items():
         if volume == 0 or volume == "":
             continue
         volume = float(volume_map[wellid])
@@ -75,9 +94,9 @@ def transfer_from_container_to_plate(machine: Machine,
                                      pumpid: int,
                                      named_location: Named_Container,
                                      volume_map: Plate_Map[float]):
-    total_volume = volume_map.get_value_sum()
+    total = sum(volume_map.values())
     machine.goto_named(named_location)
-    machine.aspirate(total_volume, pumpid)
+    machine.aspirate(total, pumpid)
 
     for wellid in volume_map:
         volume = volume_map[wellid]

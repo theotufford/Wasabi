@@ -2,7 +2,6 @@
 
 export const apiCall = async (args) => {
   const method = args?.method || "POST"
-  console.log("args: ", args)
   const jsonResponse = await fetch(`api/dataApi/${args?.route}`, {
     method: method,
     headers: { 'Content-Type': 'application/json' },
@@ -14,7 +13,6 @@ export const apiCall = async (args) => {
 
 export const control_call = async (args) => {
   const method = args?.method || "POST"
-  console.log("args: ", args)
   const jsonResponse = await fetch(`api/control/${args?.route}`, {
     method: method,
     headers: { 'Content-Type': 'application/json' },
@@ -45,7 +43,6 @@ export function delete_reagent(name) {
 }
 
 export function add_new_reagent(name, metadata = {}) {
-  console.log("adding new reagent? ", name, metadata)
   if (name === null) {return}
   apiCall({
     route: "add_reagent",
